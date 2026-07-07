@@ -1,4 +1,4 @@
-# Nutrition MVP — Microserviço de Análise de Refeições
+# Perfora MVP — Microserviço de Análise de Refeições
 
 ## Arquitetura geral
 
