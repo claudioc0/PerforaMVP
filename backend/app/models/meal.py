@@ -23,6 +23,9 @@ class Meal(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # NOVA COLUNA: Chave estrangeira que obriga toda refeição a ter um dono (usuário)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,
@@ -34,12 +37,14 @@ class Meal(db.Model):
             "source_type": self.source_type,
             "confidence": self.confidence,
             "created_at": self.created_at.isoformat(),
+            "user_id": self.user_id, # Retornando o ID do dono da refeição
         }
 
     @staticmethod
-    def query_today():
-        """Retorna todas as refeições registradas no dia atual (UTC)."""
-        today = date.today()
-        start = datetime.combine(today, datetime.min.time())
-        end = datetime.combine(today, datetime.max.time())
+    def query_by_date(target_date: date):
+        """Retorna todas as refeições registradas em uma data específica (UTC)."""
+        start = datetime.combine(target_date, datetime.min.time())
+        end = datetime.combine(target_date, datetime.max.time())
+        
+        # Retorna a Query base. O filtro de user_id é adicionado dinamicamente no MealService.
         return Meal.query.filter(Meal.created_at.between(start, end)).order_by(Meal.created_at.asc())

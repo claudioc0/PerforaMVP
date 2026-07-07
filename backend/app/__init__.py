@@ -1,40 +1,38 @@
-import logging
 import os
-
 from flask import Flask
+from flask_jwt_extended import JWTManager
 
-from app.config import Config
-from app.extensions import cors, db
+from .config import Config
+from .extensions import cors, db
+from .models.user import User
+from .models.meal import Meal
 
 
-def create_app(config_class: type = Config) -> Flask:
-    """Application factory. Permite criar múltiplas instâncias do app
-    (produção, testes) sem estado global compartilhado — essencial para
-    manter este módulo como um microserviço isolado e testável.
+def create_app(config_class=Config):
+    """
+    Application factory pattern.
     """
     app = Flask(__name__, instance_relative_config=True)
+
+    # Carrega as configurações do objeto de configuração
     app.config.from_object(config_class)
 
-    os.makedirs(app.instance_path, exist_ok=True)
+    # **CORREÇÃO: Configura onde o Flask-JWT-Extended deve procurar o token**
+    # Isso instrui a biblioteca a procurar o token no cabeçalho 'Authorization'.
+    app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 
-    logging.basicConfig(level=logging.INFO)
-
-    # CORS liberado para o app mobile consumir a API livremente no MVP.
-    # Em produção, restrinja origins conforme necessário.
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    # Inicializa as extensões do Flask
     db.init_app(app)
+    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    jwt = JWTManager(app)
 
-    from app.routes import meals_bp
-
-    app.register_blueprint(meals_bp)
+    # Registra os Blueprints (rotas)
+    from .routes import auth_routes, meals_routes
+    app.register_blueprint(auth_routes.auth_bp)
+    app.register_blueprint(meals_routes.meals_bp)
 
     with app.app_context():
-        from app.models import Meal  # noqa: F401 - garante que o modelo seja registrado
-
+        # Cria as tabelas do banco de dados se não existirem
         db.create_all()
-
-    @app.route("/")
-    def index():
-        return {"service": "nutrition-meals-service", "status": "running"}
 
     return app

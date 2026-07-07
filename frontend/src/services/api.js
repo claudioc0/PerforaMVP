@@ -4,6 +4,7 @@
  * o que facilita trocar de backend ou mockar em testes.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // Em desenvolvimento, use o IP da sua máquina na rede local (não use "localhost"
 // se estiver testando em um celular físico ou emulador Android).
 // Exemplo: "http://192.168.0.10:5000"
@@ -30,11 +31,28 @@ async function handleResponse(response) {
 }
 
 /**
+ * Cria os cabeçalhos padrão para requisições, incluindo o token JWT se disponível.
+ * @param {object} additionalHeaders - Cabeçalhos adicionais, como 'Content-Type'.
+ * @returns {Promise<object>}
+ */
+async function getAuthHeaders(additionalHeaders = {}) {
+  const token = await AsyncStorage.getItem('jwt_token'); // Chave onde o token foi salvo no login
+  const headers = {
+    Accept: 'application/json',
+    ...additionalHeaders,
+  };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+/**
  * Envia a refeição para análise da IA (suporta tanto foto quanto texto).
  * @param {string} imageUri - URI local da imagem (retornada pela câmera).
  * @param {string} description - Texto descritivo da refeição.
+ * @param {string} targetDate - Data da refeição no formato 'YYYY-MM-DD'.
  */
-export async function analyzeMeal(imageUri, description) {
+export async function analyzeMeal(imageUri, description, targetDate) {
   if (imageUri) {
     // Fluxo 1: Envio de Imagem
     const formData = new FormData();
@@ -49,14 +67,16 @@ export async function analyzeMeal(imageUri, description) {
       type: fileType,
     });
 
+    // Adiciona a data ao formulário
+    if (targetDate) {
+      formData.append("date", targetDate);
+    }
+
+    const headers = await getAuthHeaders(); // Pega o cabeçalho com o token
     const response = await fetch(`${API_BASE_URL}/meals/analyze`, {
       method: "POST",
       body: formData,
-      headers: {
-        Accept: "application/json",
-        // NÃO defina 'Content-Type' manualmente para multipart/form-data no RN —
-        // o fetch adiciona o boundary correto automaticamente.
-      },
+      headers,
     });
 
     return handleResponse(response);
@@ -65,11 +85,10 @@ export async function analyzeMeal(imageUri, description) {
     // Fluxo 2: Envio de Texto
     const response = await fetch(`${API_BASE_URL}/meals/analyze`, {
       method: "POST",
-      headers: {
+      headers: await getAuthHeaders({
         "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({ description }),
+      }),
+      body: JSON.stringify({ description, date: targetDate }),
     });
 
     return handleResponse(response);
@@ -81,14 +100,42 @@ export async function analyzeMeal(imageUri, description) {
 
 /**
  * Busca o resumo e histórico de refeições do dia atual.
+ * @param {string} dateString - Data para a qual buscar o resumo (formato 'YYYY-MM-DD').
  * @returns {Promise<{total_calories:number, total_protein_g:number, total_carbs_g:number, total_fat_g:number, meals_count:number, meals:Array}>}
  */
-export async function getTodaySummary() {
-  const response = await fetch(`${API_BASE_URL}/meals/today`, {
+export async function getTodaySummary(dateString) {
+  const endpoint = `${API_BASE_URL}/meals/today`;
+  const url = dateString ? `${endpoint}?date=${dateString}` : endpoint;
+  const headers = await getAuthHeaders(); // Pega o cabeçalho com o token
+  const response = await fetch(url, {
     method: "GET",
-    headers: { Accept: "application/json" },
+    headers,
   });
 
+  return handleResponse(response);
+}
+
+/**
+ * Rota de Login: Valida o usuário e retorna o Token JWT.
+ */
+export async function loginUser(email, password) {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, password })
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Rota de Cadastro: Cria um novo usuário no banco de dados.
+ */
+export async function registerUser(name, email, password) {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ name, email, password })
+  });
   return handleResponse(response);
 }
 

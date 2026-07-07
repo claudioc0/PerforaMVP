@@ -3,11 +3,12 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator,
 import * as ImagePicker from 'expo-image-picker';
 import { analyzeMeal } from '../services/api';
 
-export default function CameraScreen({ navigation }) {
+export default function CameraScreen({ navigation, route }) {
   const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
-
+  const { targetDate } = route.params || {}; // Captura a data dos parâmetros da rota
+  
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
@@ -34,8 +35,8 @@ export default function CameraScreen({ navigation }) {
 
     setAnalyzing(true);
     try {
-      // NOVA CHAMADA: Passando tanto a URI quanto a descrição
-      await analyzeMeal(imageUri, description); 
+      // NOVA CHAMADA: Passando a URI, a descrição e a data-alvo
+      await analyzeMeal(imageUri, description, targetDate); 
       
       navigation.goBack(); 
     } catch (error) {
@@ -77,7 +78,10 @@ export default function CameraScreen({ navigation }) {
         disabled={analyzing}
       >
         {analyzing ? (
-          <ActivityIndicator color="#121212" />
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ActivityIndicator color="#121212" style={{ marginRight: 10 }} />
+            <Text style={styles.submitText}>Mapeando nutrientes...</Text>
+          </View>
         ) : (
           <Text style={styles.submitText}>Analisar com IA</Text>
         )}

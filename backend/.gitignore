@@ -1,5 +1,12 @@
+# Dependências do Frontend
+node_modules/
+.expo/
+
+# Dependências do Backend
 venv/
 __pycache__/
 .env
+
+# Banco de dados local (Para não enviar os testes)
 instance/
-*.pyc
+*.db
