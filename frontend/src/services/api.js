@@ -50,9 +50,8 @@ async function getAuthHeaders(additionalHeaders = {}) {
  * Envia a refeição para análise da IA (suporta tanto foto quanto texto).
  * @param {string} imageUri - URI local da imagem (retornada pela câmera).
  * @param {string} description - Texto descritivo da refeição.
- * @param {string} targetDate - Data da refeição no formato 'YYYY-MM-DD'.
  */
-export async function analyzeMeal(imageUri, description, targetDate) {
+export async function analyzeMeal(imageUri, description) {
   if (imageUri) {
     // Fluxo 1: Envio de Imagem
     const formData = new FormData();
@@ -66,11 +65,6 @@ export async function analyzeMeal(imageUri, description, targetDate) {
       name: filename ?? "meal.jpg",
       type: fileType,
     });
-
-    // Adiciona a data ao formulário
-    if (targetDate) {
-      formData.append("date", targetDate);
-    }
 
     const headers = await getAuthHeaders(); // Pega o cabeçalho com o token
     const response = await fetch(`${API_BASE_URL}/meals/analyze`, {
@@ -88,7 +82,7 @@ export async function analyzeMeal(imageUri, description, targetDate) {
       headers: await getAuthHeaders({
         "Content-Type": "application/json",
       }),
-      body: JSON.stringify({ description, date: targetDate }),
+      body: JSON.stringify({ description }),
     });
 
     return handleResponse(response);
@@ -96,6 +90,23 @@ export async function analyzeMeal(imageUri, description, targetDate) {
   } else {
     throw new Error("Nenhuma imagem ou texto fornecido.");
   }
+}
+
+/**
+ * Salva a refeição confirmada pelo usuário no banco de dados.
+ * @param {object} mealData - Os dados completos da refeição (com macros recalculados e a data).
+ * @returns {Promise<object>} A refeição salva.
+ */
+export async function saveMeal(mealData) {
+  const response = await fetch(`${API_BASE_URL}/meals/save`, {
+    method: 'POST',
+    headers: await getAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(mealData),
+  });
+
+  return handleResponse(response);
 }
 
 /**
@@ -136,7 +147,5 @@ export async function registerUser(name, email, password) {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ name, email, password })
   });
-  return handleResponse(response);
+  return handleResponse(response); // <-- Faltava processar a resposta
 }
-
-export { ApiError };

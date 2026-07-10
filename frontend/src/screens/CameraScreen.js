@@ -35,12 +35,16 @@ export default function CameraScreen({ navigation, route }) {
 
     setAnalyzing(true);
     try {
-      // NOVA CHAMADA: Passando a URI, a descrição e a data-alvo
-      await analyzeMeal(imageUri, description, targetDate); 
+      // 1. Chama a API de análise para obter o rascunho (sem a data)
+      const draftMeal = await analyzeMeal(imageUri, description);
       
-      navigation.goBack(); 
+      // 2. Navega para a tela de confirmação, passando o rascunho e a data
+      navigation.navigate('MealConfirmation', { 
+        draftMeal, 
+        targetDate 
+      });
     } catch (error) {
-      Alert.alert("Erro", "Falha ao analisar a refeição. Verifique se o servidor Flask está rodando.");
+      Alert.alert("Erro na Análise", error.message || "Falha ao analisar a refeição. Verifique o servidor.");
     } finally {
       setAnalyzing(false);
     }

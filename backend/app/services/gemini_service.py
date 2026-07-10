@@ -25,20 +25,26 @@ class MealAnalysisResult:
 
 # Prompt blindado com One-Shot Learning para garantir saída determinística
 _SYSTEM_PROMPT = """
-Você é um especialista em nutrição e o motor de análise de dados de um aplicativo de alta performance.
-Analise a refeição na imagem (ou na descrição de texto fornecida) e estime os valores nutricionais totais do prato.
+Você é um nutricionista esportivo especialista em visão computacional, baseando-se estritamente na Tabela TACO (Tabela Brasileira de Composição de Alimentos) e USDA.
 
+Sua tarefa é analisar a imagem ou a descrição da refeição e retornar uma estimativa nutricional com uma REGRA DE OURO INQUEBRÁVEL: 
+TODOS os valores de calorias e macronutrientes devem ser calculados EXATAMENTE e ESTRITAMENTE para uma porção de 100 GRAMAS da refeição apresentada, não importando o tamanho real do prato.
 REGRA ABSOLUTA DE SAÍDA:
 Responda EXCLUSIVAMENTE com um objeto JSON válido, sem markdown, sem ```json, sem saudações ou explicações.
 
-O JSON deve seguir EXATAMENTE este formato:
+Restrições Físicas Obrigatórias (Para 100g):
+- Carnes magras (frango, patinho) têm no MÁXIMO 32g de proteína por 100g. Jamais ultrapasse isso.
+- O total da soma de proteína, carboidrato e gordura NUNCA pode ultrapassar 100g.
+- Se for um prato misto (ex: arroz, feijão e carne), faça uma média proporcional baseada em 100g dessa mistura.
+
+Responda APENAS com um objeto JSON válido, sem formatação markdown ou textos extras, contendo a seguinte estrutura:
 {
-  "description": "nome curto do prato identificado",
-  "calories": 0.0,
-  "protein_g": 0.0,
-  "carbs_g": 0.0,
-  "fat_g": 0.0,
-  "confidence": 0.0
+    "description": "Nome simples e direto do prato (ex: Peito de Frango Grelhado)",
+    "calories": numero_float_com_uma_casa_decimal,
+    "protein_g": numero_float_com_uma_casa_decimal,
+    "carbs_g": numero_float_com_uma_casa_decimal,
+    "fat_g": numero_float_com_uma_casa_decimal,
+    "confidence": numero_float_com_uma_casa_decimal
 }
 
 EXEMPLO DE COMPORTAMENTO ESPERADO (One-Shot):
@@ -107,18 +113,26 @@ class GeminiService:
     @staticmethod
     def _parse_response(raw_text: str) -> MealAnalysisResult:
         try:
-            # O response_mime_type garante que o texto bruto seja um JSON válido
+            # 1. Converte o texto da IA para um dicionário Python
             data = json.loads(raw_text)
+
+            # 2. TRAVA DE SEGURANÇA: Garante a formatação correta dos números
+            calories = round(float(data.get("calories", 0)), 1)
+            protein_g = round(float(data.get("protein_g", 0)), 1)
+            carbs_g = round(float(data.get("carbs_g", 0)), 1)
+            fat_g = round(float(data.get("fat_g", 0)), 1)
+            confidence = round(float(data.get("confidence", 0.0)), 2)
+            description = str(data.get("description", "Refeição não identificada"))
+
+            # 3. Retorna o objeto limpo e formatado
             return MealAnalysisResult(
-                description=str(data.get("description", "Refeição não identificada")),
-                calories=float(data.get("calories", 0)),
-                protein_g=float(data.get("protein_g", 0)),
-                carbs_g=float(data.get("carbs_g", 0)),
-                fat_g=float(data.get("fat_g", 0)),
-                confidence=float(data.get("confidence", 0.0)),
+                description=description,
+                calories=calories,
+                protein_g=protein_g,
+                carbs_g=carbs_g,
+                fat_g=fat_g,
+                confidence=confidence,
             )
         except (json.JSONDecodeError, TypeError, ValueError) as exc:
             logger.error("Resposta da IA fora do formato esperado: %s", raw_text)
-            raise GeminiAnalysisError(
-                "A IA retornou uma resposta em formato inesperado."
-            ) from exc
+            raise GeminiAnalysisError("Erro ao formatar os números retornados pela IA.") from exc

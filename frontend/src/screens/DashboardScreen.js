@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getTodaySummary } from '../services/api'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- Funções utilitárias para manipulação de datas ---
 const getFormattedDate = (date) => {
@@ -18,7 +19,6 @@ const getDisplayDate = (date) => {
 
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 };
-// ---
 
 export default function DashboardScreen({ navigation }) {
   const [summary, setSummary] = useState(null);
@@ -74,6 +74,11 @@ export default function DashboardScreen({ navigation }) {
     }, [fetchSummary]) // Depende de fetchSummary para sempre usar a data mais recente
   );
 
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem('jwt_token');
+    navigation.replace('Login'); // Destrói a pilha atual e joga pro Login
+  };
+
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
@@ -85,7 +90,12 @@ export default function DashboardScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.greeting}>Olá, Claudio!</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.greeting}>Olá, Claudio!</Text>
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={styles.logoutText}>Sair</Text>
+          </TouchableOpacity>
+        </View>
         <View style={styles.dateSelector}>
           <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
             <Text style={styles.arrowText}>{'<'}</Text>
@@ -102,19 +112,19 @@ export default function DashboardScreen({ navigation }) {
         <Text style={styles.cardTitle}>Consumo Diário</Text>
         <View style={styles.macrosContainer}>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{summary?.total_calories || 0}</Text>
+            <Text style={styles.macroValue}>{(summary?.total_calories || 0).toFixed(0)}</Text>
             <Text style={styles.macroLabel}>Kcal</Text>
           </View>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{summary?.total_protein_g || 0}g</Text>
+            <Text style={styles.macroValue}>{(summary?.total_protein_g || 0).toFixed(1)}g</Text>
             <Text style={styles.macroLabel}>Proteína</Text>
           </View>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{summary?.total_carbs_g || 0}g</Text>
+            <Text style={styles.macroValue}>{(summary?.total_carbs_g || 0).toFixed(1)}g</Text>
             <Text style={styles.macroLabel}>Carbo</Text>
           </View>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{summary?.total_fat_g || 0}g</Text>
+            <Text style={styles.macroValue}>{(summary?.total_fat_g || 0).toFixed(1)}g</Text>
             <Text style={styles.macroLabel}>Gordura</Text>
           </View>
         </View>
@@ -146,7 +156,7 @@ export default function DashboardScreen({ navigation }) {
                 </View>
               )}
             </View>
-            <Text style={styles.mealMacros}>{item.calories} kcal • P: {item.protein_g}g • C: {item.carbs_g}g • G: {item.fat_g}g</Text>
+            <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
@@ -166,10 +176,12 @@ export default function DashboardScreen({ navigation }) {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', backgroundColor: '#121212' },
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  header: { marginBottom: 30 },
+  header: { marginBottom: 20 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  logoutText: { color: '#00FF66', fontSize: 16, fontWeight: '500' },
   dateSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 4 },
   arrowButton: { padding: 10 },
-  arrowText: { color: '#FFF', fontSize: 28, fontWeight: 'bold' },
+  arrowText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
   disabledArrow: { opacity: 0.3 },
   greeting: { color: '#888', fontSize: 16 },
   title: { color: '#FFF', fontSize: 32, fontWeight: 'bold', letterSpacing: 1, textAlign: 'center' },

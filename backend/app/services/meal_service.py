@@ -4,7 +4,7 @@ from typing import Iterable, Optional
 
 from PIL import Image
 
-from app.extensions import db
+from app.extensions import db 
 from app.models.meal import Meal
 from app.services.gemini_service import GeminiService, MealAnalysisResult
 
@@ -29,39 +29,53 @@ class MealService:
     def __init__(self, gemini_service: GeminiService):
         self._gemini_service = gemini_service
 
-    def analyze_and_store_image(self, image_bytes: bytes, date_str: Optional[str], user_id: int) -> Meal:
+    # 1. APENAS ANALISA A IMAGEM (Não salva mais no banco)
+    def analyze_image(self, image_bytes: bytes) -> dict:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
         result = self._gemini_service.analyze_image(image)
-        return self._create_and_persist_meal(result, "image", date_str, user_id)
+        
+        # Retorna um dicionário com a estimativa da IA
+        return {
+            "description": result.description,
+            "calories": result.calories,
+            "protein_g": result.protein_g,
+            "carbs_g": result.carbs_g,
+            "fat_g": result.fat_g,
+            "confidence": result.confidence,
+            "source_type": "image"
+        }
 
-    def analyze_and_store_text(self, description: str, date_str: Optional[str], user_id: int) -> Meal:
+    # 2. APENAS ANALISA O TEXTO (Não salva mais no banco)
+    def analyze_text(self, description: str) -> dict:
         result = self._gemini_service.analyze_text(description)
-        return self._create_and_persist_meal(result, "text", date_str, user_id)
+        
+        return {
+            "description": result.description,
+            "calories": result.calories,
+            "protein_g": result.protein_g,
+            "carbs_g": result.carbs_g,
+            "fat_g": result.fat_g,
+            "confidence": result.confidence,
+            "source_type": "text"
+        }
 
-    def _create_and_persist_meal(self, result: MealAnalysisResult, source_type: str, date_str: Optional[str], user_id: int) -> Meal:
-        """Método centralizador para criar e salvar uma refeição."""
+    # 3. NOVO MÉTODO: SALVA A REFEIÇÃO (Recebe os dados confirmados do celular)
+    def save_meal(self, meal_data: dict, date_str: Optional[str], user_id: int) -> Meal:
         target_date = _parse_date_str(date_str)
         creation_timestamp = datetime.combine(target_date, datetime.utcnow().time())
 
+        # Cria a refeição no banco com os dados que o usuário confirmou na tela
         meal = Meal(
-            description=result.description,
-            calories=result.calories,
-            protein_g=result.protein_g,
-            carbs_g=result.carbs_g,
-            fat_g=result.fat_g,
-            confidence=result.confidence,
-            source_type=source_type,
+            description=meal_data.get("description", "Refeição"),
+            calories=meal_data.get("calories", 0),
+            protein_g=meal_data.get("protein_g", 0),
+            carbs_g=meal_data.get("carbs_g", 0),
+            fat_g=meal_data.get("fat_g", 0),
+            confidence=meal_data.get("confidence"),
+            source_type=meal_data.get("source_type", "manual"),
             created_at=creation_timestamp,
-            user_id=user_id,
+            user_id=user_id
         )
-        return self._persist(meal)
-
-    @staticmethod
-    def _persist(meal: Meal) -> Meal:
-        """Adiciona a refeição à sessão e a salva no banco de dados."""
-        if not meal.user_id:
-            raise ValueError("A refeição deve estar associada a um usuário (user_id).")
-
         db.session.add(meal)
         db.session.commit()
         return meal
