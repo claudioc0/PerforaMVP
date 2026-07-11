@@ -57,55 +57,6 @@ nutrition-app/
   diretamente, o que facilita trocar a URL base, adicionar autenticação, ou até trocar todo o
   backend no futuro.
 
-## Setup — Backend
-
-```bash
-cd backend
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-
-cp .env.example .env
-# edite o .env e cole sua GEMINI_API_KEY (https://aistudio.google.com/app/apikey)
-
-python run.py
-# Servidor sobe em http://0.0.0.0:5000
-```
-
-Testando rapidamente com curl:
-
-```bash
-# Análise por imagem
-curl -X POST http://localhost:5000/api/meals/analyze \
-  -F "image=@/caminho/para/prato.jpg"
-
-# Análise por texto (fallback)
-curl -X POST http://localhost:5000/api/meals/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"description": "200g de arroz, 100g de feijão e 150g de frango grelhado"}'
-
-# Resumo do dia
-curl http://localhost:5000/api/meals/today
-```
-
-## Setup — Frontend
-
-```bash
-cd frontend
-npx create-expo-app . --template blank   # se ainda não inicializou o projeto Expo
-npm install
-npx expo install expo-camera
-
-npx tailwindcss init   # se tailwind.config.js não existir ainda
-```
-
-Em `src/services/api.js`, ajuste `API_BASE_URL` para o IP da sua máquina na rede local
-(não use `localhost` ao testar em dispositivo físico ou emulador Android — no Android
-emulator use `10.0.2.2`).
-
-```bash
-npx expo start
-```
 
 ## Próximos passos sugeridos (pós-MVP)
 
