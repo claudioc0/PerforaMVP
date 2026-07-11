@@ -11,6 +11,12 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # --- NOVAS COLUNAS: Metas do Usuário ---
+    goal_calories = db.Column(db.Float, default=2000.0)
+    goal_protein_g = db.Column(db.Float, default=150.0)
+    goal_carbs_g = db.Column(db.Float, default=200.0)
+    goal_fat_g = db.Column(db.Float, default=60.0)
+
     # O relacionamento 1:N (Um usuário tem várias refeições)
     meals = db.relationship('Meal', backref='author', lazy=True)
 

@@ -5,6 +5,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { navigate } from '../navigation/RootNavigation'; // Importa o helper de navegação
 // Em desenvolvimento, use o IP da sua máquina na rede local (não use "localhost"
 // se estiver testando em um celular físico ou emulador Android).
 // Exemplo: "http://192.168.0.10:5000"
@@ -21,6 +22,17 @@ async function handleResponse(response) {
   const contentType = response.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
   const body = isJson ? await response.json() : await response.text();
+
+  // --- INTERCEPTADOR GLOBAL DE ERRO 401 ---
+  // Se a resposta for 401 (Não Autorizado), o token é inválido ou expirou.
+  // Deslogamos o usuário e o redirecionamos para a tela de Login.
+  if (response.status === 401) {
+    console.log("API: Recebido erro 401. Deslogando usuário.");
+    await AsyncStorage.removeItem('jwt_token'); // Limpa o token inválido
+    navigate('Login'); // Redireciona para o login
+    // Lança um erro específico para interromper o fluxo e evitar que a tela de origem tente renderizar dados.
+    throw new ApiError("Sessão expirada. Por favor, faça o login novamente.", 401);
+  }
 
   if (!response.ok) {
     const message = isJson && body?.error ? body.error : "Erro ao comunicar com o servidor.";
@@ -148,4 +160,32 @@ export async function registerUser(name, email, password) {
     body: JSON.stringify({ name, email, password })
   });
   return handleResponse(response); // <-- Faltava processar a resposta
+}
+
+/**
+ * Busca as metas nutricionais do usuário logado.
+ * @returns {Promise<{goal_calories: number, goal_protein_g: number, goal_carbs_g: number, goal_fat_g: number}>}
+ */
+export async function getUserGoals() {
+  const response = await fetch(`${API_BASE_URL}/user/goals`, {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Atualiza as metas nutricionais do usuário logado.
+ * @param {object} goalsData - Objeto com as novas metas.
+ * @returns {Promise<object>} A mensagem de sucesso do backend.
+ */
+export async function updateUserGoals(goalsData) {
+  const response = await fetch(`${API_BASE_URL}/user/goals`, {
+    method: 'PUT',
+    headers: await getAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(goalsData),
+  });
+  return handleResponse(response);
 }

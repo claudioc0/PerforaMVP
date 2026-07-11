@@ -10,6 +10,7 @@ import RegisterScreen from './src/screens/RegisterScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import CameraScreen from './src/screens/CameraScreen';
 import MealConfirmationScreen from "./src/screens/MealConfirmationScreen"; // Importa a nova tela
+import GoalsScreen from "./src/screens/GoalsScreen"; // Importa a tela de Metas
 
 const Stack = createNativeStackNavigator();
 export default function App() {
@@ -48,6 +49,7 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
+        <Stack.Screen name="Goals" component={GoalsScreen} />
         <Stack.Screen name="Camera" component={CameraScreen} />
         {/* Adiciona a tela de confirmação à pilha */}
         <Stack.Screen 
