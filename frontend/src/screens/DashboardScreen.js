@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getTodaySummary, getUserGoals } from '../services/api'; 
+import { getTodaySummary, getUserGoals, deleteMeal, updateMeal } from '../services/api'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- Funções utilitárias para manipulação de datas ---
@@ -57,6 +57,7 @@ export default function DashboardScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [userName, setUserName] = useState('');
 
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
   const isFutureDate = useMemo(() => {
@@ -115,6 +116,19 @@ export default function DashboardScreen({ navigation }) {
       // Ao focar na tela, busca os dados para a data que já está selecionada.
       // Isso garante que os dados sejam atualizados se uma nova refeição for adicionada.
       fetchData(); 
+
+    const loadUserData = async () => {
+      try {
+        const userDataString = await AsyncStorage.getItem('user_data');
+        if (userDataString) {
+          const userData = JSON.parse(userDataString);
+          setUserName(userData.name || '');
+        }
+      } catch (e) {
+        console.error("Erro ao carregar dados do usuário:", e);
+      }
+    };
+    loadUserData();
     }, [fetchData]) // Depende de fetchData para sempre usar a data mais recente
   );
 
@@ -123,6 +137,29 @@ export default function DashboardScreen({ navigation }) {
     navigation.replace('Login'); // Destrói a pilha atual e joga pro Login
   };
 
+  const handleDeleteMeal = async (mealId) => {
+    Alert.alert(
+      "Excluir Refeição",
+      "Tem certeza que deseja apagar este registro?",
+      [
+        {
+          text: "Não",
+          style: "cancel"
+        },
+        { 
+          text: "Sim", 
+          onPress: async () => {
+            try {
+              await deleteMeal(mealId);
+              fetchData(); // Re-busca os dados para atualizar a UI
+            } catch (error) {
+              Alert.alert("Erro ao Excluir", error.message || "Não foi possível apagar a refeição.");
+            }
+          }
+        }
+      ]
+    );
+  };
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
@@ -151,8 +188,9 @@ export default function DashboardScreen({ navigation }) {
     >
       <View style={styles.header}>
         <View style={styles.headerRow}>
-          <Text style={styles.greeting}>Olá, Claudio</Text>
+          <Text style={styles.greeting}>Olá, {userName}</Text>
           <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => navigation.navigate('Insights')}><Text style={styles.headerButtonText}>Gráficos</Text></TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('Goals')}><Text style={styles.headerButtonText}>Metas</Text></TouchableOpacity>
             <TouchableOpacity onPress={handleLogout}><Text style={styles.logoutText}>Sair</Text></TouchableOpacity>
           </View>
@@ -200,17 +238,24 @@ export default function DashboardScreen({ navigation }) {
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => (
-          <View style={styles.mealItem}>
-            <View style={styles.mealHeader}>
-              <Text style={styles.mealDesc}>{item.description}</Text>
-              {/* Badge de Confiança da IA */}
-              {item.confidence > 0 && (
-                <View style={styles.confidenceBadge}>
-                  <Text style={styles.confidenceText}>{(item.confidence * 100).toFixed(0)}% IA</Text>
+          <View style={styles.mealItemContainer}>
+            <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('AdjustQuantity', { meal: item })}>
+              <View style={styles.mealItem}>
+                <View style={styles.mealHeader}>
+                  <Text style={styles.mealDesc}>{item.description}</Text>
+                  {/* Badge de Confiança da IA */}
+                  {item.confidence > 0 && (
+                    <View style={styles.confidenceBadge}>
+                      <Text style={styles.confidenceText}>{(item.confidence * 100).toFixed(0)}% IA</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
-            <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
+                <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
+              <Text style={styles.deleteButtonText}>Excluir</Text>
+            </TouchableOpacity>
           </View>
         )}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
@@ -254,7 +299,10 @@ const styles = StyleSheet.create({
   progressMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   progressMetaText: { color: '#888888', fontSize: 12 },
   listTitle: { color: '#FFF', fontSize: 18, marginBottom: 15, fontWeight: '600' },
-  mealItem: { backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, marginBottom: 10, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
+  mealItemContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  mealItem: { flex: 1, backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
+  deleteButton: { padding: 10, marginLeft: 10 },
+  deleteButtonText: { color: '#FF6B6B', fontSize: 14, fontWeight: '500' },
   mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   mealDesc: { color: '#FFF', fontSize: 16, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },
   confidenceBadge: { backgroundColor: 'rgba(0, 255, 102, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#00FF66' },

@@ -106,6 +106,56 @@ def get_today():
         return jsonify({"error": "Erro interno ao buscar o resumo."}), 500
 
 
+@meals_bp.route("/weekly_summary", methods=["GET"])
+@jwt_required()
+def get_weekly_summary_endpoint():
+    try:
+        current_user_id = int(get_jwt_identity())
+        meal_service = _get_meal_service()
+        summary = meal_service.get_weekly_summary(current_user_id)
+        return jsonify(summary), 200
+    except Exception:
+        logger.exception("Erro inesperado ao buscar resumo semanal")
+        return jsonify({"error": "Erro interno ao buscar o resumo semanal."}), 500
+
+
+@meals_bp.route("/<int:meal_id>", methods=["PUT"])
+@jwt_required()
+def update_meal(meal_id: int):
+    try:
+        current_user_id = int(get_jwt_identity())
+        meal_service = _get_meal_service()
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "Nenhum dado fornecido para atualização."}), 400
+
+        updated_meal = meal_service.update_meal(meal_id, current_user_id, data)
+
+        if updated_meal:
+            return jsonify(updated_meal.to_dict()), 200
+        return jsonify({"error": "Refeição não encontrada ou não pertence ao usuário."}), 404
+    except Exception:
+        logger.exception("Erro inesperado ao atualizar refeição")
+        return jsonify({"error": "Erro interno ao atualizar a refeição."}), 500
+
+@meals_bp.route("/<int:meal_id>", methods=["DELETE"])
+@jwt_required()
+def delete_meal(meal_id: int):
+    try:
+        current_user_id = int(get_jwt_identity())
+        meal_service = _get_meal_service()
+
+        # O service irá verificar se a refeição pertence ao usuário antes de apagar
+        success = meal_service.delete_meal_by_id(meal_id, current_user_id)
+
+        if success:
+            return jsonify({"message": "Refeição apagada com sucesso."}), 200
+        return jsonify({"error": "Refeição não encontrada ou não pertence ao usuário."}), 404
+    except Exception:
+        logger.exception("Erro inesperado ao apagar refeição")
+        return jsonify({"error": "Erro interno ao apagar a refeição."}), 500
+
 @meals_bp.route("/health", methods=["GET"])
 # A rota de health_check NÃO precisa de @jwt_required, ela é pública para o servidor saber se a API está viva.
 def health_check():

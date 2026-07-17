@@ -19,10 +19,12 @@ export default function LoginScreen({ navigation }) {
       // 1. Bate na API do Flask
       const data = await loginUser(email, password);
       
-      // 2. AGUARDA a conclusão de salvar o token no celular
-      await AsyncStorage.setItem('jwt_token', data.token);
+      // 2. Salva o token e os dados do usuário em paralelo para otimizar
+      await Promise.all([
+        AsyncStorage.setItem('jwt_token', data.token),
+        AsyncStorage.setItem('user_data', JSON.stringify(data.user)) // Salva o objeto do usuário
+      ]);
       
-      // 3. Apenas então, redireciona para o Dashboard
       navigation.replace('Dashboard'); // 'replace' impede que o usuário volte pro login com a seta do celular
     } catch (error) {
       Alert.alert('Erro no Login', error.message);

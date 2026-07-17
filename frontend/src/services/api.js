@@ -139,6 +139,19 @@ export async function getTodaySummary(dateString) {
 }
 
 /**
+ * Busca o resumo nutricional dos últimos 7 dias.
+ * @returns {Promise<{days: Array<{date: string, day_name: string, calories: number, protein_g: number}>}>}
+ */
+export async function getWeeklySummary() {
+  const response = await fetch(`${API_BASE_URL}/meals/weekly_summary`, {
+    method: 'GET',
+    headers: await getAuthHeaders(),
+  });
+
+  return handleResponse(response);
+}
+
+/**
  * Rota de Login: Valida o usuário e retorna o Token JWT.
  */
 export async function loginUser(email, password) {
@@ -159,7 +172,7 @@ export async function registerUser(name, email, password) {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ name, email, password })
   });
-  return handleResponse(response); // <-- Faltava processar a resposta
+  return handleResponse(response);
 }
 
 /**
@@ -186,6 +199,36 @@ export async function updateUserGoals(goalsData) {
       'Content-Type': 'application/json',
     }),
     body: JSON.stringify(goalsData),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Apaga uma refeição específica do banco de dados.
+ * @param {string|number} mealId - O ID da refeição a ser apagada.
+ * @returns {Promise<object>} A mensagem de sucesso do backend.
+ */
+export async function deleteMeal(mealId) {
+  const response = await fetch(`${API_BASE_URL}/meals/${mealId}`, {
+    method: 'DELETE',
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Atualiza uma refeição existente.
+ * @param {string|number} mealId - O ID da refeição a ser atualizada.
+ * @param {object} mealData - Objeto com os novos dados da refeição.
+ * @returns {Promise<object>} A refeição atualizada.
+ */
+export async function updateMeal(mealId, mealData) {
+  const response = await fetch(`${API_BASE_URL}/meals/${mealId}`, {
+    method: 'PUT',
+    headers: await getAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify(mealData),
   });
   return handleResponse(response);
 }
