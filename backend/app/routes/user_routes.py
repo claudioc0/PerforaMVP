@@ -1,37 +1,57 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.models.user import User
-from app.extensions import db
 
-user_bp = Blueprint("user", __name__, url_prefix="/api/user")
+from app.services import UserService
+from app.models import User, WaterLog
 
-@user_bp.route("/goals", methods=["GET", "PUT"])
+# 1. CRIAÇÃO DO BLUEPRINT
+# O prefixo completo da API é definido aqui para manter o módulo autônomo.
+user_bp = Blueprint("user_bp", __name__, url_prefix="/api/user")
+
+user_service = UserService()
+
+@user_bp.route("/goals", methods=["GET"])
 @jwt_required()
-def handle_goals():
+def get_user_goals_route():
+    user_id = get_jwt_identity()
+    goals = user_service.get_user_goals(user_id)
+    
+    if goals:
+        return jsonify(goals.to_dict())
+    # Se o usuário ainda não tem metas, retorna um objeto vazio para não quebrar o frontend.
+    return jsonify({}), 200
+
+@user_bp.route("/goals", methods=["PUT"])
+@jwt_required()
+def update_user_goals_route():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    updated_user = user_service.update_user_goals(user_id, data)
+    return jsonify(message="Metas atualizadas com sucesso", goals=updated_user.goals.to_dict())
+
+@user_bp.route("/calculate-goals", methods=["POST"])
+@jwt_required()
+def calculate_goals_route():
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    # O user_service agora lida com o cálculo e a atualização
+    new_goals = user_service.calculate_and_save_smart_goals(user_id, data)
+
+    return jsonify(message="Metas calculadas e salvas com sucesso.", goals=new_goals.to_dict())
+
+@user_bp.route("/water/add", methods=["POST"])
+@jwt_required()
+def add_water():
     current_user_id = get_jwt_identity()
-    user = User.query.get(current_user_id)
+    data = request.get_json()
+    amount = data.get("amount")
 
-    if not user:
-        return jsonify({"error": "Usuário não encontrado."}), 404
+    if not amount or not isinstance(amount, (int, float)) or amount <= 0:
+        return jsonify({"error": "A quantidade de água deve ser um número positivo."}), 400
 
-    # Se for GET, apenas devolve as metas atuais
-    if request.method == "GET":
-        return jsonify({
-            "goal_calories": user.goal_calories,
-            "goal_protein_g": user.goal_protein_g,
-            "goal_carbs_g": user.goal_carbs_g,
-            "goal_fat_g": user.goal_fat_g
-        }), 200
-
-    # Se for PUT, atualiza as metas com os dados enviados pelo celular
-    if request.method == "PUT":
-        data = request.get_json()
-        
-        # Atualiza os valores se eles vierem no JSON, senão mantém o atual
-        user.goal_calories = float(data.get("goal_calories", user.goal_calories))
-        user.goal_protein_g = float(data.get("goal_protein_g", user.goal_protein_g))
-        user.goal_carbs_g = float(data.get("goal_carbs_g", user.goal_carbs_g))
-        user.goal_fat_g = float(data.get("goal_fat_g", user.goal_fat_g))
-
-        db.session.commit()
-        return jsonify({"message": "Metas atualizadas com sucesso!"}), 200
+    try:
+        total_today = user_service.add_water_intake(user_id=current_user_id, amount=amount)
+        return jsonify({"message": "Água registrada!", "total": total_today}), 200
+    except Exception as e:
+        return jsonify({"error": "Erro interno ao registrar água."}), 500

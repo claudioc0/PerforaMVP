@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db 
-from app.models.meal import Meal
+from app.models import Meal, WaterLog
 from app.services.gemini_service import GeminiService, MealAnalysisResult
 
 
@@ -94,12 +94,24 @@ class MealService:
     def get_summary_for_date(self, target_date: date, user_id: int) -> dict:
         """Calcula o resumo nutricional de um usuário para uma data específica."""
         meals = list(self.get_meals_for_date(target_date, user_id))
+
+        # Calcula o total de água para a data alvo
+        day_start = datetime.combine(target_date, datetime.min.time())
+        day_end = datetime.combine(target_date, datetime.max.time())
+        total_water = db.session.query(
+            func.sum(WaterLog.amount_ml)
+        ).filter(
+            WaterLog.user_id == user_id,
+            WaterLog.created_at.between(day_start, day_end)
+        ).scalar() or 0
+
         return {
             "total_calories": sum(m.calories for m in meals),
             "total_protein_g": sum(m.protein_g for m in meals),
             "total_carbs_g": sum(m.carbs_g for m in meals),
             "total_fat_g": sum(m.fat_g for m in meals),
             "meals_count": len(meals),
+            "total_water_ml": total_water,
             "meals": [m.to_dict() for m in meals],
         }
 

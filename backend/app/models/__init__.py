@@ -1,4 +1,6 @@
-from app.models.meal import Meal
-from app.models.user import User
+from .user import User
+from .meal import Meal
+from .user_goals import UserGoals
+from .water_log import WaterLog
 
-__all__ = ["Meal", "User"]
+__all__ = ["User", "Meal", "UserGoals", "WaterLog"]

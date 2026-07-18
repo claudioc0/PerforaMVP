@@ -12,6 +12,7 @@ import CameraScreen from "../screens/CameraScreen";
 import MealConfirmationScreen from "../screens/MealConfirmationScreen";
 import InsightsScreen from '../screens/InsightsScreen'; // Importa a nova tela
 import AdjustQuantityScreen from '../screens/AdjustQuantityScreen'; // Importa a nova tela
+import ManualEntryScreen from '../screens/ManualEntryScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -48,6 +49,7 @@ export default function AppNavigator() {
       <Stack.Screen name="MealConfirmation" component={MealConfirmationScreen} />
       <Stack.Screen name="Insights" component={InsightsScreen} />
       <Stack.Screen name="AdjustQuantity" component={AdjustQuantityScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="ManualEntry" component={ManualEntryScreen} />
     </Stack.Navigator>
   );
 }

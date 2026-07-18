@@ -30,7 +30,7 @@ def create_app(config_class=Config):
     from .routes import auth_routes, meals_routes, user_routes
     app.register_blueprint(auth_routes.auth_bp)
     app.register_blueprint(meals_routes.meals_bp)
-    app.register_blueprint(user_routes.user_bp)  # <--- Rota de metas do usuário registrada aqui
+    app.register_blueprint(user_routes.user_bp)
 
     with app.app_context():
         # Cria as tabelas do banco de dados se não existirem

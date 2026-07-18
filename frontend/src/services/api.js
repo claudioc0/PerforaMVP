@@ -217,6 +217,24 @@ export async function deleteMeal(mealId) {
 }
 
 /**
+ * Calcula automaticamente as metas nutricionais baseadas nos dados físicos do usuário.
+ * @param {object} physicalData - { weight, height, age, gender, activity_level, goal }
+ */
+export async function calculateSmartGoals(physicalData) {
+  const headers = await getAuthHeaders({
+    'Content-Type': 'application/json',
+  });
+  
+  const response = await fetch(`${API_BASE_URL}/user/calculate-goals`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(physicalData),
+  });
+  
+  return handleResponse(response);
+}
+
+/**
  * Atualiza uma refeição existente.
  * @param {string|number} mealId - O ID da refeição a ser atualizada.
  * @param {object} mealData - Objeto com os novos dados da refeição.
@@ -229,6 +247,22 @@ export async function updateMeal(mealId, mealData) {
       'Content-Type': 'application/json',
     }),
     body: JSON.stringify(mealData),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Registra uma nova ingestão de água para o usuário.
+ * @param {number} amount - A quantidade de água em ml.
+ * @returns {Promise<{message: string, total: number}>} A resposta com o total atualizado.
+ */
+export async function addWater(amount) {
+  const response = await fetch(`${API_BASE_URL}/user/water/add`, {
+    method: 'POST',
+    headers: await getAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({ amount }),
   });
   return handleResponse(response);
 }
