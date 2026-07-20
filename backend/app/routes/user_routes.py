@@ -1,8 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.extensions import db
 from app.services import UserService
-from app.models import User, WaterLog
+from app.models import User, WaterLog, WeightLog
 
 # 1. CRIAÇÃO DO BLUEPRINT
 # O prefixo completo da API é definido aqui para manter o módulo autônomo.
@@ -55,3 +56,34 @@ def add_water():
         return jsonify({"message": "Água registrada!", "total": total_today}), 200
     except Exception as e:
         return jsonify({"error": "Erro interno ao registrar água."}), 500
+    
+# --- ROTAS DE EVOLUÇÃO DE PESO ---
+
+@user_bp.route("/weight", methods=["GET"])
+@jwt_required()
+def get_weight_history():
+    current_user_id = get_jwt_identity()
+    # Busca o histórico ordenado da pesagem mais antiga para a mais nova
+    history = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.asc()).all()
+    return jsonify([log.to_dict() for log in history]), 200
+
+@user_bp.route("/weight", methods=["POST"])
+@jwt_required()
+def log_weight():
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    new_weight = float(data.get("weight", 0))
+    if new_weight <= 0:
+        return jsonify({"error": "Peso inválido"}), 400
+
+    log = WeightLog(user_id=current_user_id, weight=new_weight)
+    
+    # Opcional: Atualiza também o peso atual do usuário na tabela Users se você tiver essa coluna
+    # user = User.query.get(current_user_id)
+    # user.current_weight = new_weight
+    
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({"message": "Peso registrado com sucesso!", "log": log.to_dict()}), 201

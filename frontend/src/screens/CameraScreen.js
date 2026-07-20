@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { analyzeMeal } from '../services/api';
+import { fetchProductByBarcode } from '../services/openFoodFacts';
 
 export default function CameraScreen({ navigation, route }) {
-  const [description, setDescription] = useState('');
   const [imageUri, setImageUri] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
-  const { targetDate } = route.params || {}; // Captura a data dos parâmetros da rota
-  
+  const { targetDate } = route.params || {}; 
+  const [scanned, setScanned] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
@@ -28,57 +31,119 @@ export default function CameraScreen({ navigation, route }) {
   };
 
   const handleAnalyze = async () => {
-    if (!imageUri && !description) {
-      Alert.alert("Atenção", "Tire uma foto ou descreva a refeição em texto.");
+    if (!imageUri) {
+      Alert.alert("Atenção", "Tire uma foto para analisar a refeição.");
       return;
     }
 
     setAnalyzing(true);
     try {
-      // 1. Chama a API de análise para obter o rascunho (sem a data)
-      const draftMeal = await analyzeMeal(imageUri, description);
-      
-      // 2. Navega para a tela de confirmação, passando o rascunho e a data
-      navigation.navigate('MealConfirmation', { 
-        draftMeal, 
+      const draftMeal = await analyzeMeal(imageUri, null); 
+
+      navigation.navigate('MealConfirmation', {
+        draftMeal,
         targetDate 
       });
     } catch (error) {
-      Alert.alert("Erro na Análise", error.message || "Falha ao analisar a refeição. Verifique o servidor.");
+      // TRATAMENTO DE ERRO DE COTA/LIMITE DA IA (429)
+      const errorMsg = error.message || "";
+      if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
+        Alert.alert(
+          "Servidores Ocupados ⚡",
+          "Nossa IA está processando muitos pratos agora. Aguarde um minuto ou adicione os dados manualmente.",
+          [
+            { text: "Aguardar", style: "cancel" },
+            { 
+              text: "Entrada Manual", 
+              onPress: () => navigation.navigate('ManualEntry', { targetDate }) 
+            }
+          ]
+        );
+      } else {
+        Alert.alert("Erro na Análise", errorMsg || "Falha ao analisar a refeição. Verifique o servidor.");
+      }
     } finally {
       setAnalyzing(false);
     }
   };
 
+  const handleBarCodeScanned = async ({ type, data }) => {
+    if (scanned) return;
+    setScanned(true);
+
+    try {
+      const product = await fetchProductByBarcode(data);
+      if (product) {
+        navigation.navigate('ManualEntry', {
+          scannedProduct: product,
+          targetDate: targetDate,
+        });
+      } else {
+        // MELHORIA UX: Redireciona para cadastro manual se não achar
+        Alert.alert(
+          "Produto inédito! 🕵️",
+          "Não encontramos este código de barras no banco mundial. Deseja cadastrá-lo manualmente?",
+          [
+            { text: 'Tentar Novamente', onPress: () => setScanned(false), style: 'cancel' },
+            { 
+              text: 'Cadastrar Manual', 
+              onPress: () => {
+                setScanned(false);
+                navigation.navigate('ManualEntry', { targetDate });
+              }
+            }
+          ]
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        "Erro de Conexão",
+        "Ocorreu um erro ao buscar o produto na internet.",
+        [{ text: 'OK', onPress: () => setScanned(false) }]
+      );
+    }
+  };
+
+  if (!permission) {
+    return <View style={styles.center}><ActivityIndicator color="#00FF66" /></View>;
+  }
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.permissionText}>Precisamos da sua permissão para usar a câmera.</Text>
+        <TouchableOpacity style={styles.submitButton} onPress={requestPermission}>
+          <Text style={styles.submitText}>Habilitar Câmera</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.headerTitle}>Nova Refeição</Text>
-      
-      {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.previewImage} />
-      ) : (
-        <View style={styles.placeholderBox}>
-          <Text style={styles.placeholderText}>Nenhuma imagem capturada</Text>
-        </View>
-      )}
 
-      <TouchableOpacity style={styles.cameraButton} onPress={takePhoto}>
-        <Text style={styles.buttonText}>Abrir Câmera</Text>
-      </TouchableOpacity>
+      <View style={styles.cameraContainer}>
+        <CameraView
+          style={styles.camera}
+          facing={'back'}
+          onBarcodeScanned={handleBarCodeScanned}
+        />
+        <View style={styles.overlay}>
+          <Text style={styles.overlayText}>Aponte para um código de barras</Text>
+        </View>
+        {scanned && (
+          <TouchableOpacity style={styles.rescanButton} onPress={() => setScanned(false)}>
+            <Text style={styles.buttonText}>Escanear Novamente</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       <Text style={styles.orText}>OU</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder="Descreva o prato (ex: 200g de frango)"
-        placeholderTextColor="#666"
-        value={description}
-        onChangeText={setDescription}
-      />
-
       <TouchableOpacity 
-        style={[styles.submitButton, analyzing && styles.disabledButton]} 
-        onPress={handleAnalyze}
+        style={[styles.submitButton, analyzing && styles.disabledButton]}
+        onPress={takePhoto}
         disabled={analyzing}
       >
         {analyzing ? (
@@ -87,9 +152,15 @@ export default function CameraScreen({ navigation, route }) {
             <Text style={styles.submitText}>Mapeando nutrientes...</Text>
           </View>
         ) : (
-          <Text style={styles.submitText}>Analisar com IA</Text>
+          <Text style={styles.submitText}>Tirar Foto do Prato (IA)</Text>
         )}
       </TouchableOpacity>
+
+      {imageUri && !analyzing && (
+         <TouchableOpacity style={[styles.submitButton, {marginTop: 10, backgroundColor: '#FFF'}]} onPress={handleAnalyze}>
+            <Text style={[styles.submitText, {color: '#121212'}]}>Analisar Foto Atual</Text>
+         </TouchableOpacity>
+      )}
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
         <Text style={styles.cancelText}>Cancelar e Voltar</Text>
@@ -99,18 +170,21 @@ export default function CameraScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  headerTitle: { color: '#FFF', fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-  previewImage: { width: '100%', height: 250, borderRadius: 16, marginBottom: 20 },
-  placeholderBox: { width: '100%', height: 250, backgroundColor: '#1E1E1E', borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginBottom: 20, borderColor: '#333', borderWidth: 1, borderStyle: 'dashed' },
-  placeholderText: { color: '#666' },
-  cameraButton: { backgroundColor: '#333', padding: 15, borderRadius: 12, alignItems: 'center' },
+  headerTitle: { color: '#FFF', fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  cameraContainer: { width: '100%', height: 300, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' },
+  camera: { width: '100%', height: '100%' },
+  overlay: { position: 'absolute', bottom: 10, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
+  overlayText: { color: '#FFF', fontSize: 14 },
+  rescanButton: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0, 255, 102, 0.8)', padding: 10, borderRadius: 8 },
+  placeholderText: { color: '#666', textAlign: 'center' },
+  permissionText: { color: '#FFF', fontSize: 16, textAlign: 'center', marginBottom: 20 },
   buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  orText: { color: '#666', textAlign: 'center', marginVertical: 20 },
-  input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 15, borderRadius: 12, fontSize: 16, marginBottom: 20 },
+  orText: { color: '#666', textAlign: 'center', marginVertical: 20, fontWeight: 'bold' },
   submitButton: { backgroundColor: '#00FF66', padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center' },
   cancelText: { color: '#888', fontSize: 16 }
 });

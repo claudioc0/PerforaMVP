@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert, TextInput, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getWeeklySummary, getUserGoals } from '../services/api';
+import { getWeeklySummary, getUserGoals, getWeightHistory, logWeight } from '../services/api';
 
 // --- Componente de Gráfico de Barras Customizado ---
 const WeeklyBarChart = ({ data, goal, label }) => {
@@ -36,6 +36,10 @@ export default function InsightsScreen() {
   const [weeklyData, setWeeklyData] = useState([]);
   const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Novos estados para Evolução Corporal
+  const [weightHistory, setWeightHistory] = useState([]);
+  const [currentWeightInput, setCurrentWeightInput] = useState('');
+  const [loggingWeight, setLoggingWeight] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,10 +48,12 @@ export default function InsightsScreen() {
         try {
           const [summaryData, goalsData] = await Promise.all([
             getWeeklySummary(),
-            getUserGoals(),
+            getUserGoals(), 
           ]);
+          const weightHistoryData = await getWeightHistory(); // Busca o histórico de peso
           setWeeklyData(summaryData.days || []);
           setGoals(goalsData);
+          setWeightHistory(weightHistoryData || []);
         } catch (error) {
           Alert.alert("Erro", "Não foi possível carregar os insights. Tente novamente.");
         } finally {
@@ -71,6 +77,28 @@ export default function InsightsScreen() {
       avgProtein: totalProtein / daysWithData,
     };
   }, [weeklyData]);
+
+  const handleLogWeight = async () => {
+    const weight = parseFloat(currentWeightInput);
+    if (isNaN(weight) || weight <= 0) {
+      Alert.alert("Erro", "Por favor, insira um peso válido.");
+      return;
+    }
+
+    setLoggingWeight(true);
+    try {
+      await logWeight({ weight });
+      Alert.alert("Sucesso", "Peso registrado!");
+      setCurrentWeightInput('');
+      // Atualiza o histórico de peso após o registro
+      const updatedHistory = await getWeightHistory();
+      setWeightHistory(updatedHistory);
+    } catch (error) {
+      Alert.alert("Erro", error.message || "Não foi possível registrar o peso.");
+    } finally {
+      setLoggingWeight(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -100,6 +128,62 @@ export default function InsightsScreen() {
             <Text style={styles.avgLabel}>Média de Proteína / dia</Text>
           </View>
         </View>
+      </View>
+
+      {/* Seção de Evolução Corporal */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Evolução Corporal</Text>
+
+        {/* Formulário de Registro de Peso */}
+        <View style={styles.weightInputContainer}>
+          <TextInput
+            style={styles.weightInput}
+            placeholder="Peso de hoje (kg)"
+            placeholderTextColor="#666"
+            keyboardType="numeric"
+            value={currentWeightInput}
+            onChangeText={setCurrentWeightInput}
+          />
+          <TouchableOpacity
+            style={[styles.logWeightButton, loggingWeight && styles.disabledButton]}
+            onPress={handleLogWeight}
+            disabled={loggingWeight}
+          >
+            {loggingWeight ? (
+              <ActivityIndicator color="#121212" />
+            ) : (
+              <Text style={styles.logWeightButtonText}>Registrar</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Histórico de Peso */}
+        {weightHistory.length > 0 ? (
+          <View style={styles.weightHistoryContainer}>
+            <Text style={styles.weightHistoryLabel}>Últimos Registros:</Text>
+            <View style={styles.weightTagsContainer}>
+              {weightHistory.slice(-5).map((log, index, arr) => {
+                const prevLog = arr[index - 1];
+                let indicator = '';
+                let indicatorColor = '#888'; // Cor padrão
+
+                if (prevLog) {
+                  if (log.weight < prevLog.weight) { indicator = '⬇️'; indicatorColor = '#00FF66'; } // Verde para perda
+                  else if (log.weight > prevLog.weight) { indicator = '⬆️'; indicatorColor = '#FF6B6B'; } // Vermelho para ganho
+                }
+                return (
+                  <View key={log.id} style={[styles.weightTag, { borderColor: indicatorColor }]}>
+                    <Text style={styles.weightTagText}>
+                      {new Date(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg {indicator}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        ) : (
+          <Text style={styles.emptyText}>Nenhum registro de peso ainda.</Text>
+        )}
       </View>
     </ScrollView>
   );
@@ -162,4 +246,35 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 5,
   },
+  // Novos estilos para Evolução Corporal
+  weightInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10,
+  },
+  weightInput: {
+    flex: 1,
+    backgroundColor: '#333',
+    color: '#FFF',
+    padding: 12,
+    borderRadius: 10,
+    fontSize: 16,
+    marginRight: 10,
+  },
+  logWeightButton: {
+    backgroundColor: '#00FF66',
+    padding: 12,
+    borderRadius: 10,
+  },
+  logWeightButtonText: {
+    color: '#121212',
+    fontWeight: 'bold',
+  },
+  weightHistoryContainer: { marginTop: 10 },
+  weightHistoryLabel: { color: '#FFF', fontSize: 14, marginBottom: 10 },
+  weightTagsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
+  weightTag: { backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#888', borderRadius: 15, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, marginBottom: 8 },
+  weightTagText: { color: '#FFF', fontSize: 13 },
+  emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
 });

@@ -109,6 +109,42 @@ class GeminiService:
             raise GeminiAnalysisError(f"Erro ao comunicar com a IA: {exc}") from exc
 
         return self._parse_response(response.text)
+    
+    def generate_daily_insight(self, goals: dict, consumed: dict) -> str:
+        """Gera uma frase de feedback baseada no consumo atual vs metas."""
+        
+        prompt = f"""
+        Você é o nutricionista esportivo de alta performance do app Perfora.
+        
+        METAS DO USUÁRIO PARA HOJE:
+        - Calorias: {goals.get('goal_calories', 0)} kcal
+        - Proteína: {goals.get('goal_protein_g', 0)} g
+        - Carboidrato: {goals.get('goal_carbs_g', 0)} g
+        - Gordura: {goals.get('goal_fat_g', 0)} g
+        
+        O QUE ELE JÁ CONSUMIU HOJE:
+        - Calorias: {consumed.get('calories', 0)} kcal
+        - Proteína: {consumed.get('protein_g', 0)} g
+        - Carboidrato: {consumed.get('carbs_g', 0)} g
+        - Gordura: {consumed.get('fat_g', 0)} g
+        
+        Tarefa: Gere UMA ÚNICA FRASE curta (máximo 2 linhas), técnica e motivadora avaliando o dia de hoje.
+        - Se a proteína estiver boa, elogie a recuperação muscular.
+        - Se as calorias estiverem estourando, dê um aviso amigável.
+        - Se estiver longe das metas, incentive a próxima refeição.
+        
+        NÃO use formatação markdown, hashtags ou saudações. Apenas a frase de impacto.
+        """
+        
+        try:
+            response = self._client.models.generate_content(
+                model=self._model_name,
+                contents=prompt,
+            )
+            return response.text.strip()
+        except Exception:
+            logger.exception("Falha ao gerar insight diário com a IA.")
+            return "Continue focado nas suas metas. Cada refeição conta para sua alta performance!"
 
     @staticmethod
     def _parse_response(raw_text: str) -> MealAnalysisResult:

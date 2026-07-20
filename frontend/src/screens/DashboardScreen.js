@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getTodaySummary, getUserGoals, deleteMeal, addWater } from '../services/api'; 
+import { getTodaySummary, getUserGoals, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // --- Funções utilitárias para manipulação de datas ---
@@ -59,6 +59,8 @@ export default function DashboardScreen({ navigation }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [userName, setUserName] = useState('');
   const [waterIntake, setWaterIntake] = useState(0);
+  const [aiInsight, setAiInsight] = useState(null);
+  const [loadingInsight, setLoadingInsight] = useState(false);
 
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
   const isFutureDate = useMemo(() => {
@@ -97,6 +99,34 @@ export default function DashboardScreen({ navigation }) {
     await fetchData();
     setRefreshing(false);
   }, []);
+
+  // Efeito para buscar o insight da IA sempre que o resumo ou as metas mudarem
+  useEffect(() => {
+    const fetchInsight = async () => {
+      // Só busca o insight se tivermos os dados necessários e for o dia de hoje
+      const isToday = getDisplayDate(currentDate) === "Hoje";
+      if (summary && goals && isToday) {
+        setLoadingInsight(true);
+        setAiInsight(null); // Limpa o insight anterior
+        try {
+          const consumed = {
+            calories: summary.total_calories,
+            protein_g: summary.total_protein_g,
+            carbs_g: summary.total_carbs_g,
+            fat_g: summary.total_fat_g,
+          };
+          const insightData = await getDailyInsight(goals, consumed);
+          setAiInsight(insightData.insight);
+        } catch (error) {
+          console.error("Erro ao buscar insight da IA:", error);
+        } finally {
+          setLoadingInsight(false);
+        }
+      }
+    };
+
+    fetchInsight();
+  }, [summary, goals, currentDate]);
 
   const changeDay = (amount) => {
     const newDate = new Date(currentDate);
@@ -177,6 +207,31 @@ export default function DashboardScreen({ navigation }) {
     }
   };
 
+  const handleFavorite = async (meal) => {
+    Alert.alert(
+      "Salvar como Favorito",
+      `Deseja salvar "${meal.description}" nos seus pratos favoritos?`,
+      [
+        { text: "Não", style: "cancel" },
+        {
+          text: "Sim",
+          onPress: async () => {
+            try {
+              // A API de favoritos só precisa dos dados nutricionais e da descrição
+              const favoriteData = {
+                description: meal.description, calories: meal.calories, protein_g: meal.protein_g, carbs_g: meal.carbs_g, fat_g: meal.fat_g
+              };
+              await addFavorite(favoriteData);
+              Alert.alert("Sucesso", "Refeição salva nos seus favoritos!");
+            } catch (error) {
+              Alert.alert("Erro", error.message || "Não foi possível salvar como favorito.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
@@ -224,6 +279,24 @@ export default function DashboardScreen({ navigation }) {
           </View>
           <Text style={styles.subtitle}>Seu desempenho hoje</Text>
         </View>
+
+        {/* Card de Insight da IA */}
+        {(loadingInsight || aiInsight) && (
+          <View style={styles.insightCard}>
+            <View style={styles.insightHeader}>
+              <Text style={styles.insightIcon}>🧠</Text>
+              <Text style={styles.insightTitle}>Insight do Treinador</Text>
+            </View>
+            {loadingInsight ? (
+              <View style={styles.insightLoadingContainer}>
+                <ActivityIndicator size="small" color="#00FF66" />
+                <Text style={styles.insightLoadingText}>Analisando seu desempenho...</Text>
+              </View>
+            ) : (
+              <Text style={styles.insightText}>{aiInsight}</Text>
+            )}
+          </View>
+        )}
 
         {/* Seção de Progresso com as novas barras */}
         <View style={styles.progressSection}>
@@ -290,6 +363,9 @@ export default function DashboardScreen({ navigation }) {
                   <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
                 </View>
               </TouchableOpacity>
+              <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
+                <Text style={styles.actionButtonText}>⭐</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
                 <Text style={styles.deleteButtonText}>Excluir</Text>
               </TouchableOpacity>
@@ -334,6 +410,15 @@ const styles = StyleSheet.create({
   title: { color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   subtitle: { color: '#888888', fontSize: 16, marginTop: 4 },
   progressSection: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25 },
+  // Estilos do Card de Insight
+  insightCard: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
+  insightHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  insightIcon: { fontSize: 20, marginRight: 10 },
+  insightTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  insightText: { color: '#DDDDDD', fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
+  insightLoadingContainer: { flexDirection: 'row', alignItems: 'center' },
+  insightLoadingText: { color: '#888888', marginLeft: 10, fontSize: 14 },
+
   progressContainer: { marginBottom: 15 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   progressLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
@@ -351,7 +436,9 @@ const styles = StyleSheet.create({
   listTitle: { color: '#FFF', fontSize: 18, marginBottom: 15, fontWeight: '600' },
   mealItemContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   mealItem: { flex: 1, backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
-  deleteButton: { padding: 10, marginLeft: 10 },
+  actionButton: { padding: 10, marginLeft: 10 },
+  actionButtonText: { fontSize: 20 },
+  deleteButton: { padding: 10, marginLeft: 5 },
   deleteButtonText: { color: '#FF6B6B', fontSize: 14, fontWeight: '500' },
   mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   mealDesc: { color: '#FFF', fontSize: 16, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },

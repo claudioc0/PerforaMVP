@@ -5,6 +5,8 @@ from flask import Blueprint, current_app, jsonify, request
 # NOVAS IMPORTAÇÕES DO JWT
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.extensions import db
+from app.models import FavoriteMeal
 from app.services.gemini_service import GeminiAnalysisError, GeminiService
 from app.services.meal_service import MealService
 
@@ -104,6 +106,47 @@ def get_today():
     except Exception:
         logger.exception("Erro inesperado ao buscar resumo do dia")
         return jsonify({"error": "Erro interno ao buscar o resumo."}), 500
+    
+# --- ROTAS DE FAVORITOS ---
+
+@meals_bp.route("/favorites", methods=["GET"])
+@jwt_required()
+def get_favorites():
+    current_user_id = get_jwt_identity()
+    favorites = FavoriteMeal.query.filter_by(user_id=current_user_id).all()
+    return jsonify([fav.to_dict() for fav in favorites]), 200
+
+@meals_bp.route("/favorites", methods=["POST"])
+@jwt_required()
+def add_favorite():
+    current_user_id = get_jwt_identity()
+    data = request.get_json()
+
+    new_favorite = FavoriteMeal(
+        user_id=current_user_id,
+        description=data.get("description"),
+        calories=float(data.get("calories", 0)),
+        protein_g=float(data.get("protein_g", 0)),
+        carbs_g=float(data.get("carbs_g", 0)),
+        fat_g=float(data.get("fat_g", 0))
+    )
+    
+    db.session.add(new_favorite)
+    db.session.commit()
+    return jsonify({"message": "Refeição favoritada com sucesso!"}), 201
+
+@meals_bp.route("/favorites/<int:fav_id>", methods=["DELETE"])
+@jwt_required()
+def remove_favorite(fav_id):
+    current_user_id = get_jwt_identity()
+    favorite = FavoriteMeal.query.get(fav_id)
+
+    if not favorite or favorite.user_id != current_user_id:
+        return jsonify({"error": "Favorito não encontrado."}), 404
+
+    db.session.delete(favorite)
+    db.session.commit()
+    return jsonify({"message": "Favorito removido."}), 200
 
 
 @meals_bp.route("/weekly_summary", methods=["GET"])
@@ -155,6 +198,25 @@ def delete_meal(meal_id: int):
     except Exception:
         logger.exception("Erro inesperado ao apagar refeição")
         return jsonify({"error": "Erro interno ao apagar a refeição."}), 500
+    
+@meals_bp.route("/daily-insight", methods=["POST"])
+@jwt_required()
+def daily_insight():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "Nenhum dado fornecido."}), 400
+
+        goals = data.get("goals", {})
+        consumed = data.get("consumed", {})
+        
+        meal_service = _get_meal_service()
+        insight_text = meal_service._gemini_service.generate_daily_insight(goals, consumed)
+        
+        return jsonify({"insight": insight_text}), 200
+    except Exception:
+        logger.exception("Erro inesperado ao gerar insight diário")
+        return jsonify({"error": "Erro interno ao gerar o insight."}), 500
 
 @meals_bp.route("/health", methods=["GET"])
 # A rota de health_check NÃO precisa de @jwt_required, ela é pública para o servidor saber se a API está viva.

@@ -251,6 +251,37 @@ export async function updateMeal(mealId, mealData) {
   return handleResponse(response);
 }
 
+/** 
+ * Funções do Sistema de Favoritos 
+ */
+export async function getFavorites() {
+  const authHeader = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/meals/favorites`, {
+    method: "GET",
+    headers: { Accept: "application/json", ...authHeader },
+  });
+  return handleResponse(response);
+}
+
+export async function addFavorite(mealData) {
+  const authHeader = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/meals/favorites`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeader },
+    body: JSON.stringify(mealData),
+  });
+  return handleResponse(response);
+}
+
+export async function removeFavorite(favId) {
+  const authHeader = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/meals/favorites/${favId}`, {
+    method: "DELETE",
+    headers: { Accept: "application/json", ...authHeader },
+  });
+  return handleResponse(response);
+}
+
 /**
  * Registra uma nova ingestão de água para o usuário.
  * @param {number} amount - A quantidade de água em ml.
@@ -263,6 +294,45 @@ export async function addWater(amount) {
       'Content-Type': 'application/json',
     }),
     body: JSON.stringify({ amount }),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca um insight gerado por IA com base nas metas e no consumo do dia.
+ * @param {object} goals - As metas do usuário.
+ * @param {object} consumed - O total consumido pelo usuário.
+ * @returns {Promise<{insight: string}>} A resposta com a frase de insight.
+ */
+export async function getDailyInsight(goals, consumed) {
+  const response = await fetch(`${API_BASE_URL}/meals/daily-insight`, {
+    method: 'POST',
+    headers: await getAuthHeaders({
+      'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({ goals, consumed }),
+  });
+  return handleResponse(response);
+}
+
+/** 
+ * Funções de Evolução Corporal
+ */
+export async function getWeightHistory() {
+  const authHeader = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/user/weight`, {
+    method: "GET",
+    headers: { Accept: "application/json", ...authHeader },
+  });
+  return handleResponse(response);
+}
+
+export async function logWeight(weightData) {
+  const authHeader = await getAuthHeaders();
+  const response = await fetch(`${API_BASE_URL}/user/weight`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeader },
+    body: JSON.stringify(weightData),
   });
   return handleResponse(response);
 }
