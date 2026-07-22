@@ -22,9 +22,9 @@ const getDisplayDate = (date) => {
 
 // --- Componente de Barra de Progresso Customizada ---
 const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF66' }) => {
-  const safeGoal = goal > 0 ? goal : 1; // Evita divisão por zero
+  const safeGoal = goal > 0 ? goal : 1; 
   const percentage = (consumed / safeGoal) * 100;
-  const visualPercentage = Math.min(percentage, 100); // Limita a barra em 100%
+  const visualPercentage = Math.min(percentage, 100); 
 
   const remaining = goal - consumed;
   const hasExceeded = remaining < 0;
@@ -70,83 +70,103 @@ export default function DashboardScreen({ navigation }) {
   }, [currentDate]);
 
   const fetchData = useCallback(async () => {
-    setLoading(true); // Mostra o loading a cada nova busca
-    setError(null); // Limpa erros anteriores
+    setLoading(true); 
+    setError(null); 
     try {
-      // Busca summary e goals em paralelo para otimizar o tempo de carregamento
       const [summaryData, goalsData] = await Promise.all([
         getTodaySummary(formattedCurrentDate),
         getUserGoals()
       ]);
       setSummary(summaryData);
       setGoals(goalsData);
-      setWaterIntake(summaryData?.total_water_ml || 0); // Atualiza a água com os dados do dia
+      setWaterIntake(summaryData?.total_water_ml || 0); 
     } catch (err) {
       console.error("Erro ao buscar resumo:", err);
-      // Se o erro for 401 (Sessão Expirada), não mostre a tela de "Tentar Novamente",
-      // pois o interceptador da API já está redirecionando para o Login.
-      // Para qualquer outro erro, mostre a mensagem.
       if (err.status !== 401) {
         setError("Não foi possível carregar os dados. Verifique sua conexão.");
       }
     } finally {
       setLoading(false);
     }
-  }, [formattedCurrentDate]); // A dependência é a data formatada
+  }, [formattedCurrentDate]); 
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchData();
     setRefreshing(false);
-  }, []);
+  }, [fetchData]);
 
-  // Efeito para buscar o insight da IA sempre que o resumo ou as metas mudarem
+  // --- LÓGICA DE CACHE DA IA OTIMIZADA ---
   useEffect(() => {
     const fetchInsight = async () => {
-      // Só busca o insight se tivermos os dados necessários e for o dia de hoje
+      const CACHE_KEY = '@perfora_daily_insight';
       const isToday = getDisplayDate(currentDate) === "Hoje";
+
       if (summary && goals && isToday) {
         setLoadingInsight(true);
-        setAiInsight(null); // Limpa o insight anterior
+        setAiInsight(null); 
+
+        const consumed = {
+          calories: summary.total_calories,
+          protein_g: summary.total_protein_g,
+          carbs_g: summary.total_carbs_g,
+          fat_g: summary.total_fat_g,
+        };
+
+        const nutrientsHash = `${consumed.calories}-${consumed.protein_g}-${consumed.carbs_g}-${consumed.fat_g}`;
+
         try {
-          const consumed = {
-            calories: summary.total_calories,
-            protein_g: summary.total_protein_g,
-            carbs_g: summary.total_carbs_g,
-            fat_g: summary.total_fat_g,
-          };
+          const cachedInsightJSON = await AsyncStorage.getItem(CACHE_KEY);
+          if (cachedInsightJSON) {
+            const cachedInsight = JSON.parse(cachedInsightJSON);
+            if (cachedInsight.date === formattedCurrentDate && cachedInsight.nutrients_hash === nutrientsHash) {
+              console.log("⚡ Insight carregado do Cache Local");
+              setAiInsight(cachedInsight.insight_text); 
+              setLoadingInsight(false);
+              return; 
+            }
+          }
+
+          console.log("🧠 Buscando Insight na API do Gemini...");
           const insightData = await getDailyInsight(goals, consumed);
           setAiInsight(insightData.insight);
+
+          const newCacheObject = {
+            date: formattedCurrentDate,
+            nutrients_hash: nutrientsHash,
+            insight_text: insightData.insight,
+          };
+          await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(newCacheObject));
+
         } catch (error) {
           console.error("Erro ao buscar insight da IA:", error);
+          // FALLBACK ADICIONADO AQUI:
+          setAiInsight("Mantenha o foco na alta performance! Seu treinador virtual está analisando sua evolução.");
         } finally {
           setLoadingInsight(false);
         }
       }
     };
-
     fetchInsight();
-  }, [summary, goals, currentDate]);
+  }, [summary, goals, currentDate, formattedCurrentDate]);
 
   const changeDay = (amount) => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + amount);
     
     const today = new Date();
-    if (newDate > today) return; // Impede navegação para o futuro
+    if (newDate > today) return; 
 
     setCurrentDate(newDate);
   };
 
-  // Efeito para buscar dados sempre que a data mudar
   useEffect(() => {
     fetchData();
-  }, [fetchData]); // fetchData é recriado quando formattedCurrentDate muda
+  }, [fetchData]); 
 
   useFocusEffect(
     useCallback(() => {
       const loadScreenData = async () => {
-        // Busca os dados da refeição e do usuário em paralelo
         fetchData();
         try {
           const userDataString = await AsyncStorage.getItem('user_data');
@@ -159,12 +179,12 @@ export default function DashboardScreen({ navigation }) {
         }
       };
       loadScreenData();
-    }, [fetchData]) // Depende de fetchData para sempre usar a data mais recente
+    }, [fetchData]) 
   );
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem('jwt_token');
-    navigation.replace('Login'); // Destrói a pilha atual e joga pro Login
+    navigation.replace('Login'); 
   };
 
   const handleDeleteMeal = async (mealId) => {
@@ -172,16 +192,13 @@ export default function DashboardScreen({ navigation }) {
       "Excluir Refeição",
       "Tem certeza que deseja apagar este registro?",
       [
-        {
-          text: "Não",
-          style: "cancel"
-        },
+        { text: "Não", style: "cancel" },
         { 
           text: "Sim", 
           onPress: async () => {
             try {
               await deleteMeal(mealId);
-              fetchData(); // Re-busca os dados para atualizar a UI
+              fetchData(); 
             } catch (error) {
               Alert.alert("Erro ao Excluir", error.message || "Não foi possível apagar a refeição.");
             }
@@ -192,16 +209,12 @@ export default function DashboardScreen({ navigation }) {
   };
 
   const handleAddWater = async (amount) => {
-    // Atualização otimista para feedback instantâneo
     const previousIntake = waterIntake;
     setWaterIntake(prev => prev + amount);
-
     try {
       const response = await addWater(amount);
-      // Sincroniza com o valor real retornado pelo backend
       setWaterIntake(response.total);
     } catch (error) {
-      // Reverte em caso de erro
       setWaterIntake(previousIntake);
       Alert.alert("Erro", "Não foi possível registrar a água. Tente novamente.");
     }
@@ -217,7 +230,6 @@ export default function DashboardScreen({ navigation }) {
           text: "Sim",
           onPress: async () => {
             try {
-              // A API de favoritos só precisa dos dados nutricionais e da descrição
               const favoriteData = {
                 description: meal.description, calories: meal.calories, protein_g: meal.protein_g, carbs_g: meal.carbs_g, fat_g: meal.fat_g
               };
@@ -255,9 +267,7 @@ export default function DashboardScreen({ navigation }) {
     <View style={styles.rootContainer}>
       <ScrollView 
         style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF66" />
-        }
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF66" />}
       >
         <View style={styles.header}>
           <View style={styles.headerRow}>
@@ -298,40 +308,17 @@ export default function DashboardScreen({ navigation }) {
           </View>
         )}
 
-        {/* Seção de Progresso com as novas barras */}
+        {/* Seção de Progresso */}
         <View style={styles.progressSection}>
-          <ProgressBar
-            label="Calorias"
-            consumed={summary?.total_calories}
-            goal={goals?.goal_calories}
-            unit="kcal"
-          />
-          <ProgressBar
-            label="Proteínas"
-            consumed={summary?.total_protein_g}
-            goal={goals?.goal_protein_g}
-          />
-          <ProgressBar
-            label="Carboidratos"
-            consumed={summary?.total_carbs_g}
-            goal={goals?.goal_carbs_g}
-          />
-          <ProgressBar
-            label="Gorduras"
-            consumed={summary?.total_fat_g}
-            goal={goals?.goal_fat_g}
-          />
+          <ProgressBar label="Calorias" consumed={summary?.total_calories} goal={goals?.goal_calories} unit="kcal" />
+          <ProgressBar label="Proteínas" consumed={summary?.total_protein_g} goal={goals?.goal_protein_g} />
+          <ProgressBar label="Carboidratos" consumed={summary?.total_carbs_g} goal={goals?.goal_carbs_g} />
+          <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={goals?.goal_fat_g} />
         </View>
 
         {/* Seção de Hidratação */}
         <View style={styles.progressSection}>
-          <ProgressBar
-            label="Hidratação"
-            consumed={waterIntake}
-            goal={2500} // Meta fixa de 2.5L por enquanto
-            unit="ml"
-            color="#00BFFF" // Azul Neon
-          />
+          <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color="#00BFFF" />
           <View style={styles.waterButtonsContainer}>
             <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(250)}>
               <Text style={styles.waterButtonText}>+250 ml</Text>
@@ -353,7 +340,6 @@ export default function DashboardScreen({ navigation }) {
                 <View style={styles.mealItem}>
                   <View style={styles.mealHeader}>
                     <Text style={styles.mealDesc}>{item.description}</Text>
-                    {/* Badge de Confiança da IA */}
                     {item.confidence > 0 && (
                       <View style={styles.confidenceBadge}>
                         <Text style={styles.confidenceText}>{(item.confidence * 100).toFixed(0)}% IA</Text>
@@ -372,17 +358,14 @@ export default function DashboardScreen({ navigation }) {
             </View>
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
-          contentContainerStyle={{ paddingBottom: 120 }} // Espaço para não esconder o último item atrás do botão
-          scrollEnabled={false} // Desabilita o scroll da FlatList, pois a tela inteira já é um ScrollView
+          contentContainerStyle={{ paddingBottom: 120 }}
+          scrollEnabled={false} 
         />
       </ScrollView>
 
-      {/* Novo grupo de botões flutuantes */}
+      {/* FABs */}
       <View style={styles.fabContainer}>
-        <TouchableOpacity 
-          style={styles.fabSecondary} 
-          onPress={() => navigation.navigate('ManualEntry', { targetDate: formattedCurrentDate })}
-        >
+        <TouchableOpacity style={styles.fabSecondary} onPress={() => navigation.navigate('ManualEntry', { targetDate: formattedCurrentDate })}>
           <Text style={styles.fabSecondaryIcon}>✍️</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Camera', { targetDate: formattedCurrentDate })}>
@@ -410,7 +393,6 @@ const styles = StyleSheet.create({
   title: { color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   subtitle: { color: '#888888', fontSize: 16, marginTop: 4 },
   progressSection: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25 },
-  // Estilos do Card de Insight
   insightCard: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
   insightHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   insightIcon: { fontSize: 20, marginRight: 10 },
@@ -418,7 +400,6 @@ const styles = StyleSheet.create({
   insightText: { color: '#DDDDDD', fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
   insightLoadingContainer: { flexDirection: 'row', alignItems: 'center' },
   insightLoadingText: { color: '#888888', marginLeft: 10, fontSize: 14 },
-
   progressContainer: { marginBottom: 15 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   progressLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
@@ -427,12 +408,9 @@ const styles = StyleSheet.create({
   progressBarFill: { height: '100%', borderRadius: 5 },
   progressMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
   progressMetaText: { color: '#888888', fontSize: 12 },
-  // Estilos para Hidratação
   waterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15 },
   waterButton: { borderColor: '#00BFFF', borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 25 },
   waterButtonText: { color: '#00BFFF', fontSize: 14, fontWeight: '600' },
-
-  // Estilos da Lista
   listTitle: { color: '#FFF', fontSize: 18, marginBottom: 15, fontWeight: '600' },
   mealItemContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   mealItem: { flex: 1, backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
@@ -446,27 +424,12 @@ const styles = StyleSheet.create({
   confidenceText: { color: '#00FF66', fontSize: 10, fontWeight: 'bold' },
   mealMacros: { color: '#888888', fontSize: 13 },
   emptyText: { color: '#888888', textAlign: 'center', marginTop: 30, fontSize: 14 },
-  // Estilos para o grupo de FABs
   fabContainer: { position: 'absolute', bottom: 30, right: 20, alignItems: 'center' },
   fab: { backgroundColor: '#00FF66', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: "#00FF66", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
   fabIcon: { color: '#121212', fontSize: 28 },
   fabSecondary: { backgroundColor: '#333', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 6 },
   fabSecondaryIcon: { fontSize: 20 },
-  errorText: {
-    color: '#FF6B6B',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20
-  },
-  retryButton: {
-    backgroundColor: '#00FF66',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 10,
-  },
-  retryButtonText: {
-    color: '#121212',
-    fontSize: 16,
-    fontWeight: 'bold'
-  }
+  errorText: { color: '#FF6B6B', fontSize: 16, textAlign: 'center', marginBottom: 20 },
+  retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10, },
+  retryButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' }
 });

@@ -1,12 +1,18 @@
 import os
 from flask import Flask
 from flask_jwt_extended import JWTManager
+from flask_migrate import Migrate # <-- 1. IMPORTAÇÃO DO MIGRATE
 
 from .config import Config
 from .extensions import cors, db
 from .models.user import User
 from .models.meal import Meal
+# Lembre-se de importar seus outros models aqui também, como FavoriteMeal e WeightLog
+from .models.favorite_meal import FavoriteMeal 
+from .models.weight_log import WeightLog
 
+# <-- 2. INICIALIZAÇÃO GLOBAL DO MIGRATE
+migrate = Migrate() 
 
 def create_app(config_class=Config):
     """
@@ -18,11 +24,12 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # **CORREÇÃO: Configura onde o Flask-JWT-Extended deve procurar o token**
-    # Isso instrui a biblioteca a procurar o token no cabeçalho 'Authorization'.
     app.config["JWT_TOKEN_LOCATION"] = ["headers"]
 
     # Inicializa as extensões do Flask
     db.init_app(app)
+    migrate.init_app(app, db) # <-- 3. CONECTA O MIGRATE AO APP E AO BANCO
+    
     cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
     jwt = JWTManager(app)
 
@@ -32,8 +39,7 @@ def create_app(config_class=Config):
     app.register_blueprint(meals_routes.meals_bp)
     app.register_blueprint(user_routes.user_bp)
 
-    with app.app_context():
-        # Cria as tabelas do banco de dados se não existirem
-        db.create_all()
+    # with app.app_context():
+        # db.create_all() # <-- 4. COMENTADO PARA DEIXAR O MIGRATE TRABALHAR
 
     return app
