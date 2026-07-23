@@ -22,6 +22,7 @@ class MealAnalysisResult:
     carbs_g: float
     fat_g: float
     confidence: Optional[float] = None
+    estimated_grams: float = 100.0
 
 # Prompt blindado com One-Shot Learning para garantir saída determinística
 _SYSTEM_PROMPT = """
@@ -37,6 +38,16 @@ Restrições Físicas Obrigatórias (Para 100g):
 - O total da soma de proteína, carboidrato e gordura NUNCA pode ultrapassar 100g.
 - Se for um prato misto (ex: arroz, feijão e carne), faça uma média proporcional baseada em 100g dessa mistura.
 
+Estimativa de Peso Real (campo "estimated_grams"):
+- Esse campo é SEPARADO da regra dos 100g acima — ele é a sua melhor estimativa do peso REAL
+  da porção mostrada na imagem ou descrita no texto, em gramas. NÃO afeta o cálculo dos macros,
+  que continuam sempre por 100g.
+- Se for imagem: use referências visuais (diâmetro típico de um prato raso ~26cm, talheres,
+  altura da comida no prato) pra estimar o peso total do que está servido.
+- Se for texto e o usuário mencionar uma quantidade explícita (ex: "200g de frango"), use
+  exatamente essa quantidade somada aos outros itens.
+- Se não houver como estimar com confiança, use 100.0 como valor padrão.
+
 Responda APENAS com um objeto JSON válido, sem formatação markdown ou textos extras, contendo a seguinte estrutura:
 {
     "description": "Nome simples e direto do prato (ex: Peito de Frango Grelhado)",
@@ -44,7 +55,8 @@ Responda APENAS com um objeto JSON válido, sem formatação markdown ou textos 
     "protein_g": numero_float_com_uma_casa_decimal,
     "carbs_g": numero_float_com_uma_casa_decimal,
     "fat_g": numero_float_com_uma_casa_decimal,
-    "confidence": numero_float_com_uma_casa_decimal
+    "confidence": numero_float_com_uma_casa_decimal,
+    "estimated_grams": numero_float_com_uma_casa_decimal
 }
 
 EXEMPLO DE COMPORTAMENTO ESPERADO (One-Shot):
@@ -56,13 +68,15 @@ Saída:
   "protein_g": 62.0,
   "carbs_g": 20.0,
   "fat_g": 7.0,
-  "confidence": 0.95
+  "confidence": 0.95,
+  "estimated_grams": 300.0
 }
 
 REGRAS DE CONTORNO:
 - Todos os valores nutricionais devem ser numéricos (float/int).
 - "confidence" é um valor entre 0 e 1 indicando sua certeza na estimativa.
-- Se a imagem ou texto NÃO for uma comida reconhecível, retorne TODOS os valores nutricionais como 0 e "description" como "Não identificado".
+- Se a imagem ou texto NÃO for uma comida reconhecível, retorne TODOS os valores nutricionais como 0,
+  "description" como "Não identificado" e "estimated_grams" como 100.0.
 """
 
 class GeminiService:
@@ -160,6 +174,15 @@ class GeminiService:
             confidence = round(float(data.get("confidence", 0.0)), 2)
             description = str(data.get("description", "Refeição não identificada"))
 
+            # Estimativa de peso real é só uma sugestão pro usuário confirmar — se vier
+            # ausente ou fora do formato esperado, cai pro padrão de 100g sem quebrar a análise.
+            try:
+                estimated_grams = round(float(data.get("estimated_grams", 100.0)), 1)
+                if estimated_grams <= 0:
+                    estimated_grams = 100.0
+            except (TypeError, ValueError):
+                estimated_grams = 100.0
+
             # 3. Retorna o objeto limpo e formatado
             return MealAnalysisResult(
                 description=description,
@@ -168,6 +191,7 @@ class GeminiService:
                 carbs_g=carbs_g,
                 fat_g=fat_g,
                 confidence=confidence,
+                estimated_grams=estimated_grams,
             )
         except (json.JSONDecodeError, TypeError, ValueError) as exc:
             logger.error("Resposta da IA fora do formato esperado: %s", raw_text)

@@ -15,6 +15,15 @@ class Config:
 
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 
+    # Só fica em modo debug se FLASK_ENV=development for explicitado no .env.
+    # Qualquer outro valor (ou ausência) assume produção por segurança.
+    DEBUG = os.getenv("FLASK_ENV", "production") == "development"
+
+    # Em produção, defina CORS_ORIGINS com a(s) origem(ns) real(is) separadas por vírgula
+    # (ex: "https://meuapp.com,https://admin.meuapp.com"). "*" só é seguro em desenvolvimento.
+    _cors_origins_env = os.getenv("CORS_ORIGINS", "*")
+    CORS_ORIGINS = "*" if _cors_origins_env == "*" else [o.strip() for o in _cors_origins_env.split(",")]
+
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'nutrition.db')}"
     )

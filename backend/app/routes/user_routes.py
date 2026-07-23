@@ -14,7 +14,7 @@ user_service = UserService()
 @user_bp.route("/goals", methods=["GET"])
 @jwt_required()
 def get_user_goals_route():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     goals = user_service.get_user_goals(user_id)
     
     if goals:
@@ -25,7 +25,7 @@ def get_user_goals_route():
 @user_bp.route("/goals", methods=["PUT"])
 @jwt_required()
 def update_user_goals_route():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     updated_user = user_service.update_user_goals(user_id, data)
     return jsonify(message="Metas atualizadas com sucesso", goals=updated_user.goals.to_dict())
@@ -33,7 +33,7 @@ def update_user_goals_route():
 @user_bp.route("/calculate-goals", methods=["POST"])
 @jwt_required()
 def calculate_goals_route():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     data = request.get_json()
     
     # O user_service agora lida com o cálculo e a atualização
@@ -44,7 +44,7 @@ def calculate_goals_route():
 @user_bp.route("/water/add", methods=["POST"])
 @jwt_required()
 def add_water():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     data = request.get_json()
     amount = data.get("amount")
 
@@ -62,7 +62,7 @@ def add_water():
 @user_bp.route("/weight", methods=["GET"])
 @jwt_required()
 def get_weight_history():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     # Busca o histórico ordenado da pesagem mais antiga para a mais nova
     history = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.asc()).all()
     return jsonify([log.to_dict() for log in history]), 200
@@ -70,7 +70,7 @@ def get_weight_history():
 @user_bp.route("/weight", methods=["POST"])
 @jwt_required()
 def log_weight():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     data = request.get_json()
     
     new_weight = float(data.get("weight", 0))

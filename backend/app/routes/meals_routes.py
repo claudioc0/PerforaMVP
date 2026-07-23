@@ -112,14 +112,14 @@ def get_today():
 @meals_bp.route("/favorites", methods=["GET"])
 @jwt_required()
 def get_favorites():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     favorites = FavoriteMeal.query.filter_by(user_id=current_user_id).all()
     return jsonify([fav.to_dict() for fav in favorites]), 200
 
 @meals_bp.route("/favorites", methods=["POST"])
 @jwt_required()
 def add_favorite():
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     data = request.get_json()
 
     new_favorite = FavoriteMeal(
@@ -138,7 +138,7 @@ def add_favorite():
 @meals_bp.route("/favorites/<int:fav_id>", methods=["DELETE"])
 @jwt_required()
 def remove_favorite(fav_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = int(get_jwt_identity())
     favorite = FavoriteMeal.query.get(fav_id)
 
     if not favorite or favorite.user_id != current_user_id:

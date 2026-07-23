@@ -30,7 +30,7 @@ def create_app(config_class=Config):
     db.init_app(app)
     migrate.init_app(app, db) # <-- 3. CONECTA O MIGRATE AO APP E AO BANCO
     
-    cors.init_app(app, resources={r"/api/*": {"origins": "*"}})
+    cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     jwt = JWTManager(app)
 
     # Registra os Blueprints (rotas)

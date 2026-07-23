@@ -17,6 +17,9 @@ class Meal(db.Model):
     carbs_g = db.Column(db.Float, nullable=False, default=0)
     fat_g = db.Column(db.Float, nullable=False, default=0)
 
+    # Quantidade em gramas que o usuário confirmou (a análise da IA é sempre por 100g)
+    quantity_g = db.Column(db.Float, nullable=False, default=100)
+
     # Guardamos a origem (foto ou texto) e um nível de confiança opcional da IA
     source_type = db.Column(db.String(10), nullable=False, default="image")  # image | text
     confidence = db.Column(db.Float, nullable=True)
@@ -34,6 +37,7 @@ class Meal(db.Model):
             "protein_g": self.protein_g,
             "carbs_g": self.carbs_g,
             "fat_g": self.fat_g,
+            "quantity_g": self.quantity_g,
             "source_type": self.source_type,
             "confidence": self.confidence,
             "created_at": self.created_at.isoformat(),

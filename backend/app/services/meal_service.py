@@ -49,6 +49,7 @@ class MealService:
             "carbs_g": result.carbs_g,
             "fat_g": result.fat_g,
             "confidence": result.confidence,
+            "estimated_grams": result.estimated_grams,
             "source_type": "image"
         }
 
@@ -63,6 +64,7 @@ class MealService:
             "carbs_g": result.carbs_g,
             "fat_g": result.fat_g,
             "confidence": result.confidence,
+            "estimated_grams": result.estimated_grams,
             "source_type": "text"
         }
 
@@ -78,6 +80,7 @@ class MealService:
             protein_g=meal_data.get("protein_g", 0),
             carbs_g=meal_data.get("carbs_g", 0),
             fat_g=meal_data.get("fat_g", 0),
+            quantity_g=meal_data.get("quantity_g", 100),
             confidence=meal_data.get("confidence"),
             source_type=meal_data.get("source_type", "manual"),
             created_at=creation_timestamp,
@@ -184,6 +187,7 @@ class MealService:
             meal_to_update.protein_g = float(update_data.get("protein_g", meal_to_update.protein_g))
             meal_to_update.carbs_g = float(update_data.get("carbs_g", meal_to_update.carbs_g))
             meal_to_update.fat_g = float(update_data.get("fat_g", meal_to_update.fat_g))
+            meal_to_update.quantity_g = float(update_data.get("quantity_g", meal_to_update.quantity_g))
 
             db.session.commit()
             return meal_to_update
