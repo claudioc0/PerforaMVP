@@ -1,8 +1,16 @@
 import json
+import os
 from urllib.request import urlopen
 
-# Insira a sua API Key real aqui
-CHAVE = "GEMINI_API_KEY" 
+from dotenv import load_dotenv
+
+# Carrega o GEMINI_API_KEY do backend/.env (mesmo usado pelo app)
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+CHAVE = os.getenv("GEMINI_API_KEY")
+if not CHAVE:
+    raise SystemExit("GEMINI_API_KEY não encontrada no backend/.env")
+
 url = f"https://generativelanguage.googleapis.com/v1beta/models?key={CHAVE}"
 
 try:
