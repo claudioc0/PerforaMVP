@@ -6,10 +6,11 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { navigate } from '../navigation/RootNavigation'; // Importa o helper de navegação
+
+// Configurável via .env (EXPO_PUBLIC_API_URL) — veja .env.example.
 // Em desenvolvimento, use o IP da sua máquina na rede local (não use "localhost"
 // se estiver testando em um celular físico ou emulador Android).
-// Exemplo: "http://192.168.0.10:5000"
-const API_BASE_URL = "http://192.168.0.10:5000/api";
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.10:5000/api";
 
 class ApiError extends Error {
   constructor(message, status) {

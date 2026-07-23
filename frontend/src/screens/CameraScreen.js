@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { analyzeMeal } from '../services/api';
 import { fetchProductByBarcode } from '../services/openFoodFacts';
+import BackButton from '../components/BackButton';
 
 export default function CameraScreen({ navigation, route }) {
   const [imageUri, setImageUri] = useState(null);
@@ -121,7 +122,10 @@ export default function CameraScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.headerTitle}>Nova Refeição</Text>
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Nova Refeição</Text>
+      </View>
 
       <View style={styles.cameraContainer}>
         <CameraView
@@ -172,7 +176,8 @@ export default function CameraScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  headerTitle: { color: '#FFF', fontSize: 24, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
   cameraContainer: { width: '100%', height: 300, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' },
   camera: { width: '100%', height: '100%' },
   overlay: { position: 'absolute', bottom: 10, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },

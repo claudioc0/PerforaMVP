@@ -1,43 +1,34 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { updateMeal, analyzeMeal } from '../services/api';
+import { updateMeal } from '../services/api';
+import BackButton from '../components/BackButton';
 
 export default function AdjustQuantityScreen({ navigation, route }) {
   const { meal: initialMeal } = route.params;
 
-  const [baseMacros, setBaseMacros] = useState(null);
   const [quantity, setQuantity] = useState(String(initialMeal.quantity_g || 100));
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Busca os macros base (para 100g) ao carregar a tela
-  useEffect(() => {
-    const fetchBaseMacros = async () => {
-      try {
-        // Re-analisa a descrição para obter os valores base para 100g
-        const analysisResult = await analyzeMeal(null, initialMeal.description);
-        setBaseMacros(analysisResult);
-      } catch (error) {
-        Alert.alert(
-          "Erro",
-          "Não foi possível buscar os dados base para esta refeição. Verifique sua conexão.",
-          [{ text: "OK", onPress: () => navigation.goBack() }]
-        );
-      } finally {
-        setLoading(false);
-      }
+  // Deriva os macros base (para 100g) a partir da própria refeição já salva,
+  // sem precisar chamar a IA de novo: base = valor salvo / (quantidade salva / 100).
+  const baseMacros = useMemo(() => {
+    const savedQuantity = initialMeal.quantity_g > 0 ? initialMeal.quantity_g : 100;
+    const ratio = 100 / savedQuantity;
+    return {
+      calories: initialMeal.calories * ratio,
+      protein_g: initialMeal.protein_g * ratio,
+      carbs_g: initialMeal.carbs_g * ratio,
+      fat_g: initialMeal.fat_g * ratio,
     };
-
-    fetchBaseMacros();
-  }, [initialMeal.description, navigation]);
+  }, [initialMeal]);
 
   // Recalcula os macros em tempo real com base na nova quantidade
   const calculatedMacros = useMemo(() => {
     const numQuantity = parseFloat(quantity) || 0;
-    if (!baseMacros || numQuantity <= 0) {
+    if (numQuantity <= 0) {
       return { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 };
     }
-    const base = 100; // A análise da IA é sempre baseada em 100g
+    const base = 100; // baseMacros é sempre por 100g
     return {
       calories: (baseMacros.calories / base) * numQuantity,
       protein_g: (baseMacros.protein_g / base) * numQuantity,
@@ -71,18 +62,12 @@ export default function AdjustQuantityScreen({ navigation, route }) {
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.containerCenter}>
-        <ActivityIndicator size="large" color="#00FF66" />
-        <Text style={styles.loadingText}>Buscando dados base...</Text>
-      </View>
-    );
-  }
-
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
+      </View>
       <Text style={styles.descriptionText}>{initialMeal.description}</Text>
 
       <View style={styles.card}>
@@ -124,9 +109,8 @@ export default function AdjustQuantityScreen({ navigation, route }) {
 // Estilos baseados na MealConfirmationScreen para consistência
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  containerCenter: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', alignItems: 'center' },
-  loadingText: { color: '#888', marginTop: 10 },
-  headerTitle: { color: '#FFF', fontSize: 28, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   descriptionText: { color: '#00FF66', fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 30, textTransform: 'capitalize' },
   card: { backgroundColor: '#1E1E1E', padding: 20, borderRadius: 16, marginBottom: 20 },
   cardTitle: { color: '#FFF', fontSize: 18, fontWeight: '600', marginBottom: 15 },

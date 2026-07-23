@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert, TextInput, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWeeklySummary, getUserGoals, getWeightHistory, logWeight } from '../services/api';
+import { Ionicons } from '@expo/vector-icons';
+import BackButton from '../components/BackButton';
 
 // --- Componente de Gráfico de Barras Customizado ---
 const WeeklyBarChart = ({ data, goal, label }) => {
@@ -113,11 +115,8 @@ export default function InsightsScreen({ navigation }) {
 
   return (
     <View style={styles.rootContainer}>
-      {/* CORREÇÃO 3: Header com Botão de Voltar */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Voltar</Text>
-        </TouchableOpacity>
+        <BackButton style={styles.backButton} />
         <Text style={styles.headerTitle}>Seus Insights</Text>
       </View>
 
@@ -169,21 +168,21 @@ export default function InsightsScreen({ navigation }) {
             <View style={styles.weightHistoryContainer}>
               <Text style={styles.weightHistoryLabel}>Últimos Registros:</Text>
               <View style={styles.weightTagsContainer}>
-                {weightHistory.slice(-5).reverse().map((log, index, arr) => { 
+                {weightHistory.slice(-5).reverse().map((log, index, arr) => {
                   // CORREÇÃO 2: Pega o log cronologicamente anterior (index + 1)
-                  const olderLog = arr[index + 1]; 
-                  let indicator = '';
-                  let indicatorColor = '#333'; 
+                  const olderLog = arr[index + 1];
+                  let trendIcon = null;
+                  let indicatorColor = '#333';
 
                   if (olderLog) {
-                    if (log.weight < olderLog.weight) { 
-                      indicator = '⬇️'; 
+                    if (log.weight < olderLog.weight) {
+                      trendIcon = 'trending-down';
                       indicatorColor = '#00FF66'; // Perdeu peso (Verde)
-                    } else if (log.weight > olderLog.weight) { 
-                      indicator = '⬆️'; 
+                    } else if (log.weight > olderLog.weight) {
+                      trendIcon = 'trending-up';
                       indicatorColor = '#FF6B6B'; // Ganhou peso (Vermelho)
                     } else {
-                      indicator = '⏸️'; // Manteve
+                      trendIcon = 'remove'; // Manteve
                       indicatorColor = '#888';
                     }
                   }
@@ -191,8 +190,11 @@ export default function InsightsScreen({ navigation }) {
                   return (
                     <View key={log.id} style={[styles.weightTag, { borderColor: indicatorColor }]}>
                       <Text style={styles.weightTagText}>
-                        {new Date(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg {indicator}
+                        {new Date(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg
                       </Text>
+                      {trendIcon && (
+                        <Ionicons name={trendIcon} size={14} color={indicatorColor} style={styles.weightTagIcon} />
+                      )}
                     </View>
                   );
                 })}
@@ -214,7 +216,6 @@ const styles = StyleSheet.create({
   
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: '#121212' },
   backButton: { position: 'absolute', left: 20, top: 60, zIndex: 10 },
-  backButtonText: { color: '#00FF66', fontSize: 16, fontWeight: 'bold' },
   headerTitle: { flex: 1, textAlign: 'center', color: '#FFF', fontSize: 22, fontWeight: 'bold' },
   
   card: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 20 },
@@ -242,7 +243,8 @@ const styles = StyleSheet.create({
   weightHistoryContainer: { marginTop: 10 },
   weightHistoryLabel: { color: '#AAA', fontSize: 14, marginBottom: 10 },
   weightTagsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
-  weightTag: { backgroundColor: '#1E1E1E', borderWidth: 1, borderRadius: 15, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, marginBottom: 8 },
+  weightTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderWidth: 1, borderRadius: 15, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, marginBottom: 8 },
   weightTagText: { color: '#FFF', fontSize: 13 },
+  weightTagIcon: { marginLeft: 4 },
   emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
 });

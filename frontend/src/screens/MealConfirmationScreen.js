@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { saveMeal } from '../services/api';
+import BackButton from '../components/BackButton';
 
 export default function MealConfirmationScreen({ navigation, route }) {
   // 1. Recebe os dados da análise (rascunho) e a data da tela anterior
   const { draftMeal, targetDate } = route.params;
 
-  // Estado para a quantidade em gramas, iniciando em 100g
-  const [quantity, setQuantity] = useState('100');
+  // Estado para a quantidade em gramas — parte da estimativa da IA (baseada na foto/descrição),
+  // com 100g como fallback caso ela não tenha conseguido estimar.
+  const [quantity, setQuantity] = useState(String(draftMeal?.estimated_grams || 100));
   const [loading, setLoading] = useState(false);
 
   // 2. Lógica de recálculo dos macros em tempo real (Regra de Três)
@@ -40,6 +42,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
       const finalMealData = {
         ...draftMeal, // description, confidence, source_type
         ...calculatedMacros, // Usa os valores já calculados e arredondados do useMemo
+        quantity_g: parseFloat(quantity) || 100, // Quantidade confirmada pelo usuário
         date: targetDate, // Adiciona a data para o backend salvar no dia certo
       };
 
@@ -67,7 +70,10 @@ export default function MealConfirmationScreen({ navigation, route }) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>Confirmar Refeição</Text>
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Confirmar Refeição</Text>
+      </View>
       <Text style={styles.descriptionText}>{draftMeal.description}</Text>
 
       <View style={styles.card}>
@@ -83,6 +89,9 @@ export default function MealConfirmationScreen({ navigation, route }) {
           />
           <Text style={styles.unitText}>gramas</Text>
         </View>
+        {draftMeal?.estimated_grams > 0 && (
+          <Text style={styles.estimateHint}>Estimativa da IA — ajuste se necessário</Text>
+        )}
       </View>
 
       <View style={styles.card}>
@@ -129,11 +138,13 @@ export default function MealConfirmationScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  headerTitle: { color: '#FFF', fontSize: 28, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   descriptionText: { color: '#00FF66', fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 30, textTransform: 'capitalize' },
   card: { backgroundColor: '#1E1E1E', padding: 20, borderRadius: 16, marginBottom: 20 },
   cardTitle: { color: '#FFF', fontSize: 18, fontWeight: '600', marginBottom: 15 },
   quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#333', borderRadius: 10 },
+  estimateHint: { color: '#888', fontSize: 12, marginTop: 10, textAlign: 'center' },
   quantityInput: { color: '#FFF', fontSize: 20, padding: 15, flex: 1, fontWeight: 'bold' },
   unitText: { color: '#888', fontSize: 16, paddingRight: 15 },
   macrosGrid: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' },

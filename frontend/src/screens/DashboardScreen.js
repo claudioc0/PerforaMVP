@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getTodaySummary, getUserGoals, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api'; 
+import { getTodaySummary, getUserGoals, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import LogoMark from '../components/LogoMark';
 
 // --- Funções utilitárias para manipulação de datas ---
 const getFormattedDate = (date) => {
@@ -271,7 +273,10 @@ export default function DashboardScreen({ navigation }) {
       >
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <Text style={styles.greeting}>Olá, {userName}</Text>
+            <View style={styles.brandRow}>
+              <LogoMark size={22} />
+              <Text style={styles.greeting}>Olá, {userName}</Text>
+            </View>
             <View style={styles.headerActions}>
               <TouchableOpacity onPress={() => navigation.navigate('Insights')}><Text style={styles.headerButtonText}>Gráficos</Text></TouchableOpacity>
               <TouchableOpacity onPress={() => navigation.navigate('Goals')}><Text style={styles.headerButtonText}>Metas</Text></TouchableOpacity>
@@ -280,11 +285,11 @@ export default function DashboardScreen({ navigation }) {
           </View>
           <View style={styles.dateSelector}>
             <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
-              <Text style={styles.arrowText}>{'<'}</Text>
+              <Ionicons name="chevron-back" size={24} color="#FFF" />
             </TouchableOpacity>
             <Text style={styles.title}>{getDisplayDate(currentDate)}</Text>
             <TouchableOpacity onPress={() => changeDay(1)} style={[styles.arrowButton, isFutureDate && styles.disabledArrow] } disabled={isFutureDate}>
-              <Text style={styles.arrowText}>{'>'}</Text>
+              <Ionicons name="chevron-forward" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
           <Text style={styles.subtitle}>Seu desempenho hoje</Text>
@@ -294,7 +299,7 @@ export default function DashboardScreen({ navigation }) {
         {(loadingInsight || aiInsight) && (
           <View style={styles.insightCard}>
             <View style={styles.insightHeader}>
-              <Text style={styles.insightIcon}>🧠</Text>
+              <Ionicons name="flash" size={20} color="#00FF66" style={styles.insightIcon} />
               <Text style={styles.insightTitle}>Insight do Treinador</Text>
             </View>
             {loadingInsight ? (
@@ -350,7 +355,7 @@ export default function DashboardScreen({ navigation }) {
                 </View>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
-                <Text style={styles.actionButtonText}>⭐</Text>
+                <Ionicons name="star" size={20} color="#00FF66" />
               </TouchableOpacity>
               <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
                 <Text style={styles.deleteButtonText}>Excluir</Text>
@@ -366,10 +371,10 @@ export default function DashboardScreen({ navigation }) {
       {/* FABs */}
       <View style={styles.fabContainer}>
         <TouchableOpacity style={styles.fabSecondary} onPress={() => navigation.navigate('ManualEntry', { targetDate: formattedCurrentDate })}>
-          <Text style={styles.fabSecondaryIcon}>✍️</Text>
+          <Ionicons name="create" size={22} color="#00FF66" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Camera', { targetDate: formattedCurrentDate })}>
-          <Text style={styles.fabIcon}>📷</Text>
+          <Ionicons name="camera" size={28} color="#121212" />
         </TouchableOpacity>
       </View>
     </View>
@@ -382,9 +387,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
   header: { marginBottom: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  brandRow: { flexDirection: 'row', alignItems: 'center' },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerButtonText: { color: '#00FF66', fontSize: 16, fontWeight: '500', marginRight: 15 },
-  greeting: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold' },
+  greeting: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold', marginLeft: 8 },
   logoutText: { color: '#888888', fontSize: 16, },
   dateSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 10 },
   arrowButton: { padding: 10 },
@@ -395,7 +401,7 @@ const styles = StyleSheet.create({
   progressSection: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25 },
   insightCard: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
   insightHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  insightIcon: { fontSize: 20, marginRight: 10 },
+  insightIcon: { marginRight: 10 },
   insightTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
   insightText: { color: '#DDDDDD', fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
   insightLoadingContainer: { flexDirection: 'row', alignItems: 'center' },
@@ -403,7 +409,7 @@ const styles = StyleSheet.create({
   progressContainer: { marginBottom: 15 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
   progressLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
-  progressPercentage: { color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' },
+  progressPercentage: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Orbitron_700Bold' },
   progressBarTrack: { height: 10, backgroundColor: '#333333', borderRadius: 5, overflow: 'hidden' },
   progressBarFill: { height: '100%', borderRadius: 5 },
   progressMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
@@ -415,7 +421,6 @@ const styles = StyleSheet.create({
   mealItemContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   mealItem: { flex: 1, backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
   actionButton: { padding: 10, marginLeft: 10 },
-  actionButtonText: { fontSize: 20 },
   deleteButton: { padding: 10, marginLeft: 5 },
   deleteButtonText: { color: '#FF6B6B', fontSize: 14, fontWeight: '500' },
   mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
@@ -426,9 +431,7 @@ const styles = StyleSheet.create({
   emptyText: { color: '#888888', textAlign: 'center', marginTop: 30, fontSize: 14 },
   fabContainer: { position: 'absolute', bottom: 30, right: 20, alignItems: 'center' },
   fab: { backgroundColor: '#00FF66', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: "#00FF66", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
-  fabIcon: { color: '#121212', fontSize: 28 },
   fabSecondary: { backgroundColor: '#333', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 6 },
-  fabSecondaryIcon: { fontSize: 20 },
   errorText: { color: '#FF6B6B', fontSize: 16, textAlign: 'center', marginBottom: 20 },
   retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10, },
   retryButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' }

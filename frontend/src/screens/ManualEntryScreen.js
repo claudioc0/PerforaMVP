@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, FlatList } from 'react-native';
 import { saveMeal, getFavorites, removeFavorite } from '../services/api';
 import { useRoute } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import BackButton from '../components/BackButton';
 
 const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder }) => (
   <View style={styles.fieldContainer}>
@@ -143,10 +145,10 @@ export default function ManualEntryScreen({ navigation, route }) {
       </View>
       <View style={styles.favActions}>
         <TouchableOpacity style={styles.favButton} onPress={() => handleAddFavoriteToToday(item)}>
-          <Text style={styles.favButtonText}>➕</Text>
+          <Ionicons name="add-circle" size={26} color="#00FF66" />
         </TouchableOpacity>
         <TouchableOpacity style={styles.favButton} onPress={() => handleRemoveFavorite(item.id)}>
-          <Text style={styles.favButtonText}>🗑️</Text>
+          <Ionicons name="trash" size={22} color="#FF6B6B" />
         </TouchableOpacity>
       </View>
     </View>
@@ -154,7 +156,10 @@ export default function ManualEntryScreen({ navigation, route }) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>Registro Manual</Text>
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Registro Manual</Text>
+      </View>
 
       <View style={styles.section}>
         <View style={styles.card}>
@@ -228,7 +233,8 @@ export default function ManualEntryScreen({ navigation, route }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  headerTitle: { color: '#FFF', fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   section: { marginBottom: 30 },
   sectionTitle: { color: '#FFF', fontSize: 20, fontWeight: '600', marginBottom: 15, borderTopColor: '#333', borderTopWidth: 1, paddingTop: 20 },
   card: { backgroundColor: '#1E1E1E', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 16, marginBottom: 20 },
@@ -249,6 +255,5 @@ const styles = StyleSheet.create({
   favMacros: { color: '#888', fontSize: 12, marginTop: 4 },
   favActions: { flexDirection: 'row' },
   favButton: { paddingHorizontal: 10 },
-  favButtonText: { fontSize: 22 },
   emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
 });

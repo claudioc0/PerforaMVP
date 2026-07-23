@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser } from '../services/api';
+import LogoMark from '../components/LogoMark';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -36,7 +37,10 @@ export default function LoginScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Perfora</Text>
+        <View style={styles.logoRow}>
+          <LogoMark size={44} />
+          <Text style={styles.title}>PERFORA</Text>
+        </View>
         <Text style={styles.subtitle}>Acesse sua conta para continuar</Text>
       </View>
 
@@ -88,7 +92,8 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', padding: 25 },
   header: { marginBottom: 40, alignItems: 'center' },
-  title: { color: '#FFF', fontSize: 40, fontWeight: 'bold', letterSpacing: 2 },
+  logoRow: { flexDirection: 'row', alignItems: 'center' },
+  title: { color: '#FFF', fontSize: 32, fontFamily: 'Orbitron_900Black', letterSpacing: 2, marginLeft: 10 },
   subtitle: { color: '#00FF66', fontSize: 16, marginTop: 5 },
   form: { width: '100%' },
   label: { color: '#FFF', fontSize: 14, marginBottom: 8, fontWeight: '500' },

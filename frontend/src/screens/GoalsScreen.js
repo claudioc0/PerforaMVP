@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getUserGoals, updateUserGoals, calculateSmartGoals } from '../services/api';
+import BackButton from '../components/BackButton';
 
 // Componente para botões de seleção customizados
 const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
@@ -138,7 +139,10 @@ export default function GoalsScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.headerTitle}>Definir Metas</Text>
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.headerTitle}>Definir Metas</Text>
+      </View>
 
       <TouchableOpacity style={styles.smartButton} onPress={() => setModalVisible(true)}>
         <Text style={styles.smartButtonText}>Usar Calculadora Automática</Text>
@@ -245,7 +249,8 @@ export default function GoalsScreen({ navigation }) {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  headerTitle: { color: '#FFF', fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   smartButton: {
     borderColor: '#00FF66',
     borderWidth: 1,

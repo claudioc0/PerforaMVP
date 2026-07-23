@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { registerUser } from '../services/api'; // Importa a função da API
+import BackButton from '../components/BackButton';
 
 // Componente para exibir um requisito da senha
 const PasswordRequirement = ({ met, text }) => (
@@ -49,8 +50,11 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Criar Conta</Text>
-      
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.title}>Criar Conta</Text>
+      </View>
+
       <TextInput
         style={styles.input}
         placeholder="Nome Completo"
@@ -102,11 +106,16 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#121212',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 30,
+  },
   title: {
+    flex: 1,
     fontSize: 28,
     fontWeight: 'bold',
     color: '#FFF',
-    marginBottom: 30,
     textAlign: 'center',
   },
   input: {
