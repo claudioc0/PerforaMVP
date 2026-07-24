@@ -1,5 +1,23 @@
 {
-  "plugins": [
-    "expo-font"
-  ]
+  "expo": {
+    "name": "Perfora",
+    "slug": "perfora",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0D0D0D",
+    "android": {
+      "package": "com.perfora.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D0D0D"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.perfora.app",
+      "supportsTablet": false
+    },
+    "plugins": [
+      "expo-font"
+    ]
+  }
 }

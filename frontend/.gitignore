@@ -3,3 +3,7 @@ node_modules/
 dist/
 npm-debug.log*
 .env
+
+# Gerado por `expo prebuild` / `expo run:android` — regenerável, não versionar
+/android
+/ios

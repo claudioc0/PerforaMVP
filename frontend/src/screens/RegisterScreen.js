@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { registerUser } from '../services/api'; // Importa a função da API
 import BackButton from '../components/BackButton';
+import LogoMark from '../components/LogoMark';
 
 // Componente para exibir um requisito da senha
 const PasswordRequirement = ({ met, text }) => (
@@ -50,9 +51,16 @@ export default function RegisterScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerRow}>
+      <View style={styles.backRow}>
         <BackButton />
-        <Text style={styles.title}>Criar Conta</Text>
+      </View>
+
+      <View style={styles.header}>
+        <View style={styles.logoRow}>
+          <LogoMark size={36} />
+          <Text style={styles.title}>PERFORA</Text>
+        </View>
+        <Text style={styles.subtitle}>Crie sua conta para começar</Text>
       </View>
 
       <TextInput
@@ -106,17 +114,28 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#121212',
   },
-  headerRow: {
+  backRow: {
+    marginBottom: 10,
+  },
+  header: {
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  logoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 30,
   },
   title: {
-    flex: 1,
-    fontSize: 28,
-    fontWeight: 'bold',
     color: '#FFF',
-    textAlign: 'center',
+    fontSize: 26,
+    fontFamily: 'Orbitron_900Black',
+    letterSpacing: 2,
+    marginLeft: 10,
+  },
+  subtitle: {
+    color: '#00FF66',
+    fontSize: 16,
+    marginTop: 5,
   },
   input: {
     backgroundColor: '#1E1E1E',
