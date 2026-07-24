@@ -8,9 +8,10 @@ from PIL import Image
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.extensions import db 
+from app.extensions import db
 from app.models import Meal, WaterLog
 from app.services.gemini_service import GeminiService, MealAnalysisResult
+from app.services.food_cache_service import get_cached_or_fetch_macros
 
 
 def _parse_date_str(date_str: Optional[str]) -> date:
@@ -36,36 +37,61 @@ class MealService:
     def __init__(self, gemini_service: GeminiService):
         self._gemini_service = gemini_service
 
+    @staticmethod
+    def _items_to_dicts(result: MealAnalysisResult) -> list:
+        items = []
+        for item in result.items:
+            # Garante consistência: se esse alimento já foi visto antes (por
+            # qualquer usuário), usa os macros salvos em vez do que a IA acabou
+            # de calcular de novo nesta análise. Não evita a chamada ao Gemini
+            # (já foi feita) — só evita variação nos macros de alimentos repetidos.
+            fresh_macros = {
+                "calories": item.calories,
+                "protein_g": item.protein_g,
+                "carbs_g": item.carbs_g,
+                "fat_g": item.fat_g,
+            }
+            macros = get_cached_or_fetch_macros(item.description, fresh_macros)
+
+            items.append({
+                "description": item.description,
+                **macros,
+                "estimated_grams": item.estimated_grams,
+            })
+        return items
+
     # 1. APENAS ANALISA A IMAGEM (Não salva mais no banco)
     def analyze_image(self, image_bytes: bytes) -> dict:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
         result = self._gemini_service.analyze_image(image)
-        
-        # Retorna um dicionário com a estimativa da IA
+
+        # Retorna o rascunho com os itens identificados pela IA (por 100g cada)
         return {
-            "description": result.description,
-            "calories": result.calories,
-            "protein_g": result.protein_g,
-            "carbs_g": result.carbs_g,
-            "fat_g": result.fat_g,
+            "items": self._items_to_dicts(result),
             "confidence": result.confidence,
-            "estimated_grams": result.estimated_grams,
             "source_type": "image"
         }
 
     # 2. APENAS ANALISA O TEXTO (Não salva mais no banco)
     def analyze_text(self, description: str) -> dict:
         result = self._gemini_service.analyze_text(description)
-        
+
         return {
-            "description": result.description,
-            "calories": result.calories,
-            "protein_g": result.protein_g,
-            "carbs_g": result.carbs_g,
-            "fat_g": result.fat_g,
+            "items": self._items_to_dicts(result),
             "confidence": result.confidence,
-            "estimated_grams": result.estimated_grams,
             "source_type": "text"
+        }
+
+    @staticmethod
+    def _aggregate_from_items(items: list) -> dict:
+        """Soma os itens confirmados (já escalados pra quantidade real) num total da refeição."""
+        return {
+            "description": ", ".join(str(item.get("description", "Item")) for item in items),
+            "calories": sum(float(item.get("calories", 0)) for item in items),
+            "protein_g": sum(float(item.get("protein_g", 0)) for item in items),
+            "carbs_g": sum(float(item.get("carbs_g", 0)) for item in items),
+            "fat_g": sum(float(item.get("fat_g", 0)) for item in items),
+            "quantity_g": sum(float(item.get("quantity_g", 0)) for item in items),
         }
 
     # 3. NOVO MÉTODO: SALVA A REFEIÇÃO (Recebe os dados confirmados do celular)
@@ -73,14 +99,31 @@ class MealService:
         target_date = _parse_date_str(date_str)
         creation_timestamp = datetime.combine(target_date, datetime.utcnow().time())
 
-        # Cria a refeição no banco com os dados que o usuário confirmou na tela
+        items = meal_data.get("items")
+
+        # Refeições com detalhamento por item (foto/texto analisados pela IA): os totais
+        # da refeição são derivados da soma dos itens. Sem items (entrada manual, favoritos),
+        # mantém o comportamento antigo de campos soltos.
+        if items:
+            aggregate = self._aggregate_from_items(items)
+        else:
+            aggregate = {
+                "description": meal_data.get("description", "Refeição"),
+                "calories": meal_data.get("calories", 0),
+                "protein_g": meal_data.get("protein_g", 0),
+                "carbs_g": meal_data.get("carbs_g", 0),
+                "fat_g": meal_data.get("fat_g", 0),
+                "quantity_g": meal_data.get("quantity_g", 100),
+            }
+
         meal = Meal(
-            description=meal_data.get("description", "Refeição"),
-            calories=meal_data.get("calories", 0),
-            protein_g=meal_data.get("protein_g", 0),
-            carbs_g=meal_data.get("carbs_g", 0),
-            fat_g=meal_data.get("fat_g", 0),
-            quantity_g=meal_data.get("quantity_g", 100),
+            description=aggregate["description"],
+            calories=aggregate["calories"],
+            protein_g=aggregate["protein_g"],
+            carbs_g=aggregate["carbs_g"],
+            fat_g=aggregate["fat_g"],
+            quantity_g=aggregate["quantity_g"],
+            items=items,
             confidence=meal_data.get("confidence"),
             source_type=meal_data.get("source_type", "manual"),
             created_at=creation_timestamp,
@@ -181,13 +224,25 @@ class MealService:
                 )
                 return None
 
-            # Atualiza apenas os campos fornecidos
-            meal_to_update.description = update_data.get("description", meal_to_update.description)
-            meal_to_update.calories = float(update_data.get("calories", meal_to_update.calories))
-            meal_to_update.protein_g = float(update_data.get("protein_g", meal_to_update.protein_g))
-            meal_to_update.carbs_g = float(update_data.get("carbs_g", meal_to_update.carbs_g))
-            meal_to_update.fat_g = float(update_data.get("fat_g", meal_to_update.fat_g))
-            meal_to_update.quantity_g = float(update_data.get("quantity_g", meal_to_update.quantity_g))
+            items = update_data.get("items")
+
+            if items:
+                aggregate = self._aggregate_from_items(items)
+                meal_to_update.description = aggregate["description"]
+                meal_to_update.calories = aggregate["calories"]
+                meal_to_update.protein_g = aggregate["protein_g"]
+                meal_to_update.carbs_g = aggregate["carbs_g"]
+                meal_to_update.fat_g = aggregate["fat_g"]
+                meal_to_update.quantity_g = aggregate["quantity_g"]
+                meal_to_update.items = items
+            else:
+                # Atualiza apenas os campos fornecidos (refeição sem detalhamento por item)
+                meal_to_update.description = update_data.get("description", meal_to_update.description)
+                meal_to_update.calories = float(update_data.get("calories", meal_to_update.calories))
+                meal_to_update.protein_g = float(update_data.get("protein_g", meal_to_update.protein_g))
+                meal_to_update.carbs_g = float(update_data.get("carbs_g", meal_to_update.carbs_g))
+                meal_to_update.fat_g = float(update_data.get("fat_g", meal_to_update.fat_g))
+                meal_to_update.quantity_g = float(update_data.get("quantity_g", meal_to_update.quantity_g))
 
             db.session.commit()
             return meal_to_update

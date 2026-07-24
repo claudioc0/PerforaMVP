@@ -1,11 +1,18 @@
 import logging
 from flask import Blueprint, request, jsonify
 import re
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    get_jwt,
+    get_jwt_identity,
+    jwt_required,
+)
 
 # Ajuste as importações conforme a estrutura do seu projeto
-from app import db 
-from app.models import User 
+from app import db
+from app.extensions import limiter
+from app.models import User, TokenBlocklist
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +35,7 @@ def _validate_password_strength(password: str) -> list[str]:
     return errors
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("5 per minute")
 def register():
     data = request.json or {}
     name = data.get("name")
@@ -54,7 +62,7 @@ def register():
 
         db.session.add(new_user)
         db.session.commit()
-        
+
         return jsonify({"message": "Usuário criado com sucesso!"}), 201
     except Exception as e:
         db.session.rollback()
@@ -62,6 +70,7 @@ def register():
         return jsonify({"error": "Erro interno ao criar conta."}), 500
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
     data = request.json or {}
     email = data.get("email")
@@ -75,14 +84,42 @@ def login():
     if not user or not user.check_password(password): # Usa o método seguro para verificar a senha
         return jsonify({"error": "E-mail ou senha inválidos."}), 401
 
-    # Gera o Token embutindo o ID do usuário como a identidade
+    # Gera o Access Token (curta duração) e o Refresh Token (longa duração)
+    # embutindo o ID do usuário como a identidade
     access_token = create_access_token(identity=str(user.id))
-    
+    refresh_token = create_refresh_token(identity=str(user.id))
+
     return jsonify({
         "token": access_token,
+        "refresh_token": refresh_token,
         "user": {
             "id": user.id,
             "name": user.name,
             "email": user.email
         }
     }), 200
+
+@auth_bp.route("/refresh", methods=["POST"])
+@jwt_required(refresh=True)
+def refresh():
+    """Troca um Refresh Token válido por um novo Access Token, sem exigir login de novo."""
+    current_user_id = get_jwt_identity()
+    new_access_token = create_access_token(identity=current_user_id)
+    return jsonify({"token": new_access_token}), 200
+
+@auth_bp.route("/logout", methods=["POST"])
+@jwt_required()
+def logout():
+    """Revoga o token usado nesta requisição — ele para de funcionar imediatamente,
+    mesmo que ainda não tenha expirado."""
+    jti = get_jwt()["jti"]
+
+    try:
+        db.session.add(TokenBlocklist(jti=jti))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro ao revogar token no logout")
+        return jsonify({"error": "Erro interno ao encerrar a sessão."}), 500
+
+    return jsonify({"message": "Logout realizado com sucesso."}), 200

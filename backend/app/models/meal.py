@@ -20,6 +20,12 @@ class Meal(db.Model):
     # Quantidade em gramas que o usuário confirmou (a análise da IA é sempre por 100g)
     quantity_g = db.Column(db.Float, nullable=False, default=100)
 
+    # Detalhamento por alimento (lista de {description, calories, protein_g, carbs_g, fat_g,
+    # quantity_g}). Nulo para refeições antigas ou registradas manualmente sem detalhamento —
+    # nesse caso os campos acima (description/calories/...) são a própria refeição, como um
+    # único item implícito.
+    items = db.Column(db.JSON, nullable=True)
+
     # Guardamos a origem (foto ou texto) e um nível de confiança opcional da IA
     source_type = db.Column(db.String(10), nullable=False, default="image")  # image | text
     confidence = db.Column(db.Float, nullable=True)
@@ -38,6 +44,7 @@ class Meal(db.Model):
             "carbs_g": self.carbs_g,
             "fat_g": self.fat_g,
             "quantity_g": self.quantity_g,
+            "items": self.items or [],
             "source_type": self.source_type,
             "confidence": self.confidence,
             "created_at": self.created_at.isoformat(),
