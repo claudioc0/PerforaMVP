@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { getTodaySummary, getUserGoals, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,6 +54,7 @@ const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF
 };
 
 export default function DashboardScreen({ navigation }) {
+  const { open: openDrawerMenu } = useDrawerMenu();
   const [summary, setSummary] = useState(null);
   const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -184,11 +186,6 @@ export default function DashboardScreen({ navigation }) {
     }, [fetchData]) 
   );
 
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem('jwt_token');
-    navigation.replace('Login'); 
-  };
-
   const handleDeleteMeal = async (mealId) => {
     Alert.alert(
       "Excluir Refeição",
@@ -277,11 +274,12 @@ export default function DashboardScreen({ navigation }) {
               <LogoMark size={22} />
               <Text style={styles.greeting}>Olá, {userName}</Text>
             </View>
-            <View style={styles.headerActions}>
-              <TouchableOpacity onPress={() => navigation.navigate('Insights')}><Text style={styles.headerButtonText}>Gráficos</Text></TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('Goals')}><Text style={styles.headerButtonText}>Metas</Text></TouchableOpacity>
-              <TouchableOpacity onPress={handleLogout}><Text style={styles.logoutText}>Sair</Text></TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={styles.menuButton}
+              onPress={openDrawerMenu}
+            >
+              <Ionicons name="menu" size={28} color="#FFF" />
+            </TouchableOpacity>
           </View>
           <View style={styles.dateSelector}>
             <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
@@ -388,10 +386,8 @@ const styles = StyleSheet.create({
   header: { marginBottom: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
-  headerActions: { flexDirection: 'row', alignItems: 'center' },
-  headerButtonText: { color: '#00FF66', fontSize: 16, fontWeight: '500', marginRight: 15 },
+  menuButton: { padding: 4 },
   greeting: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold', marginLeft: 8 },
-  logoutText: { color: '#888888', fontSize: 16, },
   dateSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 10 },
   arrowButton: { padding: 10 },
   arrowText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },

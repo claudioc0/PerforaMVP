@@ -337,3 +337,196 @@ export async function logWeight(weightData) {
   });
   return handleResponse(response);
 }
+
+/**
+ * Funções do Módulo de Treinos
+ */
+
+/**
+ * Busca o histórico de treinos do usuário logado.
+ * @returns {Promise<Array>} Lista de treinos, do mais recente pro mais antigo.
+ */
+export async function listWorkouts() {
+  const response = await fetch(`${API_BASE_URL}/workouts`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Inicia um novo treino.
+ * @param {object} data - { name? }
+ */
+export async function createWorkout(data = {}) {
+  const response = await fetch(`${API_BASE_URL}/workouts`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca um treino específico, com suas séries já resolvidas (nome/grupo do exercício).
+ * @param {string|number} workoutId
+ */
+export async function getWorkout(workoutId) {
+  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Atualiza um treino (nome, notas, ou finaliza a sessão com { finished: true }).
+ * @param {string|number} workoutId
+ * @param {object} data
+ */
+export async function updateWorkout(workoutId, data) {
+  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}`, {
+    method: "PUT",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Apaga um treino (e suas séries).
+ * @param {string|number} workoutId
+ */
+export async function deleteWorkout(workoutId) {
+  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}`, {
+    method: "DELETE",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Registra uma série num treino.
+ * @param {string|number} workoutId
+ * @param {object} setData - { exercise_id, weight_kg, reps, rest_seconds? }
+ */
+export async function addSetLog(workoutId, setData) {
+  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}/sets`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(setData),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Corrige peso/reps de uma série já registrada.
+ * @param {string|number} workoutId
+ * @param {string|number} setId
+ * @param {object} setData
+ */
+export async function updateSetLog(workoutId, setId, setData) {
+  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}/sets/${setId}`, {
+    method: "PUT",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(setData),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Remove uma série registrada.
+ * @param {string|number} workoutId
+ * @param {string|number} setId
+ */
+export async function deleteSetLog(workoutId, setId) {
+  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}/sets/${setId}`, {
+    method: "DELETE",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca exercícios no catálogo global, opcionalmente filtrando por texto/grupo muscular.
+ * @param {string} [search]
+ * @param {string} [muscleGroup]
+ */
+export async function listExercises(search, muscleGroup) {
+  const params = new URLSearchParams();
+  if (search) params.append("search", search);
+  if (muscleGroup) params.append("muscle_group", muscleGroup);
+  const query = params.toString() ? `?${params.toString()}` : "";
+
+  const response = await fetch(`${API_BASE_URL}/workouts/exercises${query}`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca as divisões de treino pré-cadastradas (Bro Split, ABCD, PPL, Upper/Lower,
+ * Full Body), cada uma com seus dias aninhados.
+ */
+export async function listSplits() {
+  const response = await fetch(`${API_BASE_URL}/workouts/splits`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca os exercícios sugeridos de um dia específico de uma divisão.
+ * @param {string|number} dayId
+ */
+export async function getSplitDayExercises(dayId) {
+  const response = await fetch(`${API_BASE_URL}/workouts/splits/days/${dayId}/exercises`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Cria um exercício customizado no catálogo (deduplicado pelo backend).
+ * @param {object} data - { name, muscle_group?, equipment? }
+ */
+export async function createExercise(data) {
+  const response = await fetch(`${API_BASE_URL}/workouts/exercises`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca o histórico de um exercício (agrupado por treino, mais recente primeiro).
+ * Usado pra mostrar "Última vez: Xkg × Y" ao registrar uma série.
+ * @param {string|number} exerciseId
+ * @param {number} [limit]
+ */
+export async function getExerciseHistory(exerciseId, limit) {
+  const query = limit ? `?limit=${limit}` : "";
+  const response = await fetch(`${API_BASE_URL}/workouts/exercises/${exerciseId}/history${query}`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Busca a tonelagem, reps e descanso médio dos últimos treinos finalizados,
+ * pra comparação de progresso entre sessões.
+ * @param {number} [limit]
+ */
+export async function getWorkoutProgress(limit) {
+  const query = limit ? `?limit=${limit}` : "";
+  const response = await fetch(`${API_BASE_URL}/workouts/progress${query}`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}

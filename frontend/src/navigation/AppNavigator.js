@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, StatusBar } from 'react-native';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import DrawerContent from './DrawerContent';
+import { DrawerMenuProvider } from './DrawerMenuContext';
 
 // Importando as telas
 import LoginScreen from "../screens/LoginScreen";
@@ -13,10 +15,15 @@ import MealConfirmationScreen from "../screens/MealConfirmationScreen";
 import InsightsScreen from '../screens/InsightsScreen'; // Importa a nova tela
 import AdjustQuantityScreen from '../screens/AdjustQuantityScreen'; // Importa a nova tela
 import ManualEntryScreen from '../screens/ManualEntryScreen';
+import WorkoutHistoryScreen from '../screens/WorkoutHistoryScreen';
+import WorkoutSessionScreen from '../screens/WorkoutSessionScreen';
+import ExercisePickerScreen from '../screens/ExercisePickerScreen';
+import ProgressScreen from '../screens/ProgressScreen';
+import ChooseSplitScreen from '../screens/ChooseSplitScreen';
 
 const Stack = createNativeStackNavigator();
 
-export default function AppNavigator() {
+function MainStack() {
   const [initialRoute, setInitialRoute] = useState(null);
 
   useEffect(() => {
@@ -50,7 +57,21 @@ export default function AppNavigator() {
       <Stack.Screen name="Insights" component={InsightsScreen} />
       <Stack.Screen name="AdjustQuantity" component={AdjustQuantityScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="ManualEntry" component={ManualEntryScreen} />
+      <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
+      <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} />
+      <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name="Progress" component={ProgressScreen} />
+      <Stack.Screen name="ChooseSplit" component={ChooseSplitScreen} />
     </Stack.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <DrawerMenuProvider>
+      <MainStack />
+      <DrawerContent />
+    </DrawerMenuProvider>
   );
 }
 
