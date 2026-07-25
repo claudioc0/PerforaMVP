@@ -12,9 +12,11 @@ from .split_day import SplitDay
 from .workout import Workout
 from .set_log import SetLog
 from .split_day_exercise import SplitDayExercise
+from .weekly_plan import WeeklyPlan
+from .weekly_plan_day import WeeklyPlanDay
 
 __all__ = [
     "User", "Meal", "UserGoals", "WaterLog", "FavoriteMeal", "WeightLog",
     "TokenBlocklist", "FoodCache", "Exercise", "Workout", "SetLog",
-    "WorkoutSplit", "SplitDay", "SplitDayExercise",
+    "WorkoutSplit", "SplitDay", "SplitDayExercise", "WeeklyPlan", "WeeklyPlanDay",
 ]

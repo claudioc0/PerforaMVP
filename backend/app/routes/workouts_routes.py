@@ -3,7 +3,7 @@ import logging
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from app.services import WorkoutService, ExerciseService, SplitService
+from app.services import WorkoutService, ExerciseService, SplitService, WeeklyPlanService
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +12,7 @@ workouts_bp = Blueprint("workouts_bp", __name__, url_prefix="/api/workouts")
 workout_service = WorkoutService()
 exercise_service = ExerciseService()
 split_service = SplitService()
+weekly_plan_service = WeeklyPlanService()
 
 
 # --- ROTAS DE TREINOS ---
@@ -163,3 +164,57 @@ def list_splits():
 def get_split_day_exercises(day_id: int):
     exercises = split_service.get_day_exercises(day_id)
     return jsonify(exercises), 200
+
+
+# --- ROTAS DO PLANO SEMANAL (SEGUNDA A DOMINGO) ---
+
+@workouts_bp.route("/weekly-plan", methods=["GET"])
+@jwt_required()
+def get_weekly_plan():
+    current_user_id = int(get_jwt_identity())
+    plan = weekly_plan_service.get_plan(current_user_id)
+    if plan:
+        return jsonify({"has_plan": True, **plan}), 200
+    return jsonify({"has_plan": False}), 200
+
+
+@workouts_bp.route("/weekly-plan", methods=["POST"])
+@jwt_required()
+def create_weekly_plan():
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+    split_id = data.get("split_id")
+    split_day_ids = data.get("split_day_ids")
+
+    if not split_id:
+        return jsonify({"error": "Campo 'split_id' é obrigatório."}), 400
+    if split_day_ids is not None and (not isinstance(split_day_ids, list) or not split_day_ids or len(split_day_ids) > 7):
+        return jsonify({"error": "'split_day_ids' deve ser uma lista de 1 a 7 IDs de dias da divisão."}), 400
+
+    plan = weekly_plan_service.create_or_replace_plan(current_user_id, split_id, split_day_ids)
+    if plan:
+        return jsonify({"has_plan": True, **plan}), 201
+    return jsonify({"error": "Divisão não encontrada, ou os dias informados não pertencem a ela."}), 404
+
+
+@workouts_bp.route("/weekly-plan", methods=["DELETE"])
+@jwt_required()
+def delete_weekly_plan():
+    current_user_id = int(get_jwt_identity())
+    success = weekly_plan_service.delete_plan(current_user_id)
+    if success:
+        return jsonify({"message": "Plano semanal apagado com sucesso."}), 200
+    return jsonify({"error": "Nenhum plano semanal encontrado."}), 404
+
+
+@workouts_bp.route("/weekly-plan/days/<int:day_of_week>", methods=["PUT"])
+@jwt_required()
+def update_weekly_plan_day(day_of_week: int):
+    current_user_id = int(get_jwt_identity())
+    data = request.get_json(silent=True) or {}
+    split_day_id = data.get("split_day_id")
+
+    plan = weekly_plan_service.update_day(current_user_id, day_of_week, split_day_id)
+    if plan:
+        return jsonify({"has_plan": True, **plan}), 200
+    return jsonify({"error": "Plano semanal ou dia não encontrado, ou o dia não pertence à divisão do plano."}), 404
