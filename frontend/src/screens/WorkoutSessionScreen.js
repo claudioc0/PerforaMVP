@@ -1,0 +1,357 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons';
+import BackButton from '../components/BackButton';
+import { getWorkout, addSetLog, updateWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
+
+const REST_TARGET_KEY = '@perfora_rest_target_seconds';
+const DEFAULT_REST_TARGET = 90;
+const REST_STEP = 15;
+
+function formatSeconds(totalSeconds) {
+  const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+  const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+  return `${minutes}:${seconds}`;
+}
+
+export default function WorkoutSessionScreen({ navigation, route }) {
+  const { workoutId } = route.params;
+
+  const [workout, setWorkout] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [finishing, setFinishing] = useState(false);
+
+  const [pendingExercise, setPendingExercise] = useState(null);
+  const [weight, setWeight] = useState('');
+  const [reps, setReps] = useState('');
+  const [lastPerformance, setLastPerformance] = useState(null);
+  const [suggestedExercises, setSuggestedExercises] = useState([]);
+
+  const [restElapsed, setRestElapsed] = useState(0);
+  const [restRunning, setRestRunning] = useState(false);
+  const [restTarget, setRestTarget] = useState(DEFAULT_REST_TARGET);
+  const restIntervalRef = useRef(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(REST_TARGET_KEY).then((saved) => {
+      if (saved) setRestTarget(parseInt(saved, 10));
+    });
+  }, []);
+
+  const adjustRestTarget = (delta) => {
+    setRestTarget((prev) => {
+      const next = Math.max(REST_STEP, prev + delta);
+      AsyncStorage.setItem(REST_TARGET_KEY, String(next));
+      return next;
+    });
+  };
+
+  const fetchWorkout = useCallback(async () => {
+    try {
+      const data = await getWorkout(workoutId);
+      setWorkout(data);
+
+      if (data.split_day_id) {
+        try {
+          const suggestions = await getSplitDayExercises(data.split_day_id);
+          setSuggestedExercises(suggestions);
+        } catch (error) {
+          // Sugestões são um atalho — sem elas, o usuário ainda pode usar o catálogo completo.
+        }
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível carregar o treino.');
+      navigation.goBack();
+    } finally {
+      setLoading(false);
+    }
+  }, [workoutId, navigation]);
+
+  useEffect(() => {
+    fetchWorkout();
+  }, [fetchWorkout]);
+
+  useEffect(() => {
+    return () => {
+      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    };
+  }, []);
+
+  const startRestTimer = () => {
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    setRestElapsed(0);
+    setRestRunning(true);
+    restIntervalRef.current = setInterval(() => {
+      setRestElapsed((prev) => prev + 1);
+    }, 1000);
+  };
+
+  const stopRestTimer = () => {
+    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    setRestRunning(false);
+  };
+
+  const selectExercise = async (exercise) => {
+    setPendingExercise(exercise);
+    setWeight('');
+    setReps('');
+    setLastPerformance(null);
+
+    try {
+      const history = await getExerciseHistory(exercise.id, 1);
+      const lastSets = history[0]?.sets;
+      if (lastSets && lastSets.length > 0) {
+        const lastSet = lastSets[lastSets.length - 1];
+        setLastPerformance({ weight_kg: lastSet.weight_kg, reps: lastSet.reps, date: history[0].started_at });
+      }
+    } catch (error) {
+      // Referência de histórico é só um "nice to have" — não bloqueia o registro da série.
+    }
+  };
+
+  const handleSelectSuggested = (suggestion) => {
+    selectExercise({
+      id: suggestion.exercise_id,
+      name: suggestion.name,
+      muscle_group: suggestion.muscle_group,
+    });
+  };
+
+  const handleOpenPicker = () => {
+    navigation.navigate('ExercisePicker', { onSelect: selectExercise });
+  };
+
+  const handleSaveSet = async () => {
+    if (!weight || !reps) {
+      Alert.alert('Atenção', 'Preencha peso e repetições.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const restSecondsTaken = restRunning ? restElapsed : undefined;
+      const newSet = await addSetLog(workoutId, {
+        exercise_id: pendingExercise.id,
+        weight_kg: parseFloat(weight),
+        reps: parseInt(reps, 10),
+        rest_seconds: restSecondsTaken,
+      });
+
+      setWorkout((prev) => ({
+        ...prev,
+        sets: [
+          ...prev.sets,
+          { ...newSet, exercise_name: pendingExercise.name, muscle_group: pendingExercise.muscle_group },
+        ],
+      }));
+
+      setPendingExercise(null);
+      setWeight('');
+      setReps('');
+      setLastPerformance(null);
+      startRestTimer();
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível registrar a série.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleFinishWorkout = async () => {
+    Alert.alert('Finalizar Treino', 'Tem certeza que deseja finalizar este treino?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Finalizar',
+        onPress: async () => {
+          setFinishing(true);
+          try {
+            await updateWorkout(workoutId, { finished: true });
+            stopRestTimer();
+            navigation.goBack();
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível finalizar o treino.');
+          } finally {
+            setFinishing(false);
+          }
+        },
+      },
+    ]);
+  };
+
+  if (loading || !workout) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#00FF66" />
+      </View>
+    );
+  }
+
+  const isFinished = workout.is_finished;
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.headerRow}>
+        <BackButton />
+        <Text style={styles.headerTitle}>{workout.name || 'Treino'}</Text>
+      </View>
+
+      {!isFinished && (
+        <View style={styles.restTargetRow}>
+          <Text style={styles.restTargetLabel}>Meta de descanso</Text>
+          <View style={styles.restTargetControls}>
+            <TouchableOpacity onPress={() => adjustRestTarget(-REST_STEP)}>
+              <Ionicons name="remove-circle-outline" size={22} color="#888" />
+            </TouchableOpacity>
+            <Text style={styles.restTargetValue}>{restTarget}s</Text>
+            <TouchableOpacity onPress={() => adjustRestTarget(REST_STEP)}>
+              <Ionicons name="add-circle-outline" size={22} color="#888" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {restRunning && !isFinished && (
+        <View style={[styles.restBanner, restElapsed >= restTarget && styles.restBannerAchieved]}>
+          <Ionicons name={restElapsed >= restTarget ? 'checkmark-circle' : 'time'} size={18} color="#00FF66" />
+          <Text style={styles.restText}>
+            Descanso: {formatSeconds(restElapsed)}
+            {restElapsed >= restTarget ? ' — Meta atingida!' : ` / ${formatSeconds(restTarget)}`}
+          </Text>
+        </View>
+      )}
+
+      <FlatList
+        data={workout.sets}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.setCard}>
+            <View>
+              <Text style={styles.setExercise}>{item.exercise_name}</Text>
+              <Text style={styles.setMeta}>Série {item.set_number}</Text>
+            </View>
+            <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
+          </View>
+        )}
+        ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma série registrada ainda.</Text>}
+        contentContainerStyle={{ paddingBottom: 20 }}
+      />
+
+      {!isFinished && (
+        <>
+          {!pendingExercise && suggestedExercises.length > 0 && (
+            <View style={styles.suggestedContainer}>
+              <Text style={styles.suggestedLabel}>Sugeridos pra hoje</Text>
+              <View style={styles.suggestedChipsRow}>
+                {suggestedExercises.map((suggestion) => (
+                  <TouchableOpacity
+                    key={suggestion.exercise_id}
+                    style={styles.suggestedChip}
+                    onPress={() => handleSelectSuggested(suggestion)}
+                  >
+                    <Text style={styles.suggestedChipText}>{suggestion.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {pendingExercise ? (
+            <View style={styles.pendingCard}>
+              <Text style={styles.pendingTitle}>{pendingExercise.name}</Text>
+              {lastPerformance && (
+                <Text style={styles.lastPerformanceText}>
+                  Última vez: {lastPerformance.weight_kg}kg × {lastPerformance.reps}
+                </Text>
+              )}
+              <View style={styles.pendingInputsRow}>
+                <View style={styles.pendingInputGroup}>
+                  <Text style={styles.pendingLabel}>Peso (kg)</Text>
+                  <TextInput
+                    style={styles.pendingInput}
+                    value={weight}
+                    onChangeText={setWeight}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#666"
+                  />
+                </View>
+                <View style={styles.pendingInputGroup}>
+                  <Text style={styles.pendingLabel}>Reps</Text>
+                  <TextInput
+                    style={styles.pendingInput}
+                    value={reps}
+                    onChangeText={setReps}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="#666"
+                  />
+                </View>
+              </View>
+              <View style={styles.pendingActionsRow}>
+                <TouchableOpacity style={styles.cancelSetButton} onPress={() => { setPendingExercise(null); setLastPerformance(null); }}>
+                  <Text style={styles.cancelSetText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.saveSetButton} onPress={handleSaveSet} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#121212" /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.addSetButton} onPress={handleOpenPicker}>
+              <Ionicons name="add-circle" size={20} color="#00FF66" style={{ marginRight: 8 }} />
+              <Text style={styles.addSetText}>
+                {suggestedExercises.length > 0 ? 'Outro Exercício' : 'Adicionar Série'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout} disabled={finishing}>
+            {finishing ? <ActivityIndicator color="#121212" /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
+          </TouchableOpacity>
+        </>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
+  headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  restTargetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+  restTargetLabel: { color: '#888', fontSize: 14 },
+  restTargetControls: { flexDirection: 'row', alignItems: 'center' },
+  restTargetValue: { color: '#FFF', fontSize: 15, fontWeight: '600', marginHorizontal: 10, minWidth: 40, textAlign: 'center' },
+  restBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,255,102,0.1)', borderWidth: 1, borderColor: '#00FF66', borderRadius: 10, padding: 10, marginBottom: 15 },
+  restBannerAchieved: { backgroundColor: 'rgba(0,255,102,0.25)', borderWidth: 2 },
+  restText: { color: '#00FF66', fontSize: 15, fontWeight: '600', marginLeft: 8 },
+  setCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 10, padding: 15, marginBottom: 10 },
+  setExercise: { color: '#FFF', fontSize: 16, fontWeight: '500' },
+  setMeta: { color: '#888', fontSize: 12, marginTop: 2 },
+  setValues: { color: '#00FF66', fontSize: 16, fontWeight: '600' },
+  emptyText: { color: '#888', textAlign: 'center', marginTop: 30, fontSize: 14 },
+  suggestedContainer: { marginTop: 10, marginBottom: 5 },
+  suggestedLabel: { color: '#888', fontSize: 13, marginBottom: 8 },
+  suggestedChipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  suggestedChip: { backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#333', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, marginRight: 8, marginBottom: 8 },
+  suggestedChipText: { color: '#00FF66', fontSize: 13, fontWeight: '600' },
+  addSetButton: { flexDirection: 'row', backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#00FF66', padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  addSetText: { color: '#00FF66', fontSize: 16, fontWeight: 'bold' },
+  pendingCard: { backgroundColor: '#1E1E1E', borderRadius: 12, padding: 16, marginTop: 10 },
+  pendingTitle: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  lastPerformanceText: { color: '#888', fontSize: 13, marginBottom: 12 },
+  pendingInputsRow: { flexDirection: 'row', marginBottom: 15 },
+  pendingInputGroup: { flex: 1, marginRight: 10 },
+  pendingLabel: { color: '#888', fontSize: 13, marginBottom: 6 },
+  pendingInput: { backgroundColor: '#121212', color: '#FFF', borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1, borderColor: '#333' },
+  pendingActionsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  cancelSetButton: { flex: 1, padding: 14, alignItems: 'center', marginRight: 10 },
+  cancelSetText: { color: '#888', fontSize: 15 },
+  saveSetButton: { flex: 1, backgroundColor: '#00FF66', padding: 14, borderRadius: 10, alignItems: 'center' },
+  saveSetText: { color: '#121212', fontSize: 15, fontWeight: 'bold' },
+  finishButton: { backgroundColor: '#333', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 15 },
+  finishText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+});

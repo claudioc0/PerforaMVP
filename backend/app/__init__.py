@@ -12,6 +12,12 @@ from .models.favorite_meal import FavoriteMeal
 from .models.weight_log import WeightLog
 from .models.token_blocklist import TokenBlocklist
 from .models.food_cache import FoodCache
+from .models.exercise import Exercise
+from .models.workout_split import WorkoutSplit
+from .models.split_day import SplitDay
+from .models.workout import Workout
+from .models.set_log import SetLog
+from .models.split_day_exercise import SplitDayExercise
 
 # <-- 2. INICIALIZAÇÃO GLOBAL DO MIGRATE
 migrate = Migrate()
@@ -57,10 +63,11 @@ def create_app(config_class=Config):
         return jsonify({"error": "Token de acesso ausente."}), 401
 
     # Registra os Blueprints (rotas)
-    from .routes import auth_routes, meals_routes, user_routes
+    from .routes import auth_routes, meals_routes, user_routes, workouts_routes
     app.register_blueprint(auth_routes.auth_bp)
     app.register_blueprint(meals_routes.meals_bp)
     app.register_blueprint(user_routes.user_bp)
+    app.register_blueprint(workouts_routes.workouts_bp)
 
     # with app.app_context():
         # db.create_all() # <-- 4. COMENTADO PARA DEIXAR O MIGRATE TRABALHAR

@@ -1,5 +1,7 @@
+import "react-native-gesture-handler";
 import React from "react";
 import { StatusBar, View, ActivityIndicator, StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts, Orbitron_700Bold, Orbitron_900Black } from '@expo-google-fonts/orbitron';
 import { navigationRef } from "./src/navigation/RootNavigation";
@@ -19,12 +21,14 @@ export default function App() {
   }
 
   return (
-    // O NavigationContainer agora envolve o AppNavigator
-    // e recebe a ref para navegação global.
-    <NavigationContainer ref={navigationRef}>
-      <StatusBar barStyle="light-content" />
-      <AppNavigator />
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      {/* O NavigationContainer agora envolve o AppNavigator
+          e recebe a ref para navegação global. */}
+      <NavigationContainer ref={navigationRef}>
+        <StatusBar barStyle="light-content" />
+        <AppNavigator />
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
 
