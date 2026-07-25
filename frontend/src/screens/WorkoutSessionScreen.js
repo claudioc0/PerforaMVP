@@ -3,7 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, Activity
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
-import { getWorkout, addSetLog, updateWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
+import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
 
 const REST_TARGET_KEY = '@perfora_rest_target_seconds';
 const DEFAULT_REST_TARGET = 90;
@@ -33,6 +33,14 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const [restRunning, setRestRunning] = useState(false);
   const [restTarget, setRestTarget] = useState(DEFAULT_REST_TARGET);
   const restIntervalRef = useRef(null);
+
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+
+  const [editingSetId, setEditingSetId] = useState(null);
+  const [editWeight, setEditWeight] = useState('');
+  const [editReps, setEditReps] = useState('');
+  const [savingSetEdit, setSavingSetEdit] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem(REST_TARGET_KEY).then((saved) => {
@@ -180,6 +188,95 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     ]);
   };
 
+  const startEditName = () => {
+    setNameInput(workout.name || '');
+    setEditingName(true);
+  };
+
+  const cancelEditName = () => setEditingName(false);
+
+  const saveWorkoutName = async () => {
+    try {
+      const updated = await updateWorkout(workoutId, { name: nameInput.trim() || null });
+      setWorkout((prev) => ({ ...prev, name: updated.name }));
+      setEditingName(false);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível renomear o treino.');
+    }
+  };
+
+  const handleDeleteWorkout = () => {
+    Alert.alert(
+      'Excluir Treino',
+      'Essa ação não pode ser desfeita. Deseja excluir este treino e todas as suas séries?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteWorkout(workoutId);
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível excluir o treino.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const startEditSet = (item) => {
+    setEditingSetId(item.id);
+    setEditWeight(String(item.weight_kg));
+    setEditReps(String(item.reps));
+  };
+
+  const cancelEditSet = () => setEditingSetId(null);
+
+  const saveEditSet = async () => {
+    if (!editWeight || !editReps) {
+      Alert.alert('Atenção', 'Preencha peso e repetições.');
+      return;
+    }
+    setSavingSetEdit(true);
+    try {
+      const updated = await updateSetLog(workoutId, editingSetId, {
+        weight_kg: parseFloat(editWeight),
+        reps: parseInt(editReps, 10),
+      });
+      setWorkout((prev) => ({
+        ...prev,
+        sets: prev.sets.map((s) => (s.id === editingSetId ? { ...s, weight_kg: updated.weight_kg, reps: updated.reps } : s)),
+      }));
+      setEditingSetId(null);
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível atualizar a série.');
+    } finally {
+      setSavingSetEdit(false);
+    }
+  };
+
+  const confirmDeleteSet = (setId) => {
+    Alert.alert('Excluir Série', 'Deseja excluir esta série?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteSetLog(workoutId, setId);
+            setWorkout((prev) => ({ ...prev, sets: prev.sets.filter((s) => s.id !== setId) }));
+            if (editingSetId === setId) setEditingSetId(null);
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível excluir a série.');
+          }
+        },
+      },
+    ]);
+  };
+
   if (loading || !workout) {
     return (
       <View style={styles.center}>
@@ -194,7 +291,39 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>{workout.name || 'Treino'}</Text>
+        {editingName ? (
+          <TextInput
+            style={styles.headerTitleInput}
+            value={nameInput}
+            onChangeText={setNameInput}
+            placeholder="Nome do treino"
+            placeholderTextColor="#666"
+            autoFocus
+          />
+        ) : (
+          <Text style={styles.headerTitle}>{workout.name || 'Treino'}</Text>
+        )}
+        <View style={styles.headerActions}>
+          {editingName ? (
+            <>
+              <TouchableOpacity onPress={cancelEditName} style={styles.headerIconButton}>
+                <Ionicons name="close" size={22} color="#888" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveWorkoutName} style={styles.headerIconButton}>
+                <Ionicons name="checkmark" size={22} color="#00FF66" />
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <TouchableOpacity onPress={startEditName} style={styles.headerIconButton}>
+                <Ionicons name="pencil" size={19} color="#888" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDeleteWorkout} style={styles.headerIconButton}>
+                <Ionicons name="trash-outline" size={19} color="#FF5555" />
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {!isFinished && (
@@ -225,15 +354,58 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       <FlatList
         data={workout.sets}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View style={styles.setCard}>
-            <View>
-              <Text style={styles.setExercise}>{item.exercise_name}</Text>
-              <Text style={styles.setMeta}>Série {item.set_number}</Text>
-            </View>
-            <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          if (editingSetId === item.id) {
+            return (
+              <View style={styles.setCardEditing}>
+                <Text style={styles.setExercise}>{item.exercise_name}</Text>
+                <View style={styles.editInputsRow}>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editWeight}
+                    onChangeText={setEditWeight}
+                    keyboardType="numeric"
+                    placeholder="kg"
+                    placeholderTextColor="#666"
+                  />
+                  <Text style={styles.editSeparator}>kg ×</Text>
+                  <TextInput
+                    style={styles.editInput}
+                    value={editReps}
+                    onChangeText={setEditReps}
+                    keyboardType="numeric"
+                    placeholder="reps"
+                    placeholderTextColor="#666"
+                  />
+                  <Text style={styles.editSeparator}>reps</Text>
+                </View>
+                <View style={styles.editActionsRow}>
+                  <TouchableOpacity onPress={cancelEditSet} style={styles.editActionButton}>
+                    <Ionicons name="close" size={22} color="#888" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={saveEditSet} style={styles.editActionButton} disabled={savingSetEdit}>
+                    {savingSetEdit ? <ActivityIndicator color="#00FF66" /> : <Ionicons name="checkmark" size={22} color="#00FF66" />}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          }
+
+          return (
+            <TouchableOpacity style={styles.setCard} onPress={() => startEditSet(item)}>
+              <View>
+                <Text style={styles.setExercise}>{item.exercise_name}</Text>
+                <Text style={styles.setMeta}>Série {item.set_number}</Text>
+              </View>
+              <View style={styles.setCardRight}>
+                <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
+                <TouchableOpacity onPress={() => confirmDeleteSet(item.id)} style={styles.setDeleteButton}>
+                  <Ionicons name="trash-outline" size={17} color="#FF5555" />
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma série registrada ainda.</Text>}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
@@ -321,6 +493,9 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
   headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  headerTitleInput: { flex: 1, color: '#FFF', fontSize: 18, fontWeight: 'bold', textAlign: 'center', borderBottomWidth: 1, borderBottomColor: '#00FF66', paddingVertical: 2, marginHorizontal: 8 },
+  headerActions: { flexDirection: 'row', alignItems: 'center' },
+  headerIconButton: { padding: 6, marginLeft: 2 },
   restTargetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   restTargetLabel: { color: '#888', fontSize: 14 },
   restTargetControls: { flexDirection: 'row', alignItems: 'center' },
@@ -331,7 +506,15 @@ const styles = StyleSheet.create({
   setCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 10, padding: 15, marginBottom: 10 },
   setExercise: { color: '#FFF', fontSize: 16, fontWeight: '500' },
   setMeta: { color: '#888', fontSize: 12, marginTop: 2 },
+  setCardRight: { flexDirection: 'row', alignItems: 'center' },
   setValues: { color: '#00FF66', fontSize: 16, fontWeight: '600' },
+  setDeleteButton: { padding: 6, marginLeft: 10 },
+  setCardEditing: { backgroundColor: '#1E1E1E', borderRadius: 10, padding: 15, marginBottom: 10, borderWidth: 1, borderColor: '#00FF66' },
+  editInputsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 12 },
+  editInput: { backgroundColor: '#121212', color: '#FFF', borderRadius: 8, padding: 10, fontSize: 15, borderWidth: 1, borderColor: '#333', width: 70, textAlign: 'center' },
+  editSeparator: { color: '#888', fontSize: 13, marginHorizontal: 8 },
+  editActionsRow: { flexDirection: 'row', justifyContent: 'flex-end' },
+  editActionButton: { padding: 6, marginLeft: 12 },
   emptyText: { color: '#888', textAlign: 'center', marginTop: 30, fontSize: 14 },
   suggestedContainer: { marginTop: 10, marginBottom: 5 },
   suggestedLabel: { color: '#888', fontSize: 13, marginBottom: 8 },

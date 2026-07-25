@@ -1,9 +1,16 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
-import { listWorkouts } from '../services/api';
+import {
+  listWorkouts,
+  createWorkout,
+  getWeeklyPlan,
+  getSplitDayExercises,
+  updateWeeklyPlanDay,
+  deleteWeeklyPlan,
+} from '../services/api';
 
 function formatDate(isoString) {
   if (!isoString) return '';
@@ -11,9 +18,21 @@ function formatDate(isoString) {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// JS: 0=Domingo...6=Sábado. Plano: 0=Segunda...6=Domingo.
+function todayPlanIndex() {
+  return (new Date().getDay() + 6) % 7;
+}
+
 export default function WorkoutHistoryScreen({ navigation }) {
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [weeklyPlan, setWeeklyPlan] = useState(null);
+  const [loadingPlan, setLoadingPlan] = useState(true);
+  const [expandedDay, setExpandedDay] = useState(null);
+  const [dayExercises, setDayExercises] = useState({});
+  const [loadingDayExercises, setLoadingDayExercises] = useState(false);
+  const [startingDay, setStartingDay] = useState(false);
 
   const fetchWorkouts = useCallback(async () => {
     try {
@@ -26,11 +45,219 @@ export default function WorkoutHistoryScreen({ navigation }) {
     }
   }, []);
 
+  const fetchWeeklyPlan = useCallback(async () => {
+    try {
+      const data = await getWeeklyPlan();
+      setWeeklyPlan(data);
+    } catch (error) {
+      // Plano semanal é um complemento — sem ele, o fluxo de treino avulso continua funcionando.
+    } finally {
+      setLoadingPlan(false);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       fetchWorkouts();
-    }, [fetchWorkouts])
+      fetchWeeklyPlan();
+      setExpandedDay(null);
+    }, [fetchWorkouts, fetchWeeklyPlan])
   );
+
+  const toggleDay = async (day) => {
+    if (expandedDay === day.day_of_week) {
+      setExpandedDay(null);
+      return;
+    }
+    setExpandedDay(day.day_of_week);
+
+    if (day.split_day_id && !dayExercises[day.split_day_id]) {
+      setLoadingDayExercises(true);
+      try {
+        const exercises = await getSplitDayExercises(day.split_day_id);
+        setDayExercises((prev) => ({ ...prev, [day.split_day_id]: exercises }));
+      } catch (error) {
+        // Sem a lista de sugestões, o usuário ainda pode iniciar o treino e escolher exercícios na hora.
+      } finally {
+        setLoadingDayExercises(false);
+      }
+    }
+  };
+
+  const handleStartDay = async (day) => {
+    setStartingDay(true);
+    try {
+      const workout = await createWorkout({ split_day_id: day.split_day_id, name: day.split_day_name });
+      navigation.navigate('WorkoutSession', { workoutId: workout.id });
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível iniciar o treino.');
+    } finally {
+      setStartingDay(false);
+    }
+  };
+
+  const handleReassignDay = (day) => {
+    const options = weeklyPlan.split_days
+      .filter((sd) => sd.id !== day.split_day_id)
+      .map((sd) => ({
+        text: sd.name,
+        onPress: () => saveReassign(day.day_of_week, sd.id),
+      }));
+
+    if (day.split_day_id !== null) {
+      options.push({ text: 'Descanso', onPress: () => saveReassign(day.day_of_week, null) });
+    }
+    options.push({ text: 'Cancelar', style: 'cancel' });
+
+    Alert.alert('Trocar dia', `O que ${day.day_label.toLowerCase()} deve ser?`, options);
+  };
+
+  const saveReassign = async (dayOfWeek, splitDayId) => {
+    try {
+      const updated = await updateWeeklyPlanDay(dayOfWeek, splitDayId);
+      setWeeklyPlan(updated);
+
+      if (splitDayId && !dayExercises[splitDayId]) {
+        setLoadingDayExercises(true);
+        try {
+          const exercises = await getSplitDayExercises(splitDayId);
+          setDayExercises((prev) => ({ ...prev, [splitDayId]: exercises }));
+        } catch (error) {
+          // Sem a lista de sugestões, o usuário ainda pode iniciar o treino e escolher exercícios na hora.
+        } finally {
+          setLoadingDayExercises(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível atualizar esse dia.');
+    }
+  };
+
+  const handlePlanOptions = () => {
+    Alert.alert('Plano Semanal', undefined, [
+      { text: 'Trocar divisão', onPress: () => navigation.navigate('WeeklyPlanSetup') },
+      {
+        text: 'Excluir plano',
+        style: 'destructive',
+        onPress: () => {
+          Alert.alert('Excluir Plano Semanal', 'Tem certeza? Seus treinos já registrados não são afetados.', [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Excluir',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  await deleteWeeklyPlan();
+                  setWeeklyPlan({ has_plan: false });
+                  setExpandedDay(null);
+                } catch (error) {
+                  Alert.alert('Erro', 'Não foi possível excluir o plano semanal.');
+                }
+              },
+            },
+          ]);
+        },
+      },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  };
+
+  const renderWeeklySection = () => {
+    if (loadingPlan) {
+      return (
+        <View style={styles.weeklySection}>
+          <ActivityIndicator color="#00FF66" />
+        </View>
+      );
+    }
+
+    if (!weeklyPlan || !weeklyPlan.has_plan) {
+      return (
+        <View style={styles.weeklySection}>
+          <Text style={styles.weeklyTitle}>Sua Semana</Text>
+          <TouchableOpacity style={styles.definePlanCard} onPress={() => navigation.navigate('WeeklyPlanSetup')}>
+            <Ionicons name="calendar-outline" size={22} color="#00FF66" style={{ marginRight: 12 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.definePlanTitle}>Defina seu plano semanal</Text>
+              <Text style={styles.definePlanSubtitle}>Escolha uma divisão e organize seus treinos de Segunda a Domingo</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#888" />
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    const todayIndex = todayPlanIndex();
+    const expanded = weeklyPlan.days.find((d) => d.day_of_week === expandedDay);
+
+    return (
+      <View style={styles.weeklySection}>
+        <View style={styles.weeklyHeaderRow}>
+          <Text style={styles.weeklyTitle}>Sua Semana</Text>
+          <Text style={styles.weeklySplitName}>{weeklyPlan.split_name}</Text>
+          <TouchableOpacity onPress={handlePlanOptions} style={{ padding: 4 }}>
+            <Ionicons name="ellipsis-horizontal" size={20} color="#888" />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dayRow}>
+          {weeklyPlan.days.map((day) => {
+            const isToday = day.day_of_week === todayIndex;
+            const isRest = !day.split_day_id;
+            const isSelected = expandedDay === day.day_of_week;
+            return (
+              <TouchableOpacity
+                key={day.day_of_week}
+                style={[
+                  styles.dayChip,
+                  isToday && styles.dayChipToday,
+                  isSelected && styles.dayChipSelected,
+                ]}
+                onPress={() => toggleDay(day)}
+              >
+                <Text style={[styles.dayChipLabel, isToday && styles.dayChipLabelToday]}>
+                  {day.day_label.slice(0, 3)}
+                </Text>
+                <Text style={[styles.dayChipValue, isRest && styles.dayChipValueRest]} numberOfLines={1}>
+                  {isRest ? 'Descanso' : day.split_day_name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
+        {expanded && (
+          <View style={styles.dayDetailCard}>
+            <View style={styles.dayDetailHeader}>
+              <Text style={styles.dayDetailTitle}>
+                {expanded.day_label}{expanded.day_of_week === todayIndex ? ' · Hoje' : ''}
+              </Text>
+              <TouchableOpacity onPress={() => handleReassignDay(expanded)}>
+                <Ionicons name="pencil" size={16} color="#888" />
+              </TouchableOpacity>
+            </View>
+
+            {expanded.split_day_id ? (
+              <>
+                {loadingDayExercises && !dayExercises[expanded.split_day_id] ? (
+                  <ActivityIndicator color="#00FF66" style={{ marginVertical: 10 }} />
+                ) : (
+                  (dayExercises[expanded.split_day_id] || []).map((ex) => (
+                    <Text key={ex.exercise_id} style={styles.dayDetailExercise}>• {ex.name}</Text>
+                  ))
+                )}
+                <TouchableOpacity style={styles.startDayButton} onPress={() => handleStartDay(expanded)} disabled={startingDay}>
+                  {startingDay ? <ActivityIndicator color="#121212" /> : <Text style={styles.startDayText}>Iniciar Treino</Text>}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={styles.restSuggestionText}>{weeklyPlan.active_rest_suggestion}</Text>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
@@ -55,6 +282,8 @@ export default function WorkoutHistoryScreen({ navigation }) {
         <BackButton />
         <Text style={styles.headerTitle}>Treinos</Text>
       </View>
+
+      {renderWeeklySection()}
 
       {loading ? (
         <ActivityIndicator size="large" color="#00FF66" style={{ marginTop: 40 }} />
@@ -92,4 +321,27 @@ const styles = StyleSheet.create({
   badgeActiveText: { color: '#00FF66', fontSize: 11, fontWeight: 'bold' },
   emptyText: { color: '#888', textAlign: 'center', marginTop: 30, fontSize: 14 },
   fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#00FF66', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#00FF66', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
+
+  weeklySection: { marginBottom: 18 },
+  weeklyHeaderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  weeklyTitle: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  weeklySplitName: { flex: 1, color: '#888', fontSize: 12, marginLeft: 8 },
+  definePlanCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 12, padding: 14, borderWidth: 1, borderColor: '#333' },
+  definePlanTitle: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  definePlanSubtitle: { color: '#888', fontSize: 12, marginTop: 2 },
+  dayRow: { paddingRight: 4 },
+  dayChip: { backgroundColor: '#1E1E1E', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 12, marginRight: 8, minWidth: 72, borderWidth: 1, borderColor: '#2A2A2A', alignItems: 'center' },
+  dayChipToday: { borderColor: '#00FF66' },
+  dayChipSelected: { backgroundColor: '#2A2A2A' },
+  dayChipLabel: { color: '#888', fontSize: 11, fontWeight: 'bold', marginBottom: 4, textTransform: 'uppercase' },
+  dayChipLabelToday: { color: '#00FF66' },
+  dayChipValue: { color: '#FFF', fontSize: 12, fontWeight: '600', maxWidth: 70 },
+  dayChipValueRest: { color: '#666' },
+  dayDetailCard: { backgroundColor: '#1E1E1E', borderRadius: 12, padding: 16, marginTop: 10 },
+  dayDetailHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  dayDetailTitle: { color: '#FFF', fontSize: 15, fontWeight: '600' },
+  dayDetailExercise: { color: '#CCC', fontSize: 13, marginBottom: 4 },
+  restSuggestionText: { color: '#AAA', fontSize: 13, lineHeight: 19 },
+  startDayButton: { backgroundColor: '#00FF66', padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  startDayText: { color: '#121212', fontSize: 14, fontWeight: 'bold' },
 });

@@ -36,6 +36,7 @@ class UserService:
         user.goals.goal_protein_g = goals_data.get('goal_protein_g', user.goals.goal_protein_g)
         user.goals.goal_carbs_g = goals_data.get('goal_carbs_g', user.goals.goal_carbs_g)
         user.goals.goal_fat_g = goals_data.get('goal_fat_g', user.goals.goal_fat_g)
+        user.goals.goal_type = goals_data.get('goal_type', user.goals.goal_type)
 
         db.session.commit()
         return user
@@ -91,6 +92,7 @@ class UserService:
             "goal_protein_g": round(protein_g),
             "goal_carbs_g": round(carbs_g),
             "goal_fat_g": round(fat_g),
+            "goal_type": goal,
         }
 
         updated_user = self.update_user_goals(user_id, new_goals_data)

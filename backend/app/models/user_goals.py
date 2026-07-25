@@ -13,6 +13,9 @@ class UserGoals(db.Model):
     goal_protein_g = db.Column(db.Float, nullable=False, default=150)
     goal_carbs_g = db.Column(db.Float, nullable=False, default=200)
     goal_fat_g = db.Column(db.Float, nullable=False, default=60)
+    # Objetivo geral do usuário ('lose', 'maintain', 'gain') — usado, por exemplo,
+    # para sugerir o tipo de descanso ativo nos dias de folga do plano semanal.
+    goal_type = db.Column(db.String(20), nullable=False, default='maintain')
 
     # A relação de volta para o User é definida no modelo User
 
@@ -23,4 +26,5 @@ class UserGoals(db.Model):
             'goal_protein_g': self.goal_protein_g,
             'goal_carbs_g': self.goal_carbs_g,
             'goal_fat_g': self.goal_fat_g,
+            'goal_type': self.goal_type,
         }

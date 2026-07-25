@@ -18,6 +18,8 @@ from .models.split_day import SplitDay
 from .models.workout import Workout
 from .models.set_log import SetLog
 from .models.split_day_exercise import SplitDayExercise
+from .models.weekly_plan import WeeklyPlan
+from .models.weekly_plan_day import WeeklyPlanDay
 
 # <-- 2. INICIALIZAÇÃO GLOBAL DO MIGRATE
 migrate = Migrate()

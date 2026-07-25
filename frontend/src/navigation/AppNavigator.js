@@ -20,6 +20,7 @@ import WorkoutSessionScreen from '../screens/WorkoutSessionScreen';
 import ExercisePickerScreen from '../screens/ExercisePickerScreen';
 import ProgressScreen from '../screens/ProgressScreen';
 import ChooseSplitScreen from '../screens/ChooseSplitScreen';
+import WeeklyPlanSetupScreen from '../screens/WeeklyPlanSetupScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -62,6 +63,7 @@ function MainStack() {
       <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} options={{ presentation: 'modal' }} />
       <Stack.Screen name="Progress" component={ProgressScreen} />
       <Stack.Screen name="ChooseSplit" component={ChooseSplitScreen} />
+      <Stack.Screen name="WeeklyPlanSetup" component={WeeklyPlanSetupScreen} />
     </Stack.Navigator>
   );
 }

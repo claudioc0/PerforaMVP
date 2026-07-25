@@ -490,6 +490,66 @@ export async function getSplitDayExercises(dayId) {
 }
 
 /**
+ * Busca o plano semanal de treino do usuário (Segunda a Domingo). Retorna
+ * `{ has_plan: false }` se o usuário ainda não definiu um plano.
+ */
+export async function getWeeklyPlan() {
+  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Cria (ou substitui) o plano semanal do usuário a partir de uma divisão.
+ *
+ * Sem `splitDayIds`, usa a escala padrão: cada dia da divisão ocupa um dia da
+ * semana a partir de Segunda, na ordem cadastrada, e os dias restantes viram
+ * descanso. Com `splitDayIds` (1 a 7 IDs de dias da própria divisão, podendo
+ * repetir), define explicitamente o treino de cada dia a partir de Segunda —
+ * usado quando o usuário treina mais (ou menos) dias por semana do que a
+ * divisão tem originalmente.
+ * @param {string|number} splitId
+ * @param {Array<number>} [splitDayIds]
+ */
+export async function createWeeklyPlan(splitId, splitDayIds) {
+  const body = splitDayIds ? { split_id: splitId, split_day_ids: splitDayIds } : { split_id: splitId };
+  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan`, {
+    method: "POST",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(body),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Reatribui manualmente um dia da semana do plano atual: para outro dia da
+ * mesma divisão (`splitDayId`), ou para descanso (`splitDayId = null`).
+ * @param {number} dayOfWeek - 0 (Segunda) a 6 (Domingo).
+ * @param {number|null} splitDayId
+ */
+export async function updateWeeklyPlanDay(dayOfWeek, splitDayId) {
+  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan/days/${dayOfWeek}`, {
+    method: "PUT",
+    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ split_day_id: splitDayId }),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Apaga o plano semanal atual do usuário.
+ */
+export async function deleteWeeklyPlan() {
+  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan`, {
+    method: "DELETE",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
  * Cria um exercício customizado no catálogo (deduplicado pelo backend).
  * @param {object} data - { name, muscle_group?, equipment? }
  */
