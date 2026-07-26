@@ -37,6 +37,10 @@ def get_cached_or_fetch_macros(description: str, fresh_macros: dict) -> dict:
 
     if cached:
         cached.hit_count += 1
+        if not cached.name or cached.name == search_query:
+            # Cura o nome de exibição de entradas antigas (backfill ou pré-coluna
+            # `name`) assim que o alimento reaparece com o nome original da IA.
+            cached.name = description.strip()
         db.session.commit()
         return {
             "calories": cached.calories,
@@ -47,6 +51,7 @@ def get_cached_or_fetch_macros(description: str, fresh_macros: dict) -> dict:
 
     new_entry = FoodCache(
         search_query=search_query,
+        name=description.strip(),
         calories=fresh_macros["calories"],
         protein_g=fresh_macros["protein_g"],
         carbs_g=fresh_macros["carbs_g"],
@@ -64,3 +69,37 @@ def get_cached_or_fetch_macros(description: str, fresh_macros: dict) -> dict:
         logger.warning("Corrida ao gravar FoodCache para '%s' — seguindo sem cache.", search_query)
 
     return fresh_macros
+
+
+def search_foods(query: str, limit: int = 20) -> list:
+    """Busca alimentos no catálogo (FoodCache) por substring do nome.
+
+    Cresce organicamente a cada análise da IA (imagem ou texto) — nenhum
+    alimento precisa ser cadastrado manualmente pra aparecer aqui depois da
+    primeira vez que alguém o registra. Ordenado por popularidade (hit_count)
+    pra alimentos mais usados aparecerem primeiro, como num app de referência
+    tipo MyFitnessPal.
+    """
+    normalized_query = _normalize(query)
+    if not normalized_query:
+        return []
+
+    results = (
+        FoodCache.query
+        .filter(FoodCache.search_query.contains(normalized_query))
+        .order_by(FoodCache.hit_count.desc(), FoodCache.search_query)
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        {
+            "id": item.id,
+            "name": item.name or item.search_query.title(),
+            "calories": item.calories,
+            "protein_g": item.protein_g,
+            "carbs_g": item.carbs_g,
+            "fat_g": item.fat_g,
+        }
+        for item in results
+    ]

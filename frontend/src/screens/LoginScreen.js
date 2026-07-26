@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser } from '../services/api';
 import LogoMark from '../components/LogoMark';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 export default function LoginScreen({ navigation }) {
+  const showAlert = useAppAlert();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Erro', 'Preencha email e senha.');
+      showAlert('Erro', 'Preencha email e senha.');
       return;
     }
 
@@ -28,7 +30,7 @@ export default function LoginScreen({ navigation }) {
       
       navigation.replace('Dashboard'); // 'replace' impede que o usuário volte pro login com a seta do celular
     } catch (error) {
-      Alert.alert('Erro no Login', error.message);
+      showAlert('Erro no Login', error.message);
     } finally {
       setLoading(false);
     }

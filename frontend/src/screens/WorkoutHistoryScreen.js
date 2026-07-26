@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 import {
   listWorkouts,
   createWorkout,
@@ -24,6 +25,7 @@ function todayPlanIndex() {
 }
 
 export default function WorkoutHistoryScreen({ navigation }) {
+  const showAlert = useAppAlert();
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,7 +41,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
       const data = await listWorkouts();
       setWorkouts(data);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar seu histórico de treinos.');
+      showAlert('Erro', 'Não foi possível carregar seu histórico de treinos.');
     } finally {
       setLoading(false);
     }
@@ -90,7 +92,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
       const workout = await createWorkout({ split_day_id: day.split_day_id, name: day.split_day_name });
       navigation.navigate('WorkoutSession', { workoutId: workout.id });
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível iniciar o treino.');
+      showAlert('Erro', 'Não foi possível iniciar o treino.');
     } finally {
       setStartingDay(false);
     }
@@ -109,7 +111,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
     }
     options.push({ text: 'Cancelar', style: 'cancel' });
 
-    Alert.alert('Trocar dia', `O que ${day.day_label.toLowerCase()} deve ser?`, options);
+    showAlert('Trocar dia', `O que ${day.day_label.toLowerCase()} deve ser?`, options);
   };
 
   const saveReassign = async (dayOfWeek, splitDayId) => {
@@ -129,18 +131,18 @@ export default function WorkoutHistoryScreen({ navigation }) {
         }
       }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível atualizar esse dia.');
+      showAlert('Erro', 'Não foi possível atualizar esse dia.');
     }
   };
 
   const handlePlanOptions = () => {
-    Alert.alert('Plano Semanal', undefined, [
+    showAlert('Plano Semanal', undefined, [
       { text: 'Trocar divisão', onPress: () => navigation.navigate('WeeklyPlanSetup') },
       {
         text: 'Excluir plano',
         style: 'destructive',
         onPress: () => {
-          Alert.alert('Excluir Plano Semanal', 'Tem certeza? Seus treinos já registrados não são afetados.', [
+          showAlert('Excluir Plano Semanal', 'Tem certeza? Seus treinos já registrados não são afetados.', [
             { text: 'Cancelar', style: 'cancel' },
             {
               text: 'Excluir',
@@ -151,7 +153,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
                   setWeeklyPlan({ has_plan: false });
                   setExpandedDay(null);
                 } catch (error) {
-                  Alert.alert('Erro', 'Não foi possível excluir o plano semanal.');
+                  showAlert('Erro', 'Não foi possível excluir o plano semanal.');
                 }
               },
             },

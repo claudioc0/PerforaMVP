@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { registerUser } from '../services/api'; // Importa a função da API
 import BackButton from '../components/BackButton';
 import LogoMark from '../components/LogoMark';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 // Componente para exibir um requisito da senha
 const PasswordRequirement = ({ met, text }) => (
@@ -12,6 +13,7 @@ const PasswordRequirement = ({ met, text }) => (
 );
 
 export default function RegisterScreen({ navigation }) {
+  const showAlert = useAppAlert();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -29,13 +31,13 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!passwordValidation.allMet) {
-      Alert.alert("Senha Fraca", "Por favor, certifique-se de que sua senha atende a todos os requisitos.");
+      showAlert("Senha Fraca", "Por favor, certifique-se de que sua senha atende a todos os requisitos.");
       return;
     }
     setLoading(true);
     try {
       await registerUser(name, email, password);
-      Alert.alert(
+      showAlert(
         "Sucesso!",
         "Sua conta foi criada. Faça o login para continuar.",
         [{ text: "OK", onPress: () => navigation.navigate('Login') }]
@@ -43,7 +45,7 @@ export default function RegisterScreen({ navigation }) {
     } catch (error) {
       // A API já retorna os detalhes, podemos usá-los aqui também
       const errorMessage = error.details ? `${error.message}\n- ${error.details.join('\n- ')}` : error.message;
-      Alert.alert("Erro no Cadastro", errorMessage);
+      showAlert("Erro no Cadastro", errorMessage);
     } finally {
       setLoading(false);
     }

@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWeeklySummary, getUserGoals, getWeightHistory, logWeight } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 // --- Componente de Gráfico de Barras Customizado ---
 const WeeklyBarChart = ({ data, goal, label }) => {
@@ -34,6 +35,7 @@ const WeeklyBarChart = ({ data, goal, label }) => {
 };
 
 export default function InsightsScreen({ navigation }) {
+  const showAlert = useAppAlert();
   const [weeklyData, setWeeklyData] = useState([]);
   const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +60,7 @@ export default function InsightsScreen({ navigation }) {
           setGoals(goalsData);
           setWeightHistory(weightHistoryData || []);
         } catch (error) {
-          Alert.alert("Erro", "Não foi possível carregar os insights. Tente novamente.");
+          showAlert("Erro", "Não foi possível carregar os insights. Tente novamente.");
         } finally {
           setLoading(false);
         }
@@ -87,19 +89,19 @@ export default function InsightsScreen({ navigation }) {
     const weight = parseFloat(normalizedInput);
     
     if (isNaN(weight) || weight <= 0) {
-      Alert.alert("Erro", "Por favor, insira um peso válido.");
+      showAlert("Erro", "Por favor, insira um peso válido.");
       return;
     }
 
     setLoggingWeight(true);
     try {
       await logWeight({ weight });
-      Alert.alert("Sucesso", "Peso registrado!");
+      showAlert("Sucesso", "Peso registrado!");
       setCurrentWeightInput('');
       const updatedHistory = await getWeightHistory();
       setWeightHistory(updatedHistory);
     } catch (error) {
-      Alert.alert("Erro", error.message || "Não foi possível registrar o peso.");
+      showAlert("Erro", error.message || "Não foi possível registrar o peso.");
     } finally {
       setLoggingWeight(false);
     }

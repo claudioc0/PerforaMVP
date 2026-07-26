@@ -1,8 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkoutProgress } from '../services/api';
 
 function formatDate(isoString) {
@@ -10,6 +11,7 @@ function formatDate(isoString) {
 }
 
 export default function ProgressScreen() {
+  const showAlert = useAppAlert();
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,7 +23,7 @@ export default function ProgressScreen() {
           const data = await getWorkoutProgress();
           setProgress(data);
         } catch (error) {
-          Alert.alert('Erro', 'Não foi possível carregar seu progresso.');
+          showAlert('Erro', 'Não foi possível carregar seu progresso.');
         } finally {
           setLoading(false);
         }

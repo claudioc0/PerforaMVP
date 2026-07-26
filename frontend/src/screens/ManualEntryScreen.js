@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, FlatList } from 'react-native';
-import { saveMeal, getFavorites, removeFavorite } from '../services/api';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, FlatList } from 'react-native';
+import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder }) => (
   <View style={styles.fieldContainer}>
@@ -23,6 +24,7 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
 );
 
 export default function ManualEntryScreen({ navigation, route }) {
+  const showAlert = useAppAlert();
   // Usa route.params diretamente, que já é fornecido pelo React Navigation
   const { targetDate, scannedProduct } = route.params;
 
@@ -37,6 +39,10 @@ export default function ManualEntryScreen({ navigation, route }) {
     fat_g: '',
   });
   const [loading, setLoading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     // Preenche o formulário se um produto escaneado for recebido
@@ -52,12 +58,35 @@ export default function ManualEntryScreen({ navigation, route }) {
   }, [scannedProduct]);
 
   useEffect(() => {
+    const query = meal.description.trim();
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    setSearching(true);
+    const timeoutId = setTimeout(async () => {
+      try {
+        const results = await searchFoods(query);
+        setSearchResults(results);
+      } catch (error) {
+        // Busca no catálogo é um atalho a mais — falha aqui não afeta a estimativa por IA nem o preenchimento manual.
+      } finally {
+        setSearching(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timeoutId);
+  }, [meal.description]);
+
+  useEffect(() => {
     const fetchFavorites = async () => {
       try {
         const favs = await getFavorites();
         setFavorites(favs);
       } catch (error) {
-        Alert.alert("Erro", "Não foi possível carregar seus pratos favoritos.");
+        showAlert("Erro", "Não foi possível carregar seus pratos favoritos.");
       } finally {
         setLoadingFavorites(false);
       }
@@ -69,9 +98,48 @@ export default function ManualEntryScreen({ navigation, route }) {
     setMeal(prev => ({ ...prev, [field]: text }));
   };
 
+  const handleSelectCatalogItem = (item) => {
+    const draftMeal = {
+      items: [{
+        description: item.name,
+        calories: item.calories,
+        protein_g: item.protein_g,
+        carbs_g: item.carbs_g,
+        fat_g: item.fat_g,
+        estimated_grams: 100,
+      }],
+      confidence: 1,
+      source_type: 'catalog',
+    };
+    setSearchResults([]);
+    navigation.navigate('MealConfirmation', { draftMeal, targetDate });
+  };
+
+  const handleEstimate = async () => {
+    if (!meal.description.trim()) {
+      showAlert('Atenção', 'Descreva o alimento antes de estimar automaticamente.');
+      return;
+    }
+
+    setEstimating(true);
+    try {
+      const draftMeal = await analyzeMeal(null, meal.description);
+      navigation.navigate('MealConfirmation', { draftMeal, targetDate });
+    } catch (error) {
+      const errorMsg = error.message || '';
+      if (errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+        showAlert('Servidores Ocupados ⚡', 'Nossa IA está processando muitos pratos agora. Tente de novo em instantes ou preencha os valores manualmente abaixo.');
+      } else {
+        showAlert('Erro na Estimativa', errorMsg || 'Não foi possível estimar os valores. Preencha manualmente abaixo.');
+      }
+    } finally {
+      setEstimating(false);
+    }
+  };
+
   const handleSaveMeal = async () => {
     if (!meal.description || !meal.calories || !meal.protein_g || !meal.carbs_g || !meal.fat_g) {
-      Alert.alert('Atenção', 'Por favor, preencha todos os campos.');
+      showAlert('Atenção', 'Por favor, preencha todos os campos.');
       return;
     }
 
@@ -89,11 +157,25 @@ export default function ManualEntryScreen({ navigation, route }) {
 
       await saveMeal(payload);
 
-      Alert.alert('Sucesso', 'Refeição registrada manualmente!');
+      if (saveAsFavorite) {
+        try {
+          await addFavorite({
+            description: payload.description,
+            calories: payload.calories,
+            protein_g: payload.protein_g,
+            carbs_g: payload.carbs_g,
+            fat_g: payload.fat_g,
+          });
+        } catch (favoriteError) {
+          // A refeição já foi registrada com sucesso — falha ao favoritar não deve bloquear o fluxo.
+        }
+      }
+
+      showAlert('Sucesso', 'Refeição registrada manualmente!');
       navigation.goBack();
 
     } catch (error) {
-      Alert.alert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
+      showAlert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
     } finally {
       setLoading(false);
     }
@@ -107,29 +189,30 @@ export default function ManualEntryScreen({ navigation, route }) {
         date: targetDate,
       };
       await saveMeal(payload);
-      Alert.alert('Sucesso!', `"${favorite.description}" foi adicionado ao seu dia.`);
+      showAlert('Sucesso!', `"${favorite.description}" foi adicionado ao seu dia.`);
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Erro', error.message || 'Não foi possível adicionar o prato favorito.');
+      showAlert('Erro', error.message || 'Não foi possível adicionar o prato favorito.');
     }
   };
 
   const handleRemoveFavorite = async (favId) => {
-    Alert.alert(
+    showAlert(
       "Excluir Favorito",
       "Tem certeza que deseja remover este prato da sua lista de favoritos?",
       [
         { text: "Não", style: "cancel" },
         {
           text: "Sim",
+          style: "destructive",
           onPress: async () => {
             try {
               await removeFavorite(favId);
               // Atualização otimista da UI
               setFavorites(currentFavorites => currentFavorites.filter(f => f.id !== favId));
-              Alert.alert("Removido", "O prato foi removido dos seus favoritos.");
+              showAlert("Removido", "O prato foi removido dos seus favoritos.");
             } catch (error) {
-              Alert.alert("Erro", error.message || "Não foi possível remover o favorito.");
+              showAlert("Erro", error.message || "Não foi possível remover o favorito.");
             }
           },
         },
@@ -170,6 +253,34 @@ export default function ManualEntryScreen({ navigation, route }) {
             keyboardType="default"
             placeholder="Ex: Arroz, feijão e bife"
           />
+
+          {meal.description.trim().length >= 2 && (searching || searchResults.length > 0) && (
+            <View style={styles.searchResultsContainer}>
+              {searching ? (
+                <ActivityIndicator color="#00FF66" style={{ marginVertical: 12 }} />
+              ) : (
+                searchResults.map((item) => (
+                  <TouchableOpacity key={item.id} style={styles.searchResultRow} onPress={() => handleSelectCatalogItem(item)}>
+                    <Text style={styles.searchResultName}>{item.name}</Text>
+                    <Text style={styles.searchResultMacros}>{item.calories.toFixed(0)} kcal /100g</Text>
+                  </TouchableOpacity>
+                ))
+              )}
+            </View>
+          )}
+
+          <TouchableOpacity style={styles.estimateButton} onPress={handleEstimate} disabled={estimating}>
+            {estimating ? (
+              <ActivityIndicator color="#00FF66" />
+            ) : (
+              <>
+                <Ionicons name="sparkles" size={18} color="#00FF66" style={{ marginRight: 8 }} />
+                <Text style={styles.estimateText}>Estimar valores com IA</Text>
+              </>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.estimateHint}>Ou preencha os valores manualmente abaixo</Text>
+
           <EditableField
             label="Calorias"
             value={meal.calories}
@@ -203,6 +314,11 @@ export default function ManualEntryScreen({ navigation, route }) {
             placeholder="18"
           />
         </View>
+
+        <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
+          <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
+          <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
           {loading ? <ActivityIndicator color="#121212" /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
@@ -243,6 +359,15 @@ const styles = StyleSheet.create({
   inputContainer: { flexDirection: 'row', alignItems: 'center' },
   input: { color: '#FFF', fontSize: 18, flex: 1, fontWeight: '500', paddingVertical: 5 },
   unitText: { color: '#888', fontSize: 16, marginLeft: 10 },
+  searchResultsContainer: { backgroundColor: '#121212', borderRadius: 10, marginTop: -5, marginBottom: 10, borderWidth: 1, borderColor: '#333', overflow: 'hidden' },
+  searchResultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#2A2A2A' },
+  searchResultName: { color: '#FFF', fontSize: 14, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },
+  searchResultMacros: { color: '#888', fontSize: 12 },
+  estimateButton: { flexDirection: 'row', backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00FF66', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  estimateText: { color: '#00FF66', fontSize: 15, fontWeight: 'bold' },
+  estimateHint: { color: '#666', fontSize: 12, textAlign: 'center', marginTop: 8, marginBottom: 4 },
+  favoriteToggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 4 },
+  favoriteToggleText: { color: '#AAA', fontSize: 13, marginLeft: 10, flex: 1 },
   submitButton: { backgroundColor: '#00FF66', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
   submitText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
