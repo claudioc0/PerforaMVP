@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { analyzeMeal } from '../services/api';
 import { fetchProductByBarcode } from '../services/openFoodFacts';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 export default function CameraScreen({ navigation, route }) {
+  const showAlert = useAppAlert();
   const [imageUri, setImageUri] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const { targetDate } = route.params || {}; 
@@ -16,7 +18,7 @@ export default function CameraScreen({ navigation, route }) {
   const takePhoto = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      alert("Precisamos da permissão da câmera para analisar o prato!");
+      showAlert("Permissão Necessária", "Precisamos da permissão da câmera para analisar o prato!");
       return;
     }
 
@@ -33,7 +35,7 @@ export default function CameraScreen({ navigation, route }) {
 
   const handleAnalyze = async () => {
     if (!imageUri) {
-      Alert.alert("Atenção", "Tire uma foto para analisar a refeição.");
+      showAlert("Atenção", "Tire uma foto para analisar a refeição.");
       return;
     }
 
@@ -49,7 +51,7 @@ export default function CameraScreen({ navigation, route }) {
       // TRATAMENTO DE ERRO DE COTA/LIMITE DA IA (429)
       const errorMsg = error.message || "";
       if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
-        Alert.alert(
+        showAlert(
           "Servidores Ocupados ⚡",
           "Nossa IA está processando muitos pratos agora. Aguarde um minuto ou adicione os dados manualmente.",
           [
@@ -61,7 +63,7 @@ export default function CameraScreen({ navigation, route }) {
           ]
         );
       } else {
-        Alert.alert("Erro na Análise", errorMsg || "Falha ao analisar a refeição. Verifique o servidor.");
+        showAlert("Erro na Análise", errorMsg || "Falha ao analisar a refeição. Verifique o servidor.");
       }
     } finally {
       setAnalyzing(false);
@@ -81,7 +83,7 @@ export default function CameraScreen({ navigation, route }) {
         });
       } else {
         // MELHORIA UX: Redireciona para cadastro manual se não achar
-        Alert.alert(
+        showAlert(
           "Produto inédito! 🕵️",
           "Não encontramos este código de barras no banco mundial. Deseja cadastrá-lo manualmente?",
           [
@@ -97,7 +99,7 @@ export default function CameraScreen({ navigation, route }) {
         );
       }
     } catch (error) {
-      Alert.alert(
+      showAlert(
         "Erro de Conexão",
         "Ocorreu um erro ao buscar o produto na internet.",
         [{ text: 'OK', onPress: () => setScanned(false) }]

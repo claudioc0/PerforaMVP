@@ -1,7 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
+import { useAppAlert } from '../components/AppAlertProvider';
 import { getTodaySummary, getUserGoals, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +56,7 @@ const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF
 
 export default function DashboardScreen({ navigation }) {
   const { open: openDrawerMenu } = useDrawerMenu();
+  const showAlert = useAppAlert();
   const [summary, setSummary] = useState(null);
   const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -187,19 +189,20 @@ export default function DashboardScreen({ navigation }) {
   );
 
   const handleDeleteMeal = async (mealId) => {
-    Alert.alert(
+    showAlert(
       "Excluir Refeição",
       "Tem certeza que deseja apagar este registro?",
       [
         { text: "Não", style: "cancel" },
-        { 
-          text: "Sim", 
+        {
+          text: "Sim",
+          style: "destructive",
           onPress: async () => {
             try {
               await deleteMeal(mealId);
-              fetchData(); 
+              fetchData();
             } catch (error) {
-              Alert.alert("Erro ao Excluir", error.message || "Não foi possível apagar a refeição.");
+              showAlert("Erro ao Excluir", error.message || "Não foi possível apagar a refeição.");
             }
           }
         }
@@ -215,12 +218,12 @@ export default function DashboardScreen({ navigation }) {
       setWaterIntake(response.total);
     } catch (error) {
       setWaterIntake(previousIntake);
-      Alert.alert("Erro", "Não foi possível registrar a água. Tente novamente.");
+      showAlert("Erro", "Não foi possível registrar a água. Tente novamente.");
     }
   };
 
   const handleFavorite = async (meal) => {
-    Alert.alert(
+    showAlert(
       "Salvar como Favorito",
       `Deseja salvar "${meal.description}" nos seus pratos favoritos?`,
       [
@@ -233,9 +236,9 @@ export default function DashboardScreen({ navigation }) {
                 description: meal.description, calories: meal.calories, protein_g: meal.protein_g, carbs_g: meal.carbs_g, fat_g: meal.fat_g
               };
               await addFavorite(favoriteData);
-              Alert.alert("Sucesso", "Refeição salva nos seus favoritos!");
+              showAlert("Sucesso", "Refeição salva nos seus favoritos!");
             } catch (error) {
-              Alert.alert("Erro", error.message || "Não foi possível salvar como favorito.");
+              showAlert("Erro", error.message || "Não foi possível salvar como favorito.");
             }
           },
         },
@@ -361,8 +364,8 @@ export default function DashboardScreen({ navigation }) {
             </View>
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          scrollEnabled={false} 
+          contentContainerStyle={{ paddingBottom: 210 }}
+          scrollEnabled={false}
         />
       </ScrollView>
 

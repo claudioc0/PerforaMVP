@@ -1,9 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { saveMeal } from '../services/api';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { saveMeal, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 export default function MealConfirmationScreen({ navigation, route }) {
+  const showAlert = useAppAlert();
   // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da tela anterior
   const { draftMeal, targetDate } = route.params;
 
@@ -16,6 +19,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
     }))
   );
   const [loading, setLoading] = useState(false);
+  const [saveAsFavorite, setSaveAsFavorite] = useState(false);
 
   const updateItemQuantity = (index, text) => {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, quantity: text } : item)));
@@ -73,11 +77,25 @@ export default function MealConfirmationScreen({ navigation, route }) {
 
       await saveMeal(finalMealData);
 
-      Alert.alert('Sucesso', 'Refeição registrada!');
+      if (saveAsFavorite) {
+        try {
+          await addFavorite({
+            description: combinedDescription,
+            calories: totals.calories,
+            protein_g: totals.protein_g,
+            carbs_g: totals.carbs_g,
+            fat_g: totals.fat_g,
+          });
+        } catch (favoriteError) {
+          // A refeição já foi registrada com sucesso — falha ao favoritar não deve bloquear o fluxo.
+        }
+      }
+
+      showAlert('Sucesso', 'Refeição registrada!');
       navigation.navigate('Dashboard');
 
     } catch (error) {
-      Alert.alert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
+      showAlert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
     } finally {
       setLoading(false);
     }
@@ -144,6 +162,11 @@ export default function MealConfirmationScreen({ navigation, route }) {
         </View>
       </View>
 
+      <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
+        <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
+        <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[styles.submitButton, loading && styles.disabledButton]}
         onPress={handleConfirmMeal}
@@ -182,6 +205,8 @@ const styles = StyleSheet.create({
   macroBox: { alignItems: 'center', width: '48%', marginBottom: 15 },
   macroValue: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
   macroLabel: { color: '#888', fontSize: 14, marginTop: 4 },
+  favoriteToggleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  favoriteToggleText: { color: '#AAA', fontSize: 13, marginLeft: 10, flex: 1 },
   submitButton: { backgroundColor: '#00FF66', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
   submitText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },

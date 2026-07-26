@@ -20,6 +20,10 @@ class FoodCache(db.Model):
     # Chave de busca normalizada (strip + lower + espaços colapsados)
     search_query = db.Column(db.String(255), unique=True, index=True, nullable=False)
 
+    # Nome de exibição (com acentos/maiúsculas), pra mostrar nos resultados de
+    # busca do catálogo — o search_query normalizado é só a chave de lookup.
+    name = db.Column(db.String(255), nullable=True)
+
     calories = db.Column(db.Float, nullable=False)
     protein_g = db.Column(db.Float, nullable=False)
     carbs_g = db.Column(db.Float, nullable=False)

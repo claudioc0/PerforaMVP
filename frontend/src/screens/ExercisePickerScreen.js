@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 import { listExercises, createExercise } from '../services/api';
 
 export default function ExercisePickerScreen({ navigation, route }) {
+  const showAlert = useAppAlert();
   const { onSelect } = route.params;
 
   const [query, setQuery] = useState('');
@@ -19,7 +21,7 @@ export default function ExercisePickerScreen({ navigation, route }) {
       const data = await listExercises(search);
       setExercises(data);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível buscar o catálogo de exercícios.');
+      showAlert('Erro', 'Não foi possível buscar o catálogo de exercícios.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +51,7 @@ export default function ExercisePickerScreen({ navigation, route }) {
       onSelect(exercise);
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível criar o exercício.');
+      showAlert('Erro', 'Não foi possível criar o exercício.');
     } finally {
       setCreating(false);
     }

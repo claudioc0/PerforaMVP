@@ -6,13 +6,13 @@ import {
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   ScrollView,
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getUserGoals, updateUserGoals, calculateSmartGoals } from '../services/api';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 // Componente para botões de seleção customizados
 const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
@@ -40,6 +40,7 @@ const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
 );
 
 export default function GoalsScreen({ navigation }) {
+  const showAlert = useAppAlert();
   // Estado para metas manuais
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -70,7 +71,7 @@ export default function GoalsScreen({ navigation }) {
           setCarbs(goals.goal_carbs_g?.toString() || '');
           setFat(goals.goal_fat_g?.toString() || '');
         } catch (error) {
-          Alert.alert('Erro', 'Não foi possível carregar suas metas.');
+          showAlert('Erro', 'Não foi possível carregar suas metas.');
         } finally {
           setLoading(false);
         }
@@ -89,10 +90,10 @@ export default function GoalsScreen({ navigation }) {
         goal_fat_g: parseFloat(fat) || 0,
       };
       await updateUserGoals(goalsData);
-      Alert.alert('Sucesso!', 'Suas metas foram atualizadas.');
+      showAlert('Sucesso!', 'Suas metas foram atualizadas.');
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Erro ao Salvar', error.message || 'Não foi possível atualizar as metas.');
+      showAlert('Erro ao Salvar', error.message || 'Não foi possível atualizar as metas.');
     } finally {
       setSaving(false);
     }
@@ -100,7 +101,7 @@ export default function GoalsScreen({ navigation }) {
 
   const handleCalculateGoals = async () => {
     if (!weight || !height || !age) {
-      Alert.alert('Atenção', 'Por favor, preencha peso, altura e idade.');
+      showAlert('Atenção', 'Por favor, preencha peso, altura e idade.');
       return;
     }
     setCalculating(true);
@@ -124,10 +125,10 @@ export default function GoalsScreen({ navigation }) {
       setFat(newGoals.goal_fat_g.toString());
 
       setModalVisible(false); // Fecha o modal
-      Alert.alert('Sucesso!', 'Suas metas foram calculadas e aplicadas.');
+      showAlert('Sucesso!', 'Suas metas foram calculadas e aplicadas.');
 
     } catch (error) {
-      Alert.alert('Erro no Cálculo', error.message || 'Não foi possível calcular as metas.');
+      showAlert('Erro no Cálculo', error.message || 'Não foi possível calcular as metas.');
     } finally {
       setCalculating(false);
     }

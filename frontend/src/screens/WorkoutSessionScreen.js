@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
 
 const REST_TARGET_KEY = '@perfora_rest_target_seconds';
@@ -17,6 +18,7 @@ function formatSeconds(totalSeconds) {
 
 export default function WorkoutSessionScreen({ navigation, route }) {
   const { workoutId } = route.params;
+  const showAlert = useAppAlert();
 
   const [workout, setWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         }
       }
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar o treino.');
+      showAlert('Erro', 'Não foi possível carregar o treino.');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -133,7 +135,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
   const handleSaveSet = async () => {
     if (!weight || !reps) {
-      Alert.alert('Atenção', 'Preencha peso e repetições.');
+      showAlert('Atenção', 'Preencha peso e repetições.');
       return;
     }
 
@@ -161,14 +163,14 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setLastPerformance(null);
       startRestTimer();
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível registrar a série.');
+      showAlert('Erro', 'Não foi possível registrar a série.');
     } finally {
       setSaving(false);
     }
   };
 
   const handleFinishWorkout = async () => {
-    Alert.alert('Finalizar Treino', 'Tem certeza que deseja finalizar este treino?', [
+    showAlert('Finalizar Treino', 'Tem certeza que deseja finalizar este treino?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Finalizar',
@@ -179,7 +181,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             stopRestTimer();
             navigation.goBack();
           } catch (error) {
-            Alert.alert('Erro', 'Não foi possível finalizar o treino.');
+            showAlert('Erro', 'Não foi possível finalizar o treino.');
           } finally {
             setFinishing(false);
           }
@@ -201,12 +203,12 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setWorkout((prev) => ({ ...prev, name: updated.name }));
       setEditingName(false);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível renomear o treino.');
+      showAlert('Erro', 'Não foi possível renomear o treino.');
     }
   };
 
   const handleDeleteWorkout = () => {
-    Alert.alert(
+    showAlert(
       'Excluir Treino',
       'Essa ação não pode ser desfeita. Deseja excluir este treino e todas as suas séries?',
       [
@@ -219,7 +221,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               await deleteWorkout(workoutId);
               navigation.goBack();
             } catch (error) {
-              Alert.alert('Erro', 'Não foi possível excluir o treino.');
+              showAlert('Erro', 'Não foi possível excluir o treino.');
             }
           },
         },
@@ -237,7 +239,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
   const saveEditSet = async () => {
     if (!editWeight || !editReps) {
-      Alert.alert('Atenção', 'Preencha peso e repetições.');
+      showAlert('Atenção', 'Preencha peso e repetições.');
       return;
     }
     setSavingSetEdit(true);
@@ -252,14 +254,14 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       }));
       setEditingSetId(null);
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível atualizar a série.');
+      showAlert('Erro', 'Não foi possível atualizar a série.');
     } finally {
       setSavingSetEdit(false);
     }
   };
 
   const confirmDeleteSet = (setId) => {
-    Alert.alert('Excluir Série', 'Deseja excluir esta série?', [
+    showAlert('Excluir Série', 'Deseja excluir esta série?', [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Excluir',
@@ -270,7 +272,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             setWorkout((prev) => ({ ...prev, sets: prev.sets.filter((s) => s.id !== setId) }));
             if (editingSetId === setId) setEditingSetId(null);
           } catch (error) {
-            Alert.alert('Erro', 'Não foi possível excluir a série.');
+            showAlert('Erro', 'Não foi possível excluir a série.');
           }
         },
       },

@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { updateMeal } from '../services/api';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 
 export default function AdjustQuantityScreen({ navigation, route }) {
+  const showAlert = useAppAlert();
   const { meal: initialMeal } = route.params;
 
   // Refeições registradas via IA (foto/texto) têm detalhamento por item — refeições antigas
@@ -107,11 +109,11 @@ export default function AdjustQuantityScreen({ navigation, route }) {
 
       await updateMeal(initialMeal.id, payload);
 
-      Alert.alert('Sucesso', 'Refeição atualizada!');
+      showAlert('Sucesso', 'Refeição atualizada!');
       navigation.navigate('Dashboard');
 
     } catch (error) {
-      Alert.alert('Erro ao Salvar', error.message || 'Não foi possível atualizar a refeição.');
+      showAlert('Erro ao Salvar', error.message || 'Não foi possível atualizar a refeição.');
     } finally {
       setSaving(false);
     }

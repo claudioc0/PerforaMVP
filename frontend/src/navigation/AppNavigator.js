@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import DrawerContent from './DrawerContent';
 import { DrawerMenuProvider } from './DrawerMenuContext';
+import { AppAlertProvider } from '../components/AppAlertProvider';
 
 // Importando as telas
 import LoginScreen from "../screens/LoginScreen";
@@ -70,10 +71,12 @@ function MainStack() {
 
 export default function AppNavigator() {
   return (
-    <DrawerMenuProvider>
-      <MainStack />
-      <DrawerContent />
-    </DrawerMenuProvider>
+    <AppAlertProvider>
+      <DrawerMenuProvider>
+        <MainStack />
+        <DrawerContent />
+      </DrawerMenuProvider>
+    </AppAlertProvider>
   );
 }
 

@@ -252,8 +252,23 @@ export async function updateMeal(mealId, mealData) {
   return handleResponse(response);
 }
 
-/** 
- * Funções do Sistema de Favoritos 
+/**
+ * Busca alimentos no catálogo (cresce a cada análise de IA feita por qualquer
+ * usuário), pra preencher macros automaticamente ao digitar na tela de
+ * registro manual. Retorna [] se a busca não tiver pelo menos alguns caracteres.
+ * @param {string} query
+ */
+export async function searchFoods(query) {
+  const params = new URLSearchParams({ q: query });
+  const response = await fetch(`${API_BASE_URL}/meals/foods/search?${params.toString()}`, {
+    method: "GET",
+    headers: await getAuthHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Funções do Sistema de Favoritos
  */
 export async function getFavorites() {
   const authHeader = await getAuthHeaders();

@@ -9,6 +9,7 @@ from app.extensions import db
 from app.models import FavoriteMeal
 from app.services.gemini_service import GeminiAnalysisError, GeminiService
 from app.services.meal_service import MealService
+from app.services.food_cache_service import search_foods
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,16 @@ def get_today():
     except Exception:
         logger.exception("Erro inesperado ao buscar resumo do dia")
         return jsonify({"error": "Erro interno ao buscar o resumo."}), 500
-    
+
+# --- ROTAS DO CATÁLOGO DE ALIMENTOS ---
+
+@meals_bp.route("/foods/search", methods=["GET"])
+@jwt_required()
+def search_foods_endpoint():
+    query = request.args.get("q", "")
+    results = search_foods(query)
+    return jsonify(results), 200
+
 # --- ROTAS DE FAVORITOS ---
 
 @meals_bp.route("/favorites", methods=["GET"])

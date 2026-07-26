@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWorkout } from '../services/api';
 
 export default function ChooseSplitScreen({ navigation }) {
+  const showAlert = useAppAlert();
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSplitId, setExpandedSplitId] = useState(null);
@@ -16,7 +18,7 @@ export default function ChooseSplitScreen({ navigation }) {
         const data = await listSplits();
         setSplits(data);
       } catch (error) {
-        Alert.alert('Erro', 'Não foi possível carregar as divisões de treino.');
+        showAlert('Erro', 'Não foi possível carregar as divisões de treino.');
       } finally {
         setLoading(false);
       }
@@ -34,7 +36,7 @@ export default function ChooseSplitScreen({ navigation }) {
       const workout = await createWorkout(workoutData);
       navigation.replace('WorkoutSession', { workoutId: workout.id });
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível iniciar o treino.');
+      showAlert('Erro', 'Não foi possível iniciar o treino.');
     } finally {
       setCreating(false);
     }

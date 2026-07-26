@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWeeklyPlan } from '../services/api';
 
 export default function WeeklyPlanSetupScreen({ navigation }) {
+  const showAlert = useAppAlert();
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSplitId, setExpandedSplitId] = useState(null);
@@ -21,7 +23,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
         const data = await listSplits();
         setSplits(data);
       } catch (error) {
-        Alert.alert('Erro', 'Não foi possível carregar as divisões de treino.');
+        showAlert('Erro', 'Não foi possível carregar as divisões de treino.');
       } finally {
         setLoading(false);
       }
@@ -63,7 +65,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
       },
     }));
     options.push({ text: 'Cancelar', style: 'cancel' });
-    Alert.alert(`Dia ${index + 1}`, 'Qual treino cai nesse dia?', options);
+    showAlert(`Dia ${index + 1}`, 'Qual treino cai nesse dia?', options);
   };
 
   const handleUseSplit = useCallback(async (split, splitDayIds) => {
@@ -72,7 +74,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
       await createWeeklyPlan(split.id, splitDayIds);
       navigation.goBack();
     } catch (error) {
-      Alert.alert('Erro', 'Não foi possível definir o plano semanal.');
+      showAlert('Erro', 'Não foi possível definir o plano semanal.');
     } finally {
       setSaving(false);
     }
