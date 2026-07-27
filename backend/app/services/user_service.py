@@ -1,9 +1,9 @@
 import logging
 from typing import Optional
-from datetime import datetime
 
 from app.extensions import db
 from app.models import User, UserGoals, WaterLog
+from app.utils.dates import day_bounds, parse_date_str, timestamp_within_date
 from sqlalchemy import func
 
 logger = logging.getLogger(__name__)
@@ -102,27 +102,33 @@ class UserService:
 
         return updated_user.goals
 
-    def add_water_intake(self, user_id: int, amount: int) -> int:
+    def add_water_intake(self, user_id: int, amount: int, date_str: Optional[str] = None) -> int:
         """
         Registra uma nova ingestão de água e retorna o total do dia.
-        """
-        # 1. Cria o novo registro
-        new_log = WaterLog(user_id=user_id, amount_ml=amount)
-        db.session.add(new_log)
-        
-        # 2. Calcula o total do dia
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        today_end = datetime.utcnow().replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        total_today_query = db.session.query(
+        O dia vem do aparelho (date_str), igual ao que já acontece com as
+        refeições. Antes o registro era carimbado com o relógio UTC do servidor,
+        então a água tomada à noite caía no dia seguinte e não batia com o total
+        que o Dashboard mostrava para aquele mesmo dia.
+        """
+        target_date = parse_date_str(date_str)
+
+        # 1. Cria o novo registro dentro do dia declarado pelo usuário
+        new_log = WaterLog(
+            user_id=user_id,
+            amount_ml=amount,
+            created_at=timestamp_within_date(target_date),
+        )
+        db.session.add(new_log)
+        db.session.commit()
+
+        # 2. Soma o total daquele dia (já incluindo o registro recém-salvo)
+        day_start, day_end = day_bounds(target_date)
+        total_today = db.session.query(
             func.sum(WaterLog.amount_ml)
         ).filter(
             WaterLog.user_id == user_id,
-            WaterLog.created_at.between(today_start, today_end)
-        )
-        
-        db.session.commit() # Salva o novo registro
+            WaterLog.created_at.between(day_start, day_end)
+        ).scalar() or 0
 
-        # Executa a query de soma após o commit para incluir o novo valor
-        total_today = total_today_query.scalar() or 0
         return total_today

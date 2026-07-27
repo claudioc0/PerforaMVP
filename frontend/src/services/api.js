@@ -301,15 +301,17 @@ export async function removeFavorite(favId) {
 /**
  * Registra uma nova ingestão de água para o usuário.
  * @param {number} amount - A quantidade de água em ml.
+ * @param {string} [date] - Dia (YYYY-MM-DD) no fuso do aparelho a que o registro pertence.
+ *   Sem isso o servidor usa o próprio relógio UTC e a água tomada à noite cai no dia seguinte.
  * @returns {Promise<{message: string, total: number}>} A resposta com o total atualizado.
  */
-export async function addWater(amount) {
+export async function addWater(amount, date) {
   const response = await fetch(`${API_BASE_URL}/user/water/add`, {
     method: 'POST',
     headers: await getAuthHeaders({
       'Content-Type': 'application/json',
     }),
-    body: JSON.stringify({ amount }),
+    body: JSON.stringify({ amount, date }),
   });
   return handleResponse(response);
 }

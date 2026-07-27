@@ -29,3 +29,14 @@ def registered_user(client, user_credentials):
     response = client.post("/api/auth/register", json=user_credentials)
     assert response.status_code == 201
     return user_credentials
+
+
+@pytest.fixture
+def auth_headers(client, registered_user):
+    """Headers com o token de um usuário já logado, prontos pra chamar rotas protegidas."""
+    response = client.post(
+        "/api/auth/login",
+        json={"email": registered_user["email"], "password": registered_user["password"]},
+    )
+    assert response.status_code == 200
+    return {"Authorization": f"Bearer {response.get_json()['token']}"}

@@ -1,12 +1,20 @@
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.1.0
+alembic==1.16.5
 Flask-Cors==4.0.1
 google-genai==1.47.0
 python-dotenv==1.0.1
 Pillow==10.4.0
-Flask-JWT-Extended
+Flask-JWT-Extended==4.7.1
 Flask-Limiter==3.11.0
 cryptography==49.0.0
+
+# Produção — servidor WSGI e driver do banco real (o SQLite do dev não aguenta
+# escrita concorrente; psycopg2-binary evita depender de headers de compilação
+# do Postgres na máquina de build)
+gunicorn==23.0.0
+psycopg2-binary==2.9.12
 
 # Testes
 pytest==8.4.2
