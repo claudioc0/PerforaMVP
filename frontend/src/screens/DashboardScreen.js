@@ -9,8 +9,22 @@ import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
 
 // --- Funções utilitárias para manipulação de datas ---
+// A data enviada pra API é sempre montada a partir dos componentes LOCAIS do aparelho.
+// Usar toISOString() aqui converteria pra UTC: no horário de Brasília (UTC-3), tudo que
+// fosse registrado a partir das 21h iria parar no dia seguinte — o jantar sumia do "Hoje"
+// e era contabilizado no orçamento calórico de amanhã.
 const getFormattedDate = (date) => {
-  return date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`; // YYYY-MM-DD no fuso do usuário
+};
+
+// Zera o horário pra permitir comparar duas datas apenas pelo dia
+const startOfDay = (date) => {
+  const copy = new Date(date);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
 };
 
 const getDisplayDate = (date) => {
@@ -69,11 +83,12 @@ export default function DashboardScreen({ navigation }) {
   const [loadingInsight, setLoadingInsight] = useState(false);
 
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
-  const isFutureDate = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return currentDate > today;
-  }, [currentDate]);
+  // Compara só o dia: currentDate carrega o horário em que foi criada, então comparar
+  // os timestamps direto marcava o próprio dia de hoje como "futuro" o dia inteiro.
+  const isFutureDate = useMemo(
+    () => startOfDay(currentDate) > startOfDay(new Date()),
+    [currentDate]
+  );
 
   const fetchData = useCallback(async () => {
     setLoading(true); 
@@ -159,9 +174,9 @@ export default function DashboardScreen({ navigation }) {
   const changeDay = (amount) => {
     const newDate = new Date(currentDate);
     newDate.setDate(currentDate.getDate() + amount);
-    
-    const today = new Date();
-    if (newDate > today) return; 
+
+    // Bloqueia navegar pra frente, comparando apenas o dia (não o horário)
+    if (startOfDay(newDate) > startOfDay(new Date())) return;
 
     setCurrentDate(newDate);
   };
@@ -214,7 +229,7 @@ export default function DashboardScreen({ navigation }) {
     const previousIntake = waterIntake;
     setWaterIntake(prev => prev + amount);
     try {
-      const response = await addWater(amount);
+      const response = await addWater(amount, formattedCurrentDate);
       setWaterIntake(response.total);
     } catch (error) {
       setWaterIntake(previousIntake);

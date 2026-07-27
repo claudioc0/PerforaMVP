@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from app.extensions import db
+from app.utils.dates import day_bounds
 
 
 class Meal(db.Model):
@@ -53,9 +54,14 @@ class Meal(db.Model):
 
     @staticmethod
     def query_by_date(target_date: date):
-        """Retorna todas as refeições registradas em uma data específica (UTC)."""
-        start = datetime.combine(target_date, datetime.min.time())
-        end = datetime.combine(target_date, datetime.max.time())
-        
+        """Retorna todas as refeições registradas no dia informado pelo usuário.
+
+        A ordenação é por id (ordem de inserção) e não por created_at: a hora
+        gravada vem do relógio UTC do servidor, então perto da virada do dia em
+        UTC ela sai fora de ordem em relação ao horário local. Só a parte da
+        data de created_at é confiável.
+        """
+        start, end = day_bounds(target_date)
+
         # Retorna a Query base. O filtro de user_id é adicionado dinamicamente no MealService.
-        return Meal.query.filter(Meal.created_at.between(start, end)).order_by(Meal.created_at.asc())
+        return Meal.query.filter(Meal.created_at.between(start, end)).order_by(Meal.id.asc())

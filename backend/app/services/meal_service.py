@@ -12,18 +12,7 @@ from app.extensions import db
 from app.models import Meal, WaterLog
 from app.services.gemini_service import GeminiService, MealAnalysisResult
 from app.services.food_cache_service import get_cached_or_fetch_macros
-
-
-def _parse_date_str(date_str: Optional[str]) -> date:
-    """Converte uma string YYYY-MM-DD para um objeto date. Usa a data atual como fallback."""
-    """Converte uma string YYYY-MM-DD para um objeto date. Usa a data atual como fallback."""
-    if date_str:
-        try:
-            # Converte a string para um objeto date
-            return datetime.strptime(date_str, "%Y-%m-%d").date()
-        except (ValueError, TypeError):
-            pass  # Ignora e usa o fallback se o formato for inválido ou o valor for None
-    return datetime.utcnow().date()
+from app.utils.dates import day_bounds, parse_date_str, timestamp_within_date
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +85,8 @@ class MealService:
 
     # 3. NOVO MÉTODO: SALVA A REFEIÇÃO (Recebe os dados confirmados do celular)
     def save_meal(self, meal_data: dict, date_str: Optional[str], user_id: int) -> Meal:
-        target_date = _parse_date_str(date_str)
-        creation_timestamp = datetime.combine(target_date, datetime.utcnow().time())
+        target_date = parse_date_str(date_str)
+        creation_timestamp = timestamp_within_date(target_date)
 
         items = meal_data.get("items")
 
@@ -142,8 +131,7 @@ class MealService:
         meals = list(self.get_meals_for_date(target_date, user_id))
 
         # Calcula o total de água para a data alvo
-        day_start = datetime.combine(target_date, datetime.min.time())
-        day_end = datetime.combine(target_date, datetime.max.time())
+        day_start, day_end = day_bounds(target_date)
         total_water = db.session.query(
             func.sum(WaterLog.amount_ml)
         ).filter(

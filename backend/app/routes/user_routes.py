@@ -52,7 +52,11 @@ def add_water():
         return jsonify({"error": "A quantidade de água deve ser um número positivo."}), 400
 
     try:
-        total_today = user_service.add_water_intake(user_id=current_user_id, amount=amount)
+        total_today = user_service.add_water_intake(
+            user_id=current_user_id,
+            amount=amount,
+            date_str=data.get("date"),
+        )
         return jsonify({"message": "Água registrada!", "total": total_today}), 200
     except Exception as e:
         return jsonify({"error": "Erro interno ao registrar água."}), 500

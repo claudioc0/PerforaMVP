@@ -1,7 +1,7 @@
 """migracao inicial
 
 Revision ID: ced057c4e347
-Revises: 
+Revises: 2abae75f6976
 Create Date: 2026-07-22 11:09:47.619063
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'ced057c4e347'
-down_revision = None
+down_revision = '2abae75f6976'
 branch_labels = None
 depends_on = None
 
