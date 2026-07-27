@@ -3,82 +3,40 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator,
 import { updateMeal } from '../services/api';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { useScaledMealItems } from '../hooks/useScaledMealItems';
+import { deriveBaseFromSavedItem } from '../utils/mealMacros';
 
 export default function AdjustQuantityScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const { meal: initialMeal } = route.params;
 
   // Refeições registradas via IA (foto/texto) têm detalhamento por item — refeições antigas
-  // ou manuais (sem "items") caem no modo legado: um único campo de quantidade pra refeição toda.
+  // ou manuais (sem "items") caem no modo legado: um único campo de quantidade pra refeição toda,
+  // tratado aqui como uma lista de 1 item só (mesma conta, sem caminho separado).
   const hasItems = Boolean(initialMeal.items && initialMeal.items.length > 0);
 
-  // --- MODO ITEMIZADO ---
-  // Deriva os macros base (por 100g) de cada item a partir do que já foi salvo,
-  // sem precisar chamar a IA de novo: base = valor salvo / (quantidade salva / 100).
-  const [items, setItems] = useState(() => {
-    if (!hasItems) return [];
-    return initialMeal.items.map((item) => {
-      const savedQuantity = item.quantity_g > 0 ? item.quantity_g : 100;
-      const ratio = 100 / savedQuantity;
-      return {
-        description: item.description,
-        baseCalories: item.calories * ratio,
-        baseProtein_g: item.protein_g * ratio,
-        baseCarbs_g: item.carbs_g * ratio,
-        baseFat_g: item.fat_g * ratio,
-        quantity: String(savedQuantity),
-      };
-    });
-  });
+  // Deriva os macros base (por 100g) a partir do que já foi salvo, sem precisar
+  // chamar a IA de novo — o backend guarda o total pra quantity_g gramas, não o
+  // valor por 100g.
+  const initialItems = useMemo(() => {
+    if (hasItems) {
+      return initialMeal.items.map(deriveBaseFromSavedItem);
+    }
+    return [
+      deriveBaseFromSavedItem({
+        description: initialMeal.description,
+        quantity_g: initialMeal.quantity_g,
+        calories: initialMeal.calories,
+        protein_g: initialMeal.protein_g,
+        carbs_g: initialMeal.carbs_g,
+        fat_g: initialMeal.fat_g,
+      }),
+    ];
+  }, [hasItems, initialMeal]);
 
-  // --- MODO LEGADO ---
-  const [legacyQuantity, setLegacyQuantity] = useState(String(initialMeal.quantity_g || 100));
+  const { scaledItems, totals, updateItemQuantity } = useScaledMealItems(initialItems);
 
   const [saving, setSaving] = useState(false);
-
-  const updateItemQuantity = (index, text) => {
-    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, quantity: text } : item)));
-  };
-
-  const scaledItems = useMemo(() => {
-    return items.map((item) => {
-      const numQuantity = parseFloat(item.quantity) || 0;
-      const ratio = numQuantity / 100;
-      return {
-        ...item,
-        numQuantity,
-        scaledCalories: item.baseCalories * ratio,
-        scaledProtein_g: item.baseProtein_g * ratio,
-        scaledCarbs_g: item.baseCarbs_g * ratio,
-        scaledFat_g: item.baseFat_g * ratio,
-      };
-    });
-  }, [items]);
-
-  const legacyMacros = useMemo(() => {
-    const numQuantity = parseFloat(legacyQuantity) || 0;
-    const savedQuantity = initialMeal.quantity_g > 0 ? initialMeal.quantity_g : 100;
-    const ratio = numQuantity / savedQuantity;
-    return {
-      calories: initialMeal.calories * ratio,
-      protein_g: initialMeal.protein_g * ratio,
-      carbs_g: initialMeal.carbs_g * ratio,
-      fat_g: initialMeal.fat_g * ratio,
-    };
-  }, [legacyQuantity, initialMeal]);
-
-  const totals = useMemo(() => {
-    if (!hasItems) return legacyMacros;
-    return scaledItems.reduce(
-      (acc, item) => ({
-        calories: acc.calories + item.scaledCalories,
-        protein_g: acc.protein_g + item.scaledProtein_g,
-        carbs_g: acc.carbs_g + item.scaledCarbs_g,
-        fat_g: acc.fat_g + item.scaledFat_g,
-      }),
-      { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-    );
-  }, [hasItems, scaledItems, legacyMacros]);
 
   const handleSaveChanges = async () => {
     setSaving(true);
@@ -99,11 +57,11 @@ export default function AdjustQuantityScreen({ navigation, route }) {
       } else {
         payload = {
           description: initialMeal.description,
-          calories: legacyMacros.calories,
-          protein_g: legacyMacros.protein_g,
-          carbs_g: legacyMacros.carbs_g,
-          fat_g: legacyMacros.fat_g,
-          quantity_g: parseFloat(legacyQuantity) || 0,
+          calories: totals.calories,
+          protein_g: totals.protein_g,
+          carbs_g: totals.carbs_g,
+          fat_g: totals.fat_g,
+          quantity_g: scaledItems[0]?.numQuantity ?? 0,
         };
       }
 
@@ -153,8 +111,8 @@ export default function AdjustQuantityScreen({ navigation, route }) {
           <View style={styles.quantityContainer}>
             <TextInput
               style={styles.quantityInput}
-              value={legacyQuantity}
-              onChangeText={setLegacyQuantity}
+              value={scaledItems[0]?.quantity ?? ''}
+              onChangeText={(text) => updateItemQuantity(0, text)}
               keyboardType="numeric"
               placeholder="100"
               placeholderTextColor="#666"

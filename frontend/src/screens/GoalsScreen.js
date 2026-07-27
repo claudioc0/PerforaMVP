@@ -10,9 +10,10 @@ import {
   Modal,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getUserGoals, updateUserGoals, calculateSmartGoals } from '../services/api';
+import { updateUserGoals, calculateSmartGoals } from '../services/api';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { useUserGoals } from '../contexts/UserContext';
 
 // Componente para botões de seleção customizados
 const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
@@ -41,6 +42,7 @@ const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
 
 export default function GoalsScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const { refreshGoals, setGoalsLocally } = useUserGoals();
   // Estado para metas manuais
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -65,7 +67,7 @@ export default function GoalsScreen({ navigation }) {
       const loadGoals = async () => {
         setLoading(true);
         try {
-          const goals = await getUserGoals();
+          const goals = await refreshGoals();
           setCalories(goals.goal_calories?.toString() || '');
           setProtein(goals.goal_protein_g?.toString() || '');
           setCarbs(goals.goal_carbs_g?.toString() || '');
@@ -77,7 +79,7 @@ export default function GoalsScreen({ navigation }) {
         }
       };
       loadGoals();
-    }, [])
+    }, [refreshGoals])
   );
 
   const handleSaveGoals = async () => {
@@ -90,6 +92,8 @@ export default function GoalsScreen({ navigation }) {
         goal_fat_g: parseFloat(fat) || 0,
       };
       await updateUserGoals(goalsData);
+      // Propaga na hora pro Dashboard/Insights, sem esperar uma nova busca de rede.
+      setGoalsLocally(goalsData);
       showAlert('Sucesso!', 'Suas metas foram atualizadas.');
       navigation.goBack();
     } catch (error) {
@@ -123,6 +127,8 @@ export default function GoalsScreen({ navigation }) {
       setProtein(newGoals.goal_protein_g.toString());
       setCarbs(newGoals.goal_carbs_g.toString());
       setFat(newGoals.goal_fat_g.toString());
+      // Propaga na hora pro Dashboard/Insights, sem esperar uma nova busca de rede.
+      setGoalsLocally(newGoals);
 
       setModalVisible(false); // Fecha o modal
       showAlert('Sucesso!', 'Suas metas foram calculadas e aplicadas.');
