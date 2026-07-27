@@ -252,33 +252,48 @@ class MealService:
         today = datetime.utcnow().date()
         seven_days_ago = today - timedelta(days=6)
 
-        # Agrupa as refeições por dia e soma os macros
-        daily_stats = db.session.query(
-            func.date(Meal.created_at).label('day'),
-            func.sum(Meal.calories).label('total_calories'),
-            func.sum(Meal.protein_g).label('total_protein_g')
+        # Antes, o agrupamento por dia era feito no SQL com func.date(created_at)
+        # — no SQLite isso devolve uma string ("2026-07-27"), mas no Postgres
+        # devolve um objeto date de verdade. O código então indexava um dict
+        # Python usando essa string como chave; no Postgres a chave nunca
+        # batia (date != str) e o resumo semanal vinha sempre zerado, sem
+        # nenhum erro. func.date(...) também impedia o uso do índice composto
+        # (user_id, created_at) — a comparação exigia calcular a função em
+        # cada linha da tabela.
+        #
+        # Aqui buscamos só as linhas cruas dentro da janela de 7 dias (usando
+        # BETWEEN direto em created_at, que usa o índice normalmente) e
+        # agrupamos em Python com row.created_at.date() — sempre um objeto
+        # date nativo, em qualquer banco.
+        range_start, _ = day_bounds(seven_days_ago)
+        _, range_end = day_bounds(today)
+
+        rows = db.session.query(
+            Meal.created_at, Meal.calories, Meal.protein_g
         ).filter(
             Meal.user_id == user_id,
-            func.date(Meal.created_at) >= seven_days_ago,
-            func.date(Meal.created_at) <= today
-        ).group_by('day').order_by('day').all()
+            Meal.created_at >= range_start,
+            Meal.created_at <= range_end,
+        ).all()
 
-        # Cria um mapa de data para estatísticas para fácil acesso
-        # A função func.date() pode retornar uma string em vez de um objeto de data (dependendo do DB), então usamos diretamente.
-        stats_map = {stat.day: stat for stat in daily_stats}
+        stats_by_day = {}
+        for created_at, calories, protein_g in rows:
+            day = created_at.date()
+            entry = stats_by_day.setdefault(day, {"calories": 0.0, "protein_g": 0.0})
+            entry["calories"] += calories or 0
+            entry["protein_g"] += protein_g or 0
 
         # Preenche os dias sem refeições com valores zerados
         week_data = []
         day_names = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"]
         for i in range(7):
             current_day = seven_days_ago + timedelta(days=i)
-            day_str = current_day.strftime('%Y-%m-%d')
-            day_stats = stats_map.get(day_str)
+            day_stats = stats_by_day.get(current_day)
             week_data.append({
-                "date": day_str,
+                "date": current_day.strftime('%Y-%m-%d'),
                 "day_name": day_names[current_day.weekday()],
-                "calories": float(day_stats.total_calories) if day_stats else 0,
-                "protein_g": float(day_stats.total_protein_g) if day_stats else 0,
+                "calories": float(day_stats["calories"]) if day_stats else 0,
+                "protein_g": float(day_stats["protein_g"]) if day_stats else 0,
             })
 
         return {"days": week_data}
