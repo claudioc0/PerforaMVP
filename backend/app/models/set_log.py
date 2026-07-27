@@ -12,7 +12,10 @@ class SetLog(db.Model):
     __tablename__ = "set_logs"
 
     id = db.Column(db.Integer, primary_key=True)
-    workout_id = db.Column(db.Integer, db.ForeignKey("workouts.id"), nullable=False)
+    # Toda leitura de séries filtra por workout_id (get_workout_detail,
+    # get_workout_progress, etc.) — sem índice, cresce como uma varredura completa
+    # conforme o histórico de treinos acumula.
+    workout_id = db.Column(db.Integer, db.ForeignKey("workouts.id"), nullable=False, index=True)
     exercise_id = db.Column(db.Integer, db.ForeignKey("exercises.id"), nullable=False)
 
     # Ordem da série para esse exercício dentro do treino (1a série, 2a série...)

@@ -108,7 +108,13 @@ REGRAS DE CONTORNO:
 """
 
 class GeminiService:
-    def __init__(self, api_key: str, model_name: Optional[str] = None):
+    def __init__(
+        self,
+        api_key: str,
+        model_name: Optional[str] = None,
+        timeout_ms: Optional[int] = None,
+        retry_attempts: Optional[int] = None,
+    ):
         if not api_key:
             raise ValueError("GEMINI_API_KEY não configurada.")
 
@@ -116,8 +122,31 @@ class GeminiService:
         # garantindo o 'gemini-2.5-flash' como reserva veloz e segura.
         self._model_name = model_name or os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
+        # Sem isso, uma resposta lenta do Gemini prendia o worker Flask que
+        # atendeu a requisição indefinidamente (nenhum timeout era aplicado por
+        # padrão pelo SDK), e uma falha transitória (5xx) nunca era tentada de
+        # novo (o SDK só tenta de novo se retry_options for explicitamente
+        # configurado — sem isso, é sempre 1 tentativa só).
+        #
+        # 429 (cota/rate limit do próprio Gemini) fica de FORA da lista de
+        # retry de propósito: tentar de novo um erro de cota não resolve nada
+        # e só adiciona latência — melhor devolver o 429 pro cliente na hora,
+        # que já tem tratamento próprio pra esse caso (ver CameraScreen/
+        # ManualEntryScreen no frontend).
+        http_options = types.HttpOptions(
+            timeout=timeout_ms or int(os.getenv("GEMINI_TIMEOUT_MS", "30000")),
+            retry_options=types.HttpRetryOptions(
+                attempts=retry_attempts or int(os.getenv("GEMINI_RETRY_ATTEMPTS", "2")),
+                initial_delay=1.0,
+                max_delay=6.0,
+                exp_base=2.0,
+                jitter=0.5,
+                http_status_codes=[408, 500, 502, 503, 504],
+            ),
+        )
+
         # INICIALIZAÇÃO DO CLIENTE (google-genai)
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(api_key=api_key, http_options=http_options)
 
     def analyze_image(self, image: Image.Image) -> MealAnalysisResult:
         try:

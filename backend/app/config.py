@@ -41,6 +41,13 @@ class Config:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash-lastest")
 
+    # Antes, uma chamada ao Gemini sem resposta prendia o worker Flask
+    # indefinidamente (nenhum timeout configurado) e uma falha transitória (5xx)
+    # nunca era tentada de novo. Os dois valores abaixo limitam esse tempo:
+    # pior caso = tentativas × (timeout + espera entre tentativas).
+    GEMINI_TIMEOUT_MS = int(os.getenv("GEMINI_TIMEOUT_MS", "30000"))  # 30s por tentativa
+    GEMINI_RETRY_ATTEMPTS = int(os.getenv("GEMINI_RETRY_ATTEMPTS", "2"))  # 1 tentativa original + 1 retry
+
     MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8MB por imagem
 
     # --- JWT ---

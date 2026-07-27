@@ -5,7 +5,9 @@ class WeightLog(db.Model):
     __tablename__ = 'weight_logs'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    # get_weight_history filtra por user_id em toda chamada — sem índice, cresce
+    # como uma varredura completa conforme o histórico de pesagens acumula.
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     weight = db.Column(db.Float, nullable=False)
     date = db.Column(db.DateTime, default=datetime.utcnow)
 

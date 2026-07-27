@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, jsonify, request
 # NOVAS IMPORTAÇÕES DO JWT
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from app.extensions import db
+from app.extensions import db, limiter, rate_limit_key_by_user
 from app.models import FavoriteMeal
 from app.services.gemini_service import GeminiAnalysisError, GeminiService
 from app.services.meal_service import MealService
@@ -23,7 +23,9 @@ def _allowed_file(filename: str) -> bool:
 def _get_meal_service() -> MealService:
     gemini_service = GeminiService(
         api_key=current_app.config["GEMINI_API_KEY"],
-        model_name=current_app.config["GEMINI_MODEL_NAME"], 
+        model_name=current_app.config["GEMINI_MODEL_NAME"],
+        timeout_ms=current_app.config["GEMINI_TIMEOUT_MS"],
+        retry_attempts=current_app.config["GEMINI_RETRY_ATTEMPTS"],
     )
     return MealService(gemini_service)
 
@@ -31,6 +33,9 @@ def _get_meal_service() -> MealService:
 # --- ROTA 1: APENAS ANALISA E DEVOLVE O RASCUNHO ---
 @meals_bp.route("/analyze", methods=["POST"])
 @jwt_required()
+# Cada chamada aciona o Gemini (custo real por requisição). Sem isso, uma conta
+# autenticada podia chamar em loop sem limite algum. Teto por usuário, não por IP.
+@limiter.limit("10 per minute;60 per hour", key_func=rate_limit_key_by_user)
 def analyze_meal():
     try:
         meal_service = _get_meal_service()
@@ -211,6 +216,7 @@ def delete_meal(meal_id: int):
     
 @meals_bp.route("/daily-insight", methods=["POST"])
 @jwt_required()
+@limiter.limit("10 per hour", key_func=rate_limit_key_by_user)
 def daily_insight():
     try:
         data = request.get_json()

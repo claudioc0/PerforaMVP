@@ -10,7 +10,22 @@ import { navigate } from '../navigation/RootNavigation'; // Importa o helper de 
 // Configurável via .env (EXPO_PUBLIC_API_URL) — veja .env.example.
 // Em desenvolvimento, use o IP da sua máquina na rede local (não use "localhost"
 // se estiver testando em um celular físico ou emulador Android).
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.10:5000/api";
+//
+// EXPO_PUBLIC_API_URL é embutida no bundle em tempo de build — se faltar num
+// build feito pelo EAS (preview/production), o app antes caía silenciosamente
+// num IP de rede local hardcoded: sem erro nenhum, só spinner infinito na mão
+// do usuário. Falhar alto aqui, na primeira tela que chamar a API, é preferível:
+// o erro aparece imediatamente ao abrir o app, com o nome exato da variável que
+// falta, em vez de horas depois como "o app não funciona" sem pista nenhuma.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  throw new Error(
+    "EXPO_PUBLIC_API_URL não foi definida. Rodando localmente: copie .env.example " +
+    "para .env e ajuste o IP. Buildando com EAS: declare EXPO_PUBLIC_API_URL no " +
+    "perfil correspondente em eas.json (veja o bloco \"env\" de cada perfil)."
+  );
+}
 
 class ApiError extends Error {
   constructor(message, status) {
