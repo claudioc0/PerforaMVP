@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
 import { navigationRef, navigate } from './RootNavigation';
 import { useDrawerMenu } from './DrawerMenuContext';
+import { logoutUser } from '../services/api';
 
 const DRAWER_WIDTH = Math.min(300, Dimensions.get('window').width * 0.8);
 
@@ -50,7 +51,24 @@ export default function DrawerContent() {
 
   const handleLogout = async () => {
     close();
-    await AsyncStorage.removeItem('jwt_token');
+
+    // Antes, "Sair" só limpava o armazenamento local — nunca avisava o
+    // backend, então nem o access token nem o refresh token (validade de 7
+    // dias) eram revogados de verdade. Um dos dois vazado continuava
+    // funcionando normalmente mesmo depois do usuário ter "saído" do app.
+    try {
+      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      await logoutUser(refreshToken);
+    } catch (error) {
+      // Best-effort: sem rede (ou token já expirado), o logout local
+      // continua — não faz sentido prender o usuário na tela por causa disso.
+    }
+
+    await Promise.all([
+      AsyncStorage.removeItem('jwt_token'),
+      AsyncStorage.removeItem('refresh_token'),
+    ]);
+
     if (navigationRef.isReady()) {
       navigationRef.dispatch(StackActions.replace('Login'));
     }

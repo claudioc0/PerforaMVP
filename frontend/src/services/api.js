@@ -174,6 +174,19 @@ export async function loginUser(email, password) {
 }
 
 /**
+ * Rota de Logout: revoga o access token da sessão atual e, se fornecido, o
+ * refresh token correspondente — sem enviar o refresh_token, o backend só
+ * revoga o access token (o refresh token de 7 dias continuaria válido).
+ * @param {string} [refreshToken]
+ */
+export async function logoutUser(refreshToken) {
+  return request("/auth/logout", {
+    method: "POST",
+    body: refreshToken ? { refresh_token: refreshToken } : {},
+  });
+}
+
+/**
  * Rota de Cadastro: Cria um novo usuário no banco de dados.
  */
 export async function registerUser(name, email, password) {
