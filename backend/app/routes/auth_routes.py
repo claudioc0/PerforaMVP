@@ -4,6 +4,7 @@ import re
 from flask_jwt_extended import (
     create_access_token,
     create_refresh_token,
+    decode_token,
     get_jwt,
     get_jwt_identity,
     jwt_required,
@@ -110,16 +111,43 @@ def refresh():
 @auth_bp.route("/logout", methods=["POST"])
 @jwt_required()
 def logout():
-    """Revoga o token usado nesta requisição — ele para de funcionar imediatamente,
-    mesmo que ainda não tenha expirado."""
-    jti = get_jwt()["jti"]
+    """Revoga o access token usado nesta requisição e, se enviado no corpo, o
+    refresh token da mesma sessão — os dois param de funcionar imediatamente,
+    mesmo que ainda não tenham expirado.
+
+    Antes, só o access token (validade de 1h) era revogado. O refresh token
+    (validade de 7 dias) continuava funcionando normalmente depois do
+    "logout", bastando chamar /auth/refresh com ele pra emitir um access
+    token novo — ou seja, um refresh token vazado sobrevivia ao logout.
+    """
+    jtis_to_revoke = {get_jwt()["jti"]}
+
+    data = request.get_json(silent=True) or {}
+    refresh_token = data.get("refresh_token")
+    if refresh_token:
+        try:
+            decoded = decode_token(refresh_token)
+        except Exception:
+            # Refresh token ausente/expirado/malformado não deve impedir de
+            # revogar o access token, que é o que importa nesta requisição.
+            logger.warning("Refresh token inválido recebido no logout; ignorando.")
+        else:
+            if decoded.get("type") == "refresh":
+                jtis_to_revoke.add(decoded["jti"])
 
     try:
-        db.session.add(TokenBlocklist(jti=jti))
+        # Idempotente: se algum desses jtis já estiver na blocklist (ex: uma
+        # chamada de logout repetida), não tenta inserir de novo.
+        already_blocked = {
+            row.jti
+            for row in TokenBlocklist.query.filter(TokenBlocklist.jti.in_(jtis_to_revoke)).all()
+        }
+        for jti in jtis_to_revoke - already_blocked:
+            db.session.add(TokenBlocklist(jti=jti))
         db.session.commit()
     except Exception:
         db.session.rollback()
-        logger.exception("Erro ao revogar token no logout")
+        logger.exception("Erro ao revogar token(s) no logout")
         return jsonify({"error": "Erro interno ao encerrar a sessão."}), 500
 
     return jsonify({"message": "Logout realizado com sucesso."}), 200

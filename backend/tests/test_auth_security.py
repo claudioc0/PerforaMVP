@@ -100,3 +100,86 @@ class TestProtectedRoutesTokenValidation:
         # Depois do logout, o MESMO token deve ser rejeitado — mesmo sem ter expirado.
         after_logout = client.get(PROTECTED_ROUTE, headers=headers)
         assert after_logout.status_code == 401
+
+
+class TestRefreshTokenRevocation:
+    """Antes, /auth/logout só revogava o access token da requisição — o
+    refresh token (validade de 7 dias) continuava funcionando normalmente,
+    bastando chamar /auth/refresh com ele pra emitir um access token novo.
+    """
+
+    def test_logout_revoga_o_refresh_token_quando_enviado_no_corpo(self, client, registered_user):
+        login_response = _login(client, registered_user)
+        access_token = login_response.get_json()["token"]
+        refresh_token = login_response.get_json()["refresh_token"]
+        refresh_headers = {"Authorization": f"Bearer {refresh_token}"}
+
+        # Antes do logout, o refresh token funciona normalmente.
+        before = client.post("/api/auth/refresh", headers=refresh_headers)
+        assert before.status_code == 200
+
+        logout_response = client.post(
+            "/api/auth/logout",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"refresh_token": refresh_token},
+        )
+        assert logout_response.status_code == 200
+
+        # Depois, o MESMO refresh token deve ser rejeitado — é exatamente o
+        # cenário de um refresh token vazado sobrevivendo ao logout.
+        after = client.post("/api/auth/refresh", headers=refresh_headers)
+        assert after.status_code == 401
+
+    def test_logout_sem_refresh_token_no_corpo_continua_funcionando(self, client, registered_user):
+        """Comportamento retrocompatível: enviar refresh_token é opcional —
+        sem ele, só o access token é revogado, como antes."""
+        login_response = _login(client, registered_user)
+        access_token = login_response.get_json()["token"]
+        refresh_token = login_response.get_json()["refresh_token"]
+
+        logout_response = client.post(
+            "/api/auth/logout", headers={"Authorization": f"Bearer {access_token}"}
+        )
+        assert logout_response.status_code == 200
+
+        still_valid = client.post(
+            "/api/auth/refresh", headers={"Authorization": f"Bearer {refresh_token}"}
+        )
+        assert still_valid.status_code == 200
+
+    def test_logout_com_refresh_token_invalido_nao_quebra(self, client, registered_user):
+        login_response = _login(client, registered_user)
+        access_token = login_response.get_json()["token"]
+
+        response = client.post(
+            "/api/auth/logout",
+            headers={"Authorization": f"Bearer {access_token}"},
+            json={"refresh_token": "isso-nao-e-um-jwt-valido"},
+        )
+        assert response.status_code == 200
+
+    def test_logout_e_idempotente_para_um_refresh_token_ja_revogado(self, app, client, registered_user):
+        """Revogar duas vezes o mesmo jti não pode quebrar com erro de
+        constraint única na blocklist (ex: reenvio de um refresh token que
+        já foi revogado antes, vindo de outra sessão/aparelho)."""
+        login_response = _login(client, registered_user)
+        refresh_token = login_response.get_json()["refresh_token"]
+        first_access_token = login_response.get_json()["token"]
+
+        first = client.post(
+            "/api/auth/logout",
+            headers={"Authorization": f"Bearer {first_access_token}"},
+            json={"refresh_token": refresh_token},
+        )
+        assert first.status_code == 200
+
+        with app.app_context():
+            user = User.query.filter_by(email=registered_user["email"]).first()
+            second_access_token = create_access_token(identity=str(user.id))
+
+        second = client.post(
+            "/api/auth/logout",
+            headers={"Authorization": f"Bearer {second_access_token}"},
+            json={"refresh_token": refresh_token},
+        )
+        assert second.status_code == 200

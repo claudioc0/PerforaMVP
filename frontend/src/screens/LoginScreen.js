@@ -22,9 +22,13 @@ export default function LoginScreen({ navigation }) {
       // 1. Bate na API do Flask
       const data = await loginUser(email, password);
       
-      // 2. Salva o token e os dados do usuário em paralelo para otimizar
+      // 2. Salva os tokens e os dados do usuário em paralelo para otimizar.
+      // O refresh_token precisa ficar salvo pra poder ser enviado no logout —
+      // sem isso, o backend não tem como revogá-lo, e ele continua válido
+      // por até 7 dias mesmo depois do usuário "sair" do app.
       await Promise.all([
         AsyncStorage.setItem('jwt_token', data.token),
+        AsyncStorage.setItem('refresh_token', data.refresh_token),
         AsyncStorage.setItem('user_data', JSON.stringify(data.user)) // Salva o objeto do usuário
       ]);
       

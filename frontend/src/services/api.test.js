@@ -36,6 +36,7 @@ const {
   analyzeMeal,
   logWeight,
   loginUser,
+  logoutUser,
 } = require('./api');
 
 function mockFetchOnce({ status = 200, body = {}, isJson = true }) {
@@ -151,6 +152,30 @@ describe('request() (via as funções exportadas de api.js)', () => {
       status: 400,
       message: 'Quantidade inválida',
     });
+  });
+
+  test('logout envia o refresh_token no corpo quando fornecido', async () => {
+    AsyncStorage.getItem.mockResolvedValue('access-token-atual');
+    const fetchMock = mockFetchOnce({ body: { message: 'ok' } });
+
+    await logoutUser('refresh-token-salvo');
+
+    const [url, options] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://test.local/api/auth/logout');
+    expect(options.method).toBe('POST');
+    // O access token vai no header (é o que autentica a rota /logout).
+    expect(options.headers.Authorization).toBe('Bearer access-token-atual');
+    expect(JSON.parse(options.body)).toEqual({ refresh_token: 'refresh-token-salvo' });
+  });
+
+  test('logout sem refresh_token não quebra e não envia o campo', async () => {
+    AsyncStorage.getItem.mockResolvedValue('access-token-atual');
+    const fetchMock = mockFetchOnce({ body: { message: 'ok' } });
+
+    await logoutUser(undefined);
+
+    const [, options] = fetchMock.mock.calls[0];
+    expect(JSON.parse(options.body)).toEqual({});
   });
 
   test('login não anexa Authorization mesmo com um token antigo salvo', async () => {
