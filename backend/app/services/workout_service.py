@@ -35,10 +35,20 @@ class WorkoutService:
         result = workout.to_dict()
         sets = SetLog.query.filter_by(workout_id=workout_id).order_by(SetLog.id).all()
 
+        # Antes, cada série disparava sua própria query pra resolver o
+        # exercício (Exercise.query.get dentro do loop) — um treino de 40
+        # séries virava 41 queries. Busca todos os exercícios envolvidos de
+        # uma vez só, fora do loop.
+        exercise_ids = {s.exercise_id for s in sets}
+        exercises_by_id = (
+            {e.id: e for e in Exercise.query.filter(Exercise.id.in_(exercise_ids)).all()}
+            if exercise_ids else {}
+        )
+
         enriched_sets = []
         for set_log in sets:
             set_dict = set_log.to_dict()
-            exercise = Exercise.query.get(set_log.exercise_id)
+            exercise = exercises_by_id.get(set_log.exercise_id)
             set_dict["exercise_name"] = exercise.name if exercise else None
             set_dict["muscle_group"] = exercise.muscle_group if exercise else None
             enriched_sets.append(set_dict)
@@ -145,14 +155,26 @@ class WorkoutService:
         if limit:
             workouts_query = workouts_query.limit(limit)
 
+        workouts = workouts_query.all()
+        if not workouts:
+            return []
+
+        # Antes, cada treino do histórico disparava sua própria query de
+        # séries dentro do loop — busca todas de uma vez e agrupa em Python.
+        workout_ids = [w.id for w in workouts]
+        all_sets = (
+            SetLog.query
+            .filter(SetLog.workout_id.in_(workout_ids), SetLog.exercise_id == exercise_id)
+            .order_by(SetLog.set_number)
+            .all()
+        )
+        sets_by_workout = {}
+        for s in all_sets:
+            sets_by_workout.setdefault(s.workout_id, []).append(s)
+
         history = []
-        for workout in workouts_query:
-            sets = (
-                SetLog.query
-                .filter_by(workout_id=workout.id, exercise_id=exercise_id)
-                .order_by(SetLog.set_number)
-                .all()
-            )
+        for workout in workouts:
+            sets = sets_by_workout.get(workout.id, [])
             history.append({
                 "workout_id": workout.id,
                 "started_at": workout.started_at.isoformat(),
@@ -171,10 +193,21 @@ class WorkoutService:
             .limit(limit)
             .all()
         )
+        if not workouts:
+            return []
+
+        # Antes, cada treino disparava sua própria query de séries dentro do
+        # loop — busca todas de uma vez (para os `limit` treinos) e agrupa em
+        # Python.
+        workout_ids = [w.id for w in workouts]
+        all_sets = SetLog.query.filter(SetLog.workout_id.in_(workout_ids)).all()
+        sets_by_workout = {}
+        for s in all_sets:
+            sets_by_workout.setdefault(s.workout_id, []).append(s)
 
         progress = []
         for workout in workouts:
-            sets = SetLog.query.filter_by(workout_id=workout.id).all()
+            sets = sets_by_workout.get(workout.id, [])
             total_tonnage = sum(s.weight_kg * s.reps for s in sets)
             total_reps = sum(s.reps for s in sets)
             rest_values = [s.rest_seconds for s in sets if s.rest_seconds is not None]

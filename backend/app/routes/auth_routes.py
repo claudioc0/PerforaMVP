@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from flask import Blueprint, request, jsonify
 import re
 from flask_jwt_extended import (
@@ -120,7 +121,8 @@ def logout():
     "logout", bastando chamar /auth/refresh com ele pra emitir um access
     token novo — ou seja, um refresh token vazado sobrevivia ao logout.
     """
-    jtis_to_revoke = {get_jwt()["jti"]}
+    access_claims = get_jwt()
+    jtis_to_revoke = {access_claims["jti"]: access_claims["exp"]}
 
     data = request.get_json(silent=True) or {}
     refresh_token = data.get("refresh_token")
@@ -133,17 +135,33 @@ def logout():
             logger.warning("Refresh token inválido recebido no logout; ignorando.")
         else:
             if decoded.get("type") == "refresh":
-                jtis_to_revoke.add(decoded["jti"])
+                jtis_to_revoke[decoded["jti"]] = decoded["exp"]
 
     try:
         # Idempotente: se algum desses jtis já estiver na blocklist (ex: uma
         # chamada de logout repetida), não tenta inserir de novo.
         already_blocked = {
             row.jti
-            for row in TokenBlocklist.query.filter(TokenBlocklist.jti.in_(jtis_to_revoke)).all()
+            for row in TokenBlocklist.query.filter(TokenBlocklist.jti.in_(jtis_to_revoke.keys())).all()
         }
-        for jti in jtis_to_revoke - already_blocked:
-            db.session.add(TokenBlocklist(jti=jti))
+        for jti, exp in jtis_to_revoke.items():
+            if jti in already_blocked:
+                continue
+            db.session.add(
+                TokenBlocklist(jti=jti, expires_at=datetime.utcfromtimestamp(exp))
+            )
+
+        # A tabela nunca era limpa — cada revogação ficava lá pra sempre,
+        # inflando um SELECT que roda em TODA requisição autenticada
+        # (ver check_if_token_revoked em app/__init__.py). Um token expirado
+        # já é rejeitado pelo Flask-JWT-Extended por conta própria (a claim
+        # "exp" da assinatura), então a linha da blocklist não tem mais
+        # função nenhuma depois desse instante — apagar é sempre seguro.
+        # Aproveita o próprio commit de logout (evento pouco frequente, não
+        # adiciona nenhuma query extra no caminho quente de cada requisição)
+        # em vez de exigir um cron/job separado.
+        TokenBlocklist.query.filter(TokenBlocklist.expires_at < datetime.utcnow()).delete()
+
         db.session.commit()
     except Exception:
         db.session.rollback()

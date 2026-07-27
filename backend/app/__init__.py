@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate # <-- 1. IMPORTAÇÃO DO MIGRATE
@@ -70,6 +71,22 @@ def create_app(config_class=Config):
     app.register_blueprint(meals_routes.meals_bp)
     app.register_blueprint(user_routes.user_bp)
     app.register_blueprint(workouts_routes.workouts_bp)
+
+    @app.cli.command("cleanup-expired-tokens")
+    def cleanup_expired_tokens():
+        """Remove da blocklist os tokens já expirados (comando manual/cron).
+
+        O logout já faz essa limpeza de forma oportunista a cada chamada
+        (ver auth_routes.py), mas um app com poucos logouts pode acumular
+        linhas por muito tempo entre uma chamada e outra. Rode este comando
+        periodicamente (ex: cron job diário) como rede de segurança —
+        remover uma linha expirada nunca reabre uma sessão revogada, porque
+        o Flask-JWT-Extended já rejeita o token pela própria expiração,
+        com ou sem essa linha na blocklist.
+        """
+        deleted = TokenBlocklist.query.filter(TokenBlocklist.expires_at < datetime.utcnow()).delete()
+        db.session.commit()
+        print(f"{deleted} token(s) expirado(s) removido(s) da blocklist.")
 
     # with app.app_context():
         # db.create_all() # <-- 4. COMENTADO PARA DEIXAR O MIGRATE TRABALHAR

@@ -70,9 +70,21 @@ class Config:
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=7)
 
     # --- Rate limiting (Flask-Limiter) ---
-    # "memory://" é suficiente pra um único processo (MVP). Se o backend rodar
-    # com múltiplos workers/processos, troque por um storage compartilhado
-    # (ex: "redis://localhost:6379") pra todos os workers verem o mesmo contador.
+    # "memory://" guarda os contadores na memória do PRÓPRIO processo Python.
+    # Com múltiplos workers (ex: gunicorn -w 4), cada worker tem sua própria
+    # contagem isolada — "5 por minuto" no login viraria ~5×N por minuto de
+    # verdade, sem nenhum aviso. Por isso o Procfile (raiz de backend/) fixa
+    # `--workers 1 --threads 4`: um único processo (múltiplas threads
+    # compartilham a mesma memória, então o contador continua correto e ainda
+    # atende requisições em paralelo). Além disso, o contador zera a cada
+    # redeploy/restart — aceitável pra um MVP de baixo tráfego, mas não pra
+    # rodar em vários workers ou múltiplas instâncias.
+    #
+    # Pra escalar além de 1 worker/instância, troque por um storage
+    # compartilhado entre processos (ex: "redis://localhost:6379") — isso
+    # exige instalar o cliente Python correspondente (`pip install redis`),
+    # que não faz parte do requirements.txt hoje por não haver Redis
+    # provisionado ainda.
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
 
     # --- Criptografia de dados sensíveis em repouso (preparação) ---
