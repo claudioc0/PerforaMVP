@@ -25,8 +25,8 @@ def _read_flask_env_from_dotenv(path: Path) -> str:
     pytest.fail(f"FLASK_ENV não encontrado em {path}")
 
 
-def _reload_debug_flag(monkeypatch, flask_env_value):
-    """Recarrega app.config com FLASK_ENV no valor dado e devolve Config.DEBUG.
+def _reload_config(monkeypatch, flask_env_value=None, cors_origins_value="__unset__"):
+    """Recarrega app.config com FLASK_ENV/CORS_ORIGINS nos valores dados.
 
     Recarrega o módulo de verdade (em vez de reimplementar a conta ao lado)
     pra travar o comportamento real de config.py, não uma cópia dele que
@@ -34,16 +34,29 @@ def _reload_debug_flag(monkeypatch, flask_env_value):
 
     Neutraliza load_dotenv() antes de recarregar: sem isso, o .env real deste
     projeto (que tem FLASK_ENV=development, correto pra rodar localmente)
-    repopularia a variável a cada reload, mascarando o caso de "ausente" — que
-    é justamente o cenário de um servidor de verdade sem nenhum .env.
+    repopularia as variáveis a cada reload, mascarando o caso de "ausente" —
+    que é justamente o cenário de um servidor de verdade sem nenhum .env.
     """
     monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
+
     if flask_env_value is None:
         monkeypatch.delenv("FLASK_ENV", raising=False)
     else:
         monkeypatch.setenv("FLASK_ENV", flask_env_value)
+
+    if cors_origins_value == "__unset__":
+        monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    elif cors_origins_value is None:
+        monkeypatch.delenv("CORS_ORIGINS", raising=False)
+    else:
+        monkeypatch.setenv("CORS_ORIGINS", cors_origins_value)
+
     importlib.reload(config_module)
-    return config_module.Config.DEBUG
+    return config_module.Config
+
+
+def _reload_debug_flag(monkeypatch, flask_env_value):
+    return _reload_config(monkeypatch, flask_env_value=flask_env_value).DEBUG
 
 
 @pytest.fixture(autouse=True)
@@ -81,3 +94,57 @@ class TestConfigDebugFailSafe:
 
     def test_development_exato_e_o_unico_valor_que_liga_debug(self, monkeypatch):
         assert _reload_debug_flag(monkeypatch, "development") is True
+
+
+class TestEnvExampleNaoAbreCorsPorEsquecimento:
+    def test_env_example_nao_tem_cors_origins_ativo_como_asterisco(self):
+        """CORS_ORIGINS=* pode aparecer comentado (documentação), mas não como
+        linha ativa — copiar o arquivo sem editar não pode abrir CORS geral."""
+        env_example_path = Path(__file__).resolve().parent.parent / ".env.example"
+        content = env_example_path.read_text(encoding="utf-8")
+
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if stripped.startswith("CORS_ORIGINS="):
+                value = stripped.split("=", 1)[1].strip()
+                assert value != "*", (
+                    ".env.example não pode ter CORS_ORIGINS=* como linha ativa — "
+                    "copiar isso pra produção sem editar abriria a API pra "
+                    "qualquer origem por padrão."
+                )
+
+
+class TestCorsOriginsFailSafe:
+    """Sem CORS_ORIGINS explícita, o padrão dependia só de DEBUG e sempre virava
+    "*" — ou seja, faltar essa variável num deploy de produção liberava CORS
+    pra qualquer site, silenciosamente. Agora o padrão sem a variável segue
+    DEBUG: "*" em desenvolvimento, fechado (lista vazia) em produção.
+    """
+
+    def test_ausente_em_desenvolvimento_libera_qualquer_origem(self, monkeypatch):
+        config = _reload_config(monkeypatch, flask_env_value="development", cors_origins_value=None)
+        assert config.CORS_ORIGINS == "*"
+
+    def test_ausente_em_producao_nao_libera_nenhuma_origem(self, monkeypatch):
+        config = _reload_config(monkeypatch, flask_env_value="production", cors_origins_value=None)
+        assert config.CORS_ORIGINS == []
+
+    def test_ausente_sem_flask_env_nenhum_tambem_fecha_por_seguranca(self, monkeypatch):
+        config = _reload_config(monkeypatch, flask_env_value=None, cors_origins_value=None)
+        assert config.CORS_ORIGINS == []
+
+    def test_asterisco_explicito_e_respeitado_mesmo_em_producao(self, monkeypatch):
+        """Definir "*" é uma escolha consciente de quem configura o deploy —
+        continua funcionando, só não é mais o padrão silencioso."""
+        config = _reload_config(monkeypatch, flask_env_value="production", cors_origins_value="*")
+        assert config.CORS_ORIGINS == "*"
+
+    def test_lista_explicita_e_parseada_independente_do_ambiente(self, monkeypatch):
+        config = _reload_config(
+            monkeypatch,
+            flask_env_value="production",
+            cors_origins_value="https://meuapp.com, https://admin.meuapp.com",
+        )
+        assert config.CORS_ORIGINS == ["https://meuapp.com", "https://admin.meuapp.com"]

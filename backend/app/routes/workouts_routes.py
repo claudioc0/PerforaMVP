@@ -3,6 +3,7 @@ import logging
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from app.extensions import limiter, rate_limit_key_by_user
 from app.services import WorkoutService, ExerciseService, SplitService, WeeklyPlanService
 
 logger = logging.getLogger(__name__)
@@ -115,16 +116,22 @@ def delete_set(workout_id: int, set_id: int):
 def list_exercises():
     query = request.args.get("search")
     muscle_group = request.args.get("muscle_group")
-    exercises = exercise_service.search_exercises(query, muscle_group)
+    limit = request.args.get("limit", type=int)
+    exercises = exercise_service.search_exercises(query, muscle_group, limit)
     return jsonify([e.to_dict() for e in exercises]), 200
 
 
 @workouts_bp.route("/exercises", methods=["POST"])
 @jwt_required()
+# O catálogo é global — todo usuário compartilha o mesmo. Sem teto por conta,
+# uma única conta em loop poderia poluir o picker de exercícios de todo mundo.
+@limiter.limit("20 per hour", key_func=rate_limit_key_by_user)
 def create_exercise():
-    data = request.get_json()
-    if not data or not data.get("name", "").strip():
-        return jsonify({"error": "Campo 'name' é obrigatório."}), 400
+    data = request.get_json(silent=True) or {}
+
+    errors = exercise_service.validate_custom_exercise_data(data)
+    if errors:
+        return jsonify({"error": "Dados inválidos.", "details": errors}), 400
 
     exercise = exercise_service.create_custom_exercise(data)
     return jsonify(exercise.to_dict()), 201

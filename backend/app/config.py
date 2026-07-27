@@ -30,8 +30,22 @@ class Config:
 
     # Em produção, defina CORS_ORIGINS com a(s) origem(ns) real(is) separadas por vírgula
     # (ex: "https://meuapp.com,https://admin.meuapp.com"). "*" só é seguro em desenvolvimento.
-    _cors_origins_env = os.getenv("CORS_ORIGINS", "*")
-    CORS_ORIGINS = "*" if _cors_origins_env == "*" else [o.strip() for o in _cors_origins_env.split(",")]
+    #
+    # Sem a variável definida, o padrão dependia de DEBUG: "*" (qualquer
+    # origem) em ambos os casos. Isso significa que faltar essa variável num
+    # deploy de produção liberava CORS pra qualquer site — silenciosamente,
+    # sem nenhum aviso. Agora o padrão sem a variável é "*" só em
+    # desenvolvimento; em produção, vira lista vazia (nenhuma origem
+    # permitida) até alguém configurar de propósito. O app mobile não é
+    # afetado por CORS (é um mecanismo do navegador) — só bloqueia um
+    # eventual cliente web não configurado.
+    _cors_origins_env = os.getenv("CORS_ORIGINS")
+    if _cors_origins_env is None:
+        CORS_ORIGINS = "*" if DEBUG else []
+    elif _cors_origins_env == "*":
+        CORS_ORIGINS = "*"
+    else:
+        CORS_ORIGINS = [o.strip() for o in _cors_origins_env.split(",")]
 
     SQLALCHEMY_DATABASE_URI = os.getenv(
         "DATABASE_URL", f"sqlite:///{os.path.join(BASE_DIR, 'instance', 'nutrition.db')}"
