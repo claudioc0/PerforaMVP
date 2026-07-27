@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@expo-google-fonts/orbitron": "^0.4.2",
@@ -29,5 +30,13 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "tailwindcss": "^3.4.0"
+  },
+  "devDependencies": {
+    "babel-jest": "^30.4.1",
+    "babel-preset-expo": "^54.0.12",
+    "jest": "^30.4.2"
+  },
+  "overrides": {
+    "jest-mock": "30.4.1"
   }
 }

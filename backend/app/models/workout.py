@@ -9,7 +9,9 @@ class Workout(db.Model):
     __tablename__ = "workouts"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    # Toda listagem/busca de treino filtra por user_id (list_workouts, get_workout,
+    # get_workout_progress, etc.) — sem índice, cresce como uma varredura completa.
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
 
     # Presente = treino iniciado a partir de uma divisão (Push, ABCD-A, etc).
     # Ausente = treino freestyle (fluxo original, sem roteiro sugerido).

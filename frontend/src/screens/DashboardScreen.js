@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, 
 import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { getTodaySummary, getUserGoals, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
+import { useUserGoals } from '../contexts/UserContext';
+import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
@@ -71,8 +72,8 @@ const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF
 export default function DashboardScreen({ navigation }) {
   const { open: openDrawerMenu } = useDrawerMenu();
   const showAlert = useAppAlert();
+  const { goals, refreshGoals } = useUserGoals();
   const [summary, setSummary] = useState(null);
-  const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -94,13 +95,12 @@ export default function DashboardScreen({ navigation }) {
     setLoading(true); 
     setError(null); 
     try {
-      const [summaryData, goalsData] = await Promise.all([
+      const [summaryData] = await Promise.all([
         getTodaySummary(formattedCurrentDate),
-        getUserGoals()
+        refreshGoals(),
       ]);
       setSummary(summaryData);
-      setGoals(goalsData);
-      setWaterIntake(summaryData?.total_water_ml || 0); 
+      setWaterIntake(summaryData?.total_water_ml || 0);
     } catch (err) {
       console.error("Erro ao buscar resumo:", err);
       if (err.status !== 401) {
@@ -109,7 +109,7 @@ export default function DashboardScreen({ navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [formattedCurrentDate]); 
+  }, [formattedCurrentDate, refreshGoals]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

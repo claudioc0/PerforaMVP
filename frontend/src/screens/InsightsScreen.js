@@ -1,10 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getWeeklySummary, getUserGoals, getWeightHistory, logWeight } from '../services/api';
+import { getWeeklySummary, getWeightHistory, logWeight } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { useUserGoals } from '../contexts/UserContext';
 
 // --- Componente de Gráfico de Barras Customizado ---
 const WeeklyBarChart = ({ data, goal, label }) => {
@@ -36,8 +37,8 @@ const WeeklyBarChart = ({ data, goal, label }) => {
 
 export default function InsightsScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const { goals, refreshGoals } = useUserGoals();
   const [weeklyData, setWeeklyData] = useState([]);
-  const [goals, setGoals] = useState(null);
   const [loading, setLoading] = useState(true);
   
   // Estados para Evolução Corporal
@@ -50,14 +51,13 @@ export default function InsightsScreen({ navigation }) {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const [summaryData, goalsData, weightHistoryData] = await Promise.all([
+          const [summaryData, , weightHistoryData] = await Promise.all([
             // Proteção adicionada caso o backend retorne erro na rota semanal
-            getWeeklySummary().catch(() => ({ days: [] })), 
-            getUserGoals(), 
+            getWeeklySummary().catch(() => ({ days: [] })),
+            refreshGoals(),
             getWeightHistory().catch(() => []),
           ]);
           setWeeklyData(summaryData.days || []);
-          setGoals(goalsData);
           setWeightHistory(weightHistoryData || []);
         } catch (error) {
           showAlert("Erro", "Não foi possível carregar os insights. Tente novamente.");
@@ -66,7 +66,7 @@ export default function InsightsScreen({ navigation }) {
         }
       };
       fetchData();
-    }, [])
+    }, [refreshGoals])
   );
 
   const weeklyAverages = useMemo(() => {

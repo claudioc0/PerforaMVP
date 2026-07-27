@@ -36,6 +36,14 @@ class Meal(db.Model):
     # NOVA COLUNA: Chave estrangeira que obriga toda refeição a ter um dono (usuário)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
+    # Toda leitura de refeições filtra por user_id E created_at juntos
+    # (query_by_date + get_meals_for_date) — sem índice, cada carregamento do
+    # Dashboard varre a tabela inteira. Composto, não dois índices separados,
+    # porque as duas colunas são sempre usadas juntas nessa consulta.
+    __table_args__ = (
+        db.Index("ix_meals_user_id_created_at", "user_id", "created_at"),
+    )
+
     def to_dict(self) -> dict:
         return {
             "id": self.id,

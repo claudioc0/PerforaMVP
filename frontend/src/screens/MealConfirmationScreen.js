@@ -4,57 +4,37 @@ import { Ionicons } from '@expo/vector-icons';
 import { saveMeal, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { useScaledMealItems } from '../hooks/useScaledMealItems';
 
 export default function MealConfirmationScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da tela anterior
   const { draftMeal, targetDate } = route.params;
 
-  // Um estado por item: description/calories/protein_g/carbs_g/fat_g vêm da IA (por 100g do
-  // próprio item) e "quantity" é editável, pré-preenchida com a estimativa de peso da IA.
-  const [items, setItems] = useState(() =>
-    (draftMeal?.items || []).map((item) => ({
-      ...item,
-      quantity: String(item.estimated_grams || 100),
-    }))
+  // A IA já devolve os macros de cada item por 100g — são a "base" pra escalar.
+  // "quantity" é editável, pré-preenchida com a estimativa de peso da própria IA.
+  const initialItems = useMemo(
+    () =>
+      (draftMeal?.items || []).map((item) => ({
+        description: item.description,
+        baseCalories: item.calories,
+        baseProtein_g: item.protein_g,
+        baseCarbs_g: item.carbs_g,
+        baseFat_g: item.fat_g,
+        quantity: String(item.estimated_grams || 100),
+      })),
+    [draftMeal]
   );
+
+  const { scaledItems, totals, updateItemQuantity } = useScaledMealItems(initialItems);
+
   const [loading, setLoading] = useState(false);
   const [saveAsFavorite, setSaveAsFavorite] = useState(false);
 
-  const updateItemQuantity = (index, text) => {
-    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, quantity: text } : item)));
-  };
-
-  // Recalcula os macros de cada item em tempo real (regra de três, cada item por 100g próprio)
-  const scaledItems = useMemo(() => {
-    return items.map((item) => {
-      const numQuantity = parseFloat(item.quantity) || 0;
-      const ratio = numQuantity / 100;
-      return {
-        ...item,
-        numQuantity,
-        scaledCalories: item.calories * ratio,
-        scaledProtein_g: item.protein_g * ratio,
-        scaledCarbs_g: item.carbs_g * ratio,
-        scaledFat_g: item.fat_g * ratio,
-      };
-    });
-  }, [items]);
-
-  // Total da refeição = soma dos itens já ajustados
-  const totals = useMemo(() => {
-    return scaledItems.reduce(
-      (acc, item) => ({
-        calories: acc.calories + item.scaledCalories,
-        protein_g: acc.protein_g + item.scaledProtein_g,
-        carbs_g: acc.carbs_g + item.scaledCarbs_g,
-        fat_g: acc.fat_g + item.scaledFat_g,
-      }),
-      { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-    );
-  }, [scaledItems]);
-
-  const combinedDescription = useMemo(() => items.map((item) => item.description).join(', '), [items]);
+  const combinedDescription = useMemo(
+    () => scaledItems.map((item) => item.description).join(', '),
+    [scaledItems]
+  );
 
   const handleConfirmMeal = async () => {
     setLoading(true);
@@ -101,7 +81,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
     }
   };
 
-  if (!draftMeal || items.length === 0) {
+  if (!draftMeal || scaledItems.length === 0) {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Erro: Dados da refeição não encontrados.</Text>

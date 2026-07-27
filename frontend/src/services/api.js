@@ -10,7 +10,22 @@ import { navigate } from '../navigation/RootNavigation'; // Importa o helper de 
 // Configurável via .env (EXPO_PUBLIC_API_URL) — veja .env.example.
 // Em desenvolvimento, use o IP da sua máquina na rede local (não use "localhost"
 // se estiver testando em um celular físico ou emulador Android).
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.10:5000/api";
+//
+// EXPO_PUBLIC_API_URL é embutida no bundle em tempo de build — se faltar num
+// build feito pelo EAS (preview/production), o app antes caía silenciosamente
+// num IP de rede local hardcoded: sem erro nenhum, só spinner infinito na mão
+// do usuário. Falhar alto aqui, na primeira tela que chamar a API, é preferível:
+// o erro aparece imediatamente ao abrir o app, com o nome exato da variável que
+// falta, em vez de horas depois como "o app não funciona" sem pista nenhuma.
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_BASE_URL) {
+  throw new Error(
+    "EXPO_PUBLIC_API_URL não foi definida. Rodando localmente: copie .env.example " +
+    "para .env e ajuste o IP. Buildando com EAS: declare EXPO_PUBLIC_API_URL no " +
+    "perfil correspondente em eas.json (veja o bloco \"env\" de cada perfil)."
+  );
+}
 
 class ApiError extends Error {
   constructor(message, status) {
@@ -59,6 +74,36 @@ async function getAuthHeaders(additionalHeaders = {}) {
   }
   return headers;
 }
+
+/**
+ * Wrapper único por trás de toda chamada autenticada à API — antes, cada função
+ * deste arquivo repetia o mesmo bloco de `fetch` + cabeçalhos + `handleResponse`
+ * (35 vezes). Centralizar aqui é o que torna viável adicionar no futuro, num
+ * único lugar, coisas como timeout ou retry no lado do cliente.
+ *
+ * @param {string} path - Caminho relativo, ex: '/meals/today?date=...'.
+ * @param {object} [options]
+ * @param {'GET'|'POST'|'PUT'|'DELETE'} [options.method]
+ * @param {object|FormData} [options.body] - Objeto (vira JSON) ou FormData (upload de imagem).
+ * @param {boolean} [options.isFormData] - true para upload de arquivo (não define Content-Type).
+ * @param {object} [options.headers] - Cabeçalhos extras/sobrescritos.
+ */
+async function request(path, { method = 'GET', body, isFormData = false, headers: extraHeaders = {} } = {}) {
+  const hasJsonBody = body !== undefined && !isFormData;
+  const headers = await getAuthHeaders({
+    ...(hasJsonBody ? { 'Content-Type': 'application/json' } : {}),
+    ...extraHeaders,
+  });
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: isFormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
+  });
+
+  return handleResponse(response);
+}
+
 /**
  * Envia a refeição para análise da IA (suporta tanto foto quanto texto).
  * @param {string} imageUri - URI local da imagem (retornada pela câmera).
@@ -66,9 +111,7 @@ async function getAuthHeaders(additionalHeaders = {}) {
  */
 export async function analyzeMeal(imageUri, description) {
   if (imageUri) {
-    // Fluxo 1: Envio de Imagem
     const formData = new FormData();
-
     const filename = imageUri.split("/").pop();
     const match = /\.(\w+)$/.exec(filename ?? "");
     const fileType = match ? `image/${match[1]}` : "image/jpeg";
@@ -79,27 +122,9 @@ export async function analyzeMeal(imageUri, description) {
       type: fileType,
     });
 
-    const headers = await getAuthHeaders(); // Pega o cabeçalho com o token
-    const response = await fetch(`${API_BASE_URL}/meals/analyze`, {
-      method: "POST",
-      body: formData,
-      headers,
-    });
-
-    return handleResponse(response);
-    
+    return request("/meals/analyze", { method: "POST", body: formData, isFormData: true });
   } else if (description) {
-    // Fluxo 2: Envio de Texto
-    const response = await fetch(`${API_BASE_URL}/meals/analyze`, {
-      method: "POST",
-      headers: await getAuthHeaders({
-        "Content-Type": "application/json",
-      }),
-      body: JSON.stringify({ description }),
-    });
-
-    return handleResponse(response);
-    
+    return request("/meals/analyze", { method: "POST", body: { description } });
   } else {
     throw new Error("Nenhuma imagem ou texto fornecido.");
   }
@@ -111,15 +136,7 @@ export async function analyzeMeal(imageUri, description) {
  * @returns {Promise<object>} A refeição salva.
  */
 export async function saveMeal(mealData) {
-  const response = await fetch(`${API_BASE_URL}/meals/save`, {
-    method: 'POST',
-    headers: await getAuthHeaders({
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify(mealData),
-  });
-
-  return handleResponse(response);
+  return request("/meals/save", { method: "POST", body: mealData });
 }
 
 /**
@@ -128,15 +145,8 @@ export async function saveMeal(mealData) {
  * @returns {Promise<{total_calories:number, total_protein_g:number, total_carbs_g:number, total_fat_g:number, meals_count:number, meals:Array}>}
  */
 export async function getTodaySummary(dateString) {
-  const endpoint = `${API_BASE_URL}/meals/today`;
-  const url = dateString ? `${endpoint}?date=${dateString}` : endpoint;
-  const headers = await getAuthHeaders(); // Pega o cabeçalho com o token
-  const response = await fetch(url, {
-    method: "GET",
-    headers,
-  });
-
-  return handleResponse(response);
+  const path = dateString ? `/meals/today?date=${dateString}` : "/meals/today";
+  return request(path);
 }
 
 /**
@@ -144,16 +154,15 @@ export async function getTodaySummary(dateString) {
  * @returns {Promise<{days: Array<{date: string, day_name: string, calories: number, protein_g: number}>}>}
  */
 export async function getWeeklySummary() {
-  const response = await fetch(`${API_BASE_URL}/meals/weekly_summary`, {
-    method: 'GET',
-    headers: await getAuthHeaders(),
-  });
-
-  return handleResponse(response);
+  return request("/meals/weekly_summary");
 }
 
 /**
  * Rota de Login: Valida o usuário e retorna o Token JWT.
+ *
+ * Não passa por `request()` de propósito: não há token ainda, então não faz
+ * sentido tentar anexar um Authorization (e um token antigo esquecido no
+ * armazenamento local nunca deve ser enviado numa tentativa de login nova).
  */
 export async function loginUser(email, password) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -181,11 +190,7 @@ export async function registerUser(name, email, password) {
  * @returns {Promise<{goal_calories: number, goal_protein_g: number, goal_carbs_g: number, goal_fat_g: number}>}
  */
 export async function getUserGoals() {
-  const response = await fetch(`${API_BASE_URL}/user/goals`, {
-    method: 'GET',
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request("/user/goals");
 }
 
 /**
@@ -194,14 +199,7 @@ export async function getUserGoals() {
  * @returns {Promise<object>} A mensagem de sucesso do backend.
  */
 export async function updateUserGoals(goalsData) {
-  const response = await fetch(`${API_BASE_URL}/user/goals`, {
-    method: 'PUT',
-    headers: await getAuthHeaders({
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify(goalsData),
-  });
-  return handleResponse(response);
+  return request("/user/goals", { method: "PUT", body: goalsData });
 }
 
 /**
@@ -210,11 +208,7 @@ export async function updateUserGoals(goalsData) {
  * @returns {Promise<object>} A mensagem de sucesso do backend.
  */
 export async function deleteMeal(mealId) {
-  const response = await fetch(`${API_BASE_URL}/meals/${mealId}`, {
-    method: 'DELETE',
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/meals/${mealId}`, { method: "DELETE" });
 }
 
 /**
@@ -222,17 +216,7 @@ export async function deleteMeal(mealId) {
  * @param {object} physicalData - { weight, height, age, gender, activity_level, goal }
  */
 export async function calculateSmartGoals(physicalData) {
-  const headers = await getAuthHeaders({
-    'Content-Type': 'application/json',
-  });
-  
-  const response = await fetch(`${API_BASE_URL}/user/calculate-goals`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify(physicalData),
-  });
-  
-  return handleResponse(response);
+  return request("/user/calculate-goals", { method: "POST", body: physicalData });
 }
 
 /**
@@ -242,14 +226,7 @@ export async function calculateSmartGoals(physicalData) {
  * @returns {Promise<object>} A refeição atualizada.
  */
 export async function updateMeal(mealId, mealData) {
-  const response = await fetch(`${API_BASE_URL}/meals/${mealId}`, {
-    method: 'PUT',
-    headers: await getAuthHeaders({
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify(mealData),
-  });
-  return handleResponse(response);
+  return request(`/meals/${mealId}`, { method: "PUT", body: mealData });
 }
 
 /**
@@ -260,42 +237,22 @@ export async function updateMeal(mealId, mealData) {
  */
 export async function searchFoods(query) {
   const params = new URLSearchParams({ q: query });
-  const response = await fetch(`${API_BASE_URL}/meals/foods/search?${params.toString()}`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/meals/foods/search?${params.toString()}`);
 }
 
 /**
  * Funções do Sistema de Favoritos
  */
 export async function getFavorites() {
-  const authHeader = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/meals/favorites`, {
-    method: "GET",
-    headers: { Accept: "application/json", ...authHeader },
-  });
-  return handleResponse(response);
+  return request("/meals/favorites");
 }
 
 export async function addFavorite(mealData) {
-  const authHeader = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/meals/favorites`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeader },
-    body: JSON.stringify(mealData),
-  });
-  return handleResponse(response);
+  return request("/meals/favorites", { method: "POST", body: mealData });
 }
 
 export async function removeFavorite(favId) {
-  const authHeader = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/meals/favorites/${favId}`, {
-    method: "DELETE",
-    headers: { Accept: "application/json", ...authHeader },
-  });
-  return handleResponse(response);
+  return request(`/meals/favorites/${favId}`, { method: "DELETE" });
 }
 
 /**
@@ -306,14 +263,7 @@ export async function removeFavorite(favId) {
  * @returns {Promise<{message: string, total: number}>} A resposta com o total atualizado.
  */
 export async function addWater(amount, date) {
-  const response = await fetch(`${API_BASE_URL}/user/water/add`, {
-    method: 'POST',
-    headers: await getAuthHeaders({
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify({ amount, date }),
-  });
-  return handleResponse(response);
+  return request("/user/water/add", { method: "POST", body: { amount, date } });
 }
 
 /**
@@ -323,36 +273,18 @@ export async function addWater(amount, date) {
  * @returns {Promise<{insight: string}>} A resposta com a frase de insight.
  */
 export async function getDailyInsight(goals, consumed) {
-  const response = await fetch(`${API_BASE_URL}/meals/daily-insight`, {
-    method: 'POST',
-    headers: await getAuthHeaders({
-      'Content-Type': 'application/json',
-    }),
-    body: JSON.stringify({ goals, consumed }),
-  });
-  return handleResponse(response);
+  return request("/meals/daily-insight", { method: "POST", body: { goals, consumed } });
 }
 
-/** 
+/**
  * Funções de Evolução Corporal
  */
 export async function getWeightHistory() {
-  const authHeader = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/user/weight`, {
-    method: "GET",
-    headers: { Accept: "application/json", ...authHeader },
-  });
-  return handleResponse(response);
+  return request("/user/weight");
 }
 
 export async function logWeight(weightData) {
-  const authHeader = await getAuthHeaders();
-  const response = await fetch(`${API_BASE_URL}/user/weight`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json", ...authHeader },
-    body: JSON.stringify(weightData),
-  });
-  return handleResponse(response);
+  return request("/user/weight", { method: "POST", body: weightData });
 }
 
 /**
@@ -364,11 +296,7 @@ export async function logWeight(weightData) {
  * @returns {Promise<Array>} Lista de treinos, do mais recente pro mais antigo.
  */
 export async function listWorkouts() {
-  const response = await fetch(`${API_BASE_URL}/workouts`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request("/workouts");
 }
 
 /**
@@ -376,12 +304,7 @@ export async function listWorkouts() {
  * @param {object} data - { name? }
  */
 export async function createWorkout(data = {}) {
-  const response = await fetch(`${API_BASE_URL}/workouts`, {
-    method: "POST",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(data),
-  });
-  return handleResponse(response);
+  return request("/workouts", { method: "POST", body: data });
 }
 
 /**
@@ -389,11 +312,7 @@ export async function createWorkout(data = {}) {
  * @param {string|number} workoutId
  */
 export async function getWorkout(workoutId) {
-  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/${workoutId}`);
 }
 
 /**
@@ -402,12 +321,7 @@ export async function getWorkout(workoutId) {
  * @param {object} data
  */
 export async function updateWorkout(workoutId, data) {
-  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}`, {
-    method: "PUT",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(data),
-  });
-  return handleResponse(response);
+  return request(`/workouts/${workoutId}`, { method: "PUT", body: data });
 }
 
 /**
@@ -415,11 +329,7 @@ export async function updateWorkout(workoutId, data) {
  * @param {string|number} workoutId
  */
 export async function deleteWorkout(workoutId) {
-  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}`, {
-    method: "DELETE",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/${workoutId}`, { method: "DELETE" });
 }
 
 /**
@@ -428,12 +338,7 @@ export async function deleteWorkout(workoutId) {
  * @param {object} setData - { exercise_id, weight_kg, reps, rest_seconds? }
  */
 export async function addSetLog(workoutId, setData) {
-  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}/sets`, {
-    method: "POST",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(setData),
-  });
-  return handleResponse(response);
+  return request(`/workouts/${workoutId}/sets`, { method: "POST", body: setData });
 }
 
 /**
@@ -443,12 +348,7 @@ export async function addSetLog(workoutId, setData) {
  * @param {object} setData
  */
 export async function updateSetLog(workoutId, setId, setData) {
-  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}/sets/${setId}`, {
-    method: "PUT",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(setData),
-  });
-  return handleResponse(response);
+  return request(`/workouts/${workoutId}/sets/${setId}`, { method: "PUT", body: setData });
 }
 
 /**
@@ -457,11 +357,7 @@ export async function updateSetLog(workoutId, setId, setData) {
  * @param {string|number} setId
  */
 export async function deleteSetLog(workoutId, setId) {
-  const response = await fetch(`${API_BASE_URL}/workouts/${workoutId}/sets/${setId}`, {
-    method: "DELETE",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/${workoutId}/sets/${setId}`, { method: "DELETE" });
 }
 
 /**
@@ -474,12 +370,7 @@ export async function listExercises(search, muscleGroup) {
   if (search) params.append("search", search);
   if (muscleGroup) params.append("muscle_group", muscleGroup);
   const query = params.toString() ? `?${params.toString()}` : "";
-
-  const response = await fetch(`${API_BASE_URL}/workouts/exercises${query}`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/exercises${query}`);
 }
 
 /**
@@ -487,11 +378,7 @@ export async function listExercises(search, muscleGroup) {
  * Full Body), cada uma com seus dias aninhados.
  */
 export async function listSplits() {
-  const response = await fetch(`${API_BASE_URL}/workouts/splits`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request("/workouts/splits");
 }
 
 /**
@@ -499,11 +386,7 @@ export async function listSplits() {
  * @param {string|number} dayId
  */
 export async function getSplitDayExercises(dayId) {
-  const response = await fetch(`${API_BASE_URL}/workouts/splits/days/${dayId}/exercises`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/splits/days/${dayId}/exercises`);
 }
 
 /**
@@ -511,11 +394,7 @@ export async function getSplitDayExercises(dayId) {
  * `{ has_plan: false }` se o usuário ainda não definiu um plano.
  */
 export async function getWeeklyPlan() {
-  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request("/workouts/weekly-plan");
 }
 
 /**
@@ -532,12 +411,7 @@ export async function getWeeklyPlan() {
  */
 export async function createWeeklyPlan(splitId, splitDayIds) {
   const body = splitDayIds ? { split_id: splitId, split_day_ids: splitDayIds } : { split_id: splitId };
-  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan`, {
-    method: "POST",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(body),
-  });
-  return handleResponse(response);
+  return request("/workouts/weekly-plan", { method: "POST", body });
 }
 
 /**
@@ -547,23 +421,17 @@ export async function createWeeklyPlan(splitId, splitDayIds) {
  * @param {number|null} splitDayId
  */
 export async function updateWeeklyPlanDay(dayOfWeek, splitDayId) {
-  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan/days/${dayOfWeek}`, {
+  return request(`/workouts/weekly-plan/days/${dayOfWeek}`, {
     method: "PUT",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ split_day_id: splitDayId }),
+    body: { split_day_id: splitDayId },
   });
-  return handleResponse(response);
 }
 
 /**
  * Apaga o plano semanal atual do usuário.
  */
 export async function deleteWeeklyPlan() {
-  const response = await fetch(`${API_BASE_URL}/workouts/weekly-plan`, {
-    method: "DELETE",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request("/workouts/weekly-plan", { method: "DELETE" });
 }
 
 /**
@@ -571,12 +439,7 @@ export async function deleteWeeklyPlan() {
  * @param {object} data - { name, muscle_group?, equipment? }
  */
 export async function createExercise(data) {
-  const response = await fetch(`${API_BASE_URL}/workouts/exercises`, {
-    method: "POST",
-    headers: await getAuthHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(data),
-  });
-  return handleResponse(response);
+  return request("/workouts/exercises", { method: "POST", body: data });
 }
 
 /**
@@ -587,11 +450,7 @@ export async function createExercise(data) {
  */
 export async function getExerciseHistory(exerciseId, limit) {
   const query = limit ? `?limit=${limit}` : "";
-  const response = await fetch(`${API_BASE_URL}/workouts/exercises/${exerciseId}/history${query}`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/exercises/${exerciseId}/history${query}`);
 }
 
 /**
@@ -601,9 +460,5 @@ export async function getExerciseHistory(exerciseId, limit) {
  */
 export async function getWorkoutProgress(limit) {
   const query = limit ? `?limit=${limit}` : "";
-  const response = await fetch(`${API_BASE_URL}/workouts/progress${query}`, {
-    method: "GET",
-    headers: await getAuthHeaders(),
-  });
-  return handleResponse(response);
+  return request(`/workouts/progress${query}`);
 }
