@@ -16,6 +16,93 @@ function formatSeconds(totalSeconds) {
   return `${minutes}:${seconds}`;
 }
 
+// Componente próprio (memoizado) pra cada linha da lista de séries — antes,
+// editWeight/editReps viviam no componente pai, e digitar em qualquer um dos
+// dois recriava a função renderItem inline do FlatList a cada tecla, o que
+// derruba a otimização do FlatList (ele passa a re-renderizar TODAS as
+// linhas, não só a que está sendo editada). Aqui, o estado do campo em edição
+// é local a cada linha — digitar só re-renderiza ESTA linha, e a função
+// renderItem do componente pai (useCallback abaixo) nunca muda de
+// identidade por causa disso.
+const SetRow = React.memo(function SetRow({
+  item,
+  isEditing,
+  saving,
+  onStartEdit,
+  onCancelEdit,
+  onSaveEdit,
+  onDelete,
+}) {
+  const [editWeight, setEditWeight] = useState(String(item.weight_kg));
+  const [editReps, setEditReps] = useState(String(item.reps));
+
+  // Reinicia os campos com os valores atuais toda vez que ESTA linha entra
+  // em modo de edição (não a cada render) — sem isso, editar duas séries
+  // diferentes em sequência reaproveitaria o texto digitado na anterior.
+  useEffect(() => {
+    if (isEditing) {
+      setEditWeight(String(item.weight_kg));
+      setEditReps(String(item.reps));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing]);
+
+  if (isEditing) {
+    return (
+      <View style={styles.setCardEditing}>
+        <Text style={styles.setExercise}>{item.exercise_name}</Text>
+        <View style={styles.editInputsRow}>
+          <TextInput
+            style={styles.editInput}
+            value={editWeight}
+            onChangeText={setEditWeight}
+            keyboardType="numeric"
+            placeholder="kg"
+            placeholderTextColor="#666"
+          />
+          <Text style={styles.editSeparator}>kg ×</Text>
+          <TextInput
+            style={styles.editInput}
+            value={editReps}
+            onChangeText={setEditReps}
+            keyboardType="numeric"
+            placeholder="reps"
+            placeholderTextColor="#666"
+          />
+          <Text style={styles.editSeparator}>reps</Text>
+        </View>
+        <View style={styles.editActionsRow}>
+          <TouchableOpacity onPress={onCancelEdit} style={styles.editActionButton}>
+            <Ionicons name="close" size={22} color="#888" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onSaveEdit(editWeight, editReps)}
+            style={styles.editActionButton}
+            disabled={saving}
+          >
+            {saving ? <ActivityIndicator color="#00FF66" /> : <Ionicons name="checkmark" size={22} color="#00FF66" />}
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <TouchableOpacity style={styles.setCard} onPress={onStartEdit}>
+      <View>
+        <Text style={styles.setExercise}>{item.exercise_name}</Text>
+        <Text style={styles.setMeta}>Série {item.set_number}</Text>
+      </View>
+      <View style={styles.setCardRight}>
+        <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
+        <TouchableOpacity onPress={onDelete} style={styles.setDeleteButton}>
+          <Ionicons name="trash-outline" size={17} color="#FF5555" />
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
 export default function WorkoutSessionScreen({ navigation, route }) {
   const { workoutId } = route.params;
   const showAlert = useAppAlert();
@@ -40,8 +127,6 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const [nameInput, setNameInput] = useState('');
 
   const [editingSetId, setEditingSetId] = useState(null);
-  const [editWeight, setEditWeight] = useState('');
-  const [editReps, setEditReps] = useState('');
   const [savingSetEdit, setSavingSetEdit] = useState(false);
 
   useEffect(() => {
@@ -229,24 +314,22 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     );
   };
 
-  const startEditSet = (item) => {
+  const startEditSet = useCallback((item) => {
     setEditingSetId(item.id);
-    setEditWeight(String(item.weight_kg));
-    setEditReps(String(item.reps));
-  };
+  }, []);
 
-  const cancelEditSet = () => setEditingSetId(null);
+  const cancelEditSet = useCallback(() => setEditingSetId(null), []);
 
-  const saveEditSet = async () => {
-    if (!editWeight || !editReps) {
+  const saveEditSet = useCallback(async (weightStr, repsStr) => {
+    if (!weightStr || !repsStr) {
       showAlert('Atenção', 'Preencha peso e repetições.');
       return;
     }
     setSavingSetEdit(true);
     try {
       const updated = await updateSetLog(workoutId, editingSetId, {
-        weight_kg: parseFloat(editWeight),
-        reps: parseInt(editReps, 10),
+        weight_kg: parseFloat(weightStr),
+        reps: parseInt(repsStr, 10),
       });
       setWorkout((prev) => ({
         ...prev,
@@ -258,9 +341,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     } finally {
       setSavingSetEdit(false);
     }
-  };
+  }, [workoutId, editingSetId, showAlert]);
 
-  const confirmDeleteSet = (setId) => {
+  const confirmDeleteSet = useCallback((setId) => {
     showAlert('Excluir Série', 'Deseja excluir esta série?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -270,14 +353,26 @@ export default function WorkoutSessionScreen({ navigation, route }) {
           try {
             await deleteSetLog(workoutId, setId);
             setWorkout((prev) => ({ ...prev, sets: prev.sets.filter((s) => s.id !== setId) }));
-            if (editingSetId === setId) setEditingSetId(null);
+            setEditingSetId((current) => (current === setId ? null : current));
           } catch (error) {
             showAlert('Erro', 'Não foi possível excluir a série.');
           }
         },
       },
     ]);
-  };
+  }, [workoutId, showAlert]);
+
+  const renderSetItem = useCallback(({ item }) => (
+    <SetRow
+      item={item}
+      isEditing={editingSetId === item.id}
+      saving={savingSetEdit}
+      onStartEdit={() => startEditSet(item)}
+      onCancelEdit={cancelEditSet}
+      onSaveEdit={saveEditSet}
+      onDelete={() => confirmDeleteSet(item.id)}
+    />
+  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet]);
 
   if (loading || !workout) {
     return (
@@ -356,58 +451,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       <FlatList
         data={workout.sets}
         keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => {
-          if (editingSetId === item.id) {
-            return (
-              <View style={styles.setCardEditing}>
-                <Text style={styles.setExercise}>{item.exercise_name}</Text>
-                <View style={styles.editInputsRow}>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editWeight}
-                    onChangeText={setEditWeight}
-                    keyboardType="numeric"
-                    placeholder="kg"
-                    placeholderTextColor="#666"
-                  />
-                  <Text style={styles.editSeparator}>kg ×</Text>
-                  <TextInput
-                    style={styles.editInput}
-                    value={editReps}
-                    onChangeText={setEditReps}
-                    keyboardType="numeric"
-                    placeholder="reps"
-                    placeholderTextColor="#666"
-                  />
-                  <Text style={styles.editSeparator}>reps</Text>
-                </View>
-                <View style={styles.editActionsRow}>
-                  <TouchableOpacity onPress={cancelEditSet} style={styles.editActionButton}>
-                    <Ionicons name="close" size={22} color="#888" />
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={saveEditSet} style={styles.editActionButton} disabled={savingSetEdit}>
-                    {savingSetEdit ? <ActivityIndicator color="#00FF66" /> : <Ionicons name="checkmark" size={22} color="#00FF66" />}
-                  </TouchableOpacity>
-                </View>
-              </View>
-            );
-          }
-
-          return (
-            <TouchableOpacity style={styles.setCard} onPress={() => startEditSet(item)}>
-              <View>
-                <Text style={styles.setExercise}>{item.exercise_name}</Text>
-                <Text style={styles.setMeta}>Série {item.set_number}</Text>
-              </View>
-              <View style={styles.setCardRight}>
-                <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
-                <TouchableOpacity onPress={() => confirmDeleteSet(item.id)} style={styles.setDeleteButton}>
-                  <Ionicons name="trash-outline" size={17} color="#FF5555" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={renderSetItem}
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma série registrada ainda.</Text>}
         contentContainerStyle={{ paddingBottom: 20 }}
       />

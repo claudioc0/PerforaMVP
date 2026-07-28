@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
@@ -182,10 +182,13 @@ export default function DashboardScreen({ navigation }) {
     setCurrentDate(newDate);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]); 
-
+  // useFocusEffect (abaixo) já cobre "buscar ao abrir a tela" — ele roda tanto
+  // na montagem inicial quanto toda vez que a tela reganha foco (voltar da
+  // Câmera, do registro manual, etc.), e também de novo quando fetchData muda
+  // de identidade (troca de dia). Um useEffect(fetchData, [fetchData]) extra
+  // aqui rodava JUNTO com o useFocusEffect na abertura — a MESMA busca (que já
+  // é um Promise.all de duas chamadas) disparando duas vezes, 4 requests em
+  // vez de 2 toda vez que o Dashboard abria.
   useFocusEffect(
     useCallback(() => {
       const loadScreenData = async () => {
@@ -262,6 +265,30 @@ export default function DashboardScreen({ navigation }) {
     );
   };
 
+  const renderMealItem = ({ item }) => (
+    <View style={styles.mealItemContainer}>
+      <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('AdjustQuantity', { meal: item })}>
+        <View style={styles.mealItem}>
+          <View style={styles.mealHeader}>
+            <Text style={styles.mealDesc}>{item.description}</Text>
+            {item.confidence > 0 && (
+              <View style={styles.confidenceBadge}>
+                <Text style={styles.confidenceText}>{(item.confidence * 100).toFixed(0)}% IA</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
+        <Ionicons name="star" size={20} color="#00FF66" />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
+        <Text style={styles.deleteButtonText}>Excluir</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
@@ -283,107 +310,91 @@ export default function DashboardScreen({ navigation }) {
 
   return (
     <View style={styles.rootContainer}>
-      <ScrollView 
+      {/* Um único FlatList raiz (não um ScrollView com outro FlatList
+          scrollEnabled=false dentro) — aninhar assim anula a virtualização:
+          TODA linha da lista interna monta de uma vez, independente do que
+          está visível na tela. Com um histórico grande de refeições, a
+          abertura da tela travava por um instante. Tudo que antes ficava
+          "acima" da lista de refeições agora é o ListHeaderComponent. */}
+      <FlatList
         style={styles.container}
+        data={summary?.meals || []}
+        keyExtractor={(item) => item.id.toString()}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF66" />}
-      >
-        <View style={styles.header}>
-          <View style={styles.headerRow}>
-            <View style={styles.brandRow}>
-              <LogoMark size={22} />
-              <Text style={styles.greeting}>Olá, {userName}</Text>
-            </View>
-            <TouchableOpacity
-              style={styles.menuButton}
-              onPress={openDrawerMenu}
-            >
-              <Ionicons name="menu" size={28} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.dateSelector}>
-            <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
-              <Ionicons name="chevron-back" size={24} color="#FFF" />
-            </TouchableOpacity>
-            <Text style={styles.title}>{getDisplayDate(currentDate)}</Text>
-            <TouchableOpacity onPress={() => changeDay(1)} style={[styles.arrowButton, isFutureDate && styles.disabledArrow] } disabled={isFutureDate}>
-              <Ionicons name="chevron-forward" size={24} color="#FFF" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.subtitle}>Seu desempenho hoje</Text>
-        </View>
-
-        {/* Card de Insight da IA */}
-        {(loadingInsight || aiInsight) && (
-          <View style={styles.insightCard}>
-            <View style={styles.insightHeader}>
-              <Ionicons name="flash" size={20} color="#00FF66" style={styles.insightIcon} />
-              <Text style={styles.insightTitle}>Insight do Treinador</Text>
-            </View>
-            {loadingInsight ? (
-              <View style={styles.insightLoadingContainer}>
-                <ActivityIndicator size="small" color="#00FF66" />
-                <Text style={styles.insightLoadingText}>Analisando seu desempenho...</Text>
-              </View>
-            ) : (
-              <Text style={styles.insightText}>{aiInsight}</Text>
-            )}
-          </View>
-        )}
-
-        {/* Seção de Progresso */}
-        <View style={styles.progressSection}>
-          <ProgressBar label="Calorias" consumed={summary?.total_calories} goal={goals?.goal_calories} unit="kcal" />
-          <ProgressBar label="Proteínas" consumed={summary?.total_protein_g} goal={goals?.goal_protein_g} />
-          <ProgressBar label="Carboidratos" consumed={summary?.total_carbs_g} goal={goals?.goal_carbs_g} />
-          <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={goals?.goal_fat_g} />
-        </View>
-
-        {/* Seção de Hidratação */}
-        <View style={styles.progressSection}>
-          <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color="#00BFFF" />
-          <View style={styles.waterButtonsContainer}>
-            <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(250)}>
-              <Text style={styles.waterButtonText}>+250 ml</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(500)}>
-              <Text style={styles.waterButtonText}>+500 ml</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <Text style={styles.listTitle}>Refeições de {getDisplayDate(currentDate)}</Text>
-        <FlatList
-          data={summary?.meals || []}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <View style={styles.mealItemContainer}>
-              <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('AdjustQuantity', { meal: item })}>
-                <View style={styles.mealItem}>
-                  <View style={styles.mealHeader}>
-                    <Text style={styles.mealDesc}>{item.description}</Text>
-                    {item.confidence > 0 && (
-                      <View style={styles.confidenceBadge}>
-                        <Text style={styles.confidenceText}>{(item.confidence * 100).toFixed(0)}% IA</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
+        renderItem={renderMealItem}
+        ListHeaderComponent={
+          <>
+            <View style={styles.header}>
+              <View style={styles.headerRow}>
+                <View style={styles.brandRow}>
+                  <LogoMark size={22} />
+                  <Text style={styles.greeting}>Olá, {userName}</Text>
                 </View>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
-                <Ionicons name="star" size={20} color="#00FF66" />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
-                <Text style={styles.deleteButtonText}>Excluir</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.menuButton}
+                  onPress={openDrawerMenu}
+                >
+                  <Ionicons name="menu" size={28} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.dateSelector}>
+                <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
+                  <Ionicons name="chevron-back" size={24} color="#FFF" />
+                </TouchableOpacity>
+                <Text style={styles.title}>{getDisplayDate(currentDate)}</Text>
+                <TouchableOpacity onPress={() => changeDay(1)} style={[styles.arrowButton, isFutureDate && styles.disabledArrow] } disabled={isFutureDate}>
+                  <Ionicons name="chevron-forward" size={24} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.subtitle}>Seu desempenho hoje</Text>
             </View>
-          )}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
-          contentContainerStyle={{ paddingBottom: 210 }}
-          scrollEnabled={false}
-        />
-      </ScrollView>
+
+            {/* Card de Insight da IA */}
+            {(loadingInsight || aiInsight) && (
+              <View style={styles.insightCard}>
+                <View style={styles.insightHeader}>
+                  <Ionicons name="flash" size={20} color="#00FF66" style={styles.insightIcon} />
+                  <Text style={styles.insightTitle}>Insight do Treinador</Text>
+                </View>
+                {loadingInsight ? (
+                  <View style={styles.insightLoadingContainer}>
+                    <ActivityIndicator size="small" color="#00FF66" />
+                    <Text style={styles.insightLoadingText}>Analisando seu desempenho...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.insightText}>{aiInsight}</Text>
+                )}
+              </View>
+            )}
+
+            {/* Seção de Progresso */}
+            <View style={styles.progressSection}>
+              <ProgressBar label="Calorias" consumed={summary?.total_calories} goal={goals?.goal_calories} unit="kcal" />
+              <ProgressBar label="Proteínas" consumed={summary?.total_protein_g} goal={goals?.goal_protein_g} />
+              <ProgressBar label="Carboidratos" consumed={summary?.total_carbs_g} goal={goals?.goal_carbs_g} />
+              <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={goals?.goal_fat_g} />
+            </View>
+
+            {/* Seção de Hidratação */}
+            <View style={styles.progressSection}>
+              <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color="#00BFFF" />
+              <View style={styles.waterButtonsContainer}>
+                <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(250)}>
+                  <Text style={styles.waterButtonText}>+250 ml</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(500)}>
+                  <Text style={styles.waterButtonText}>+500 ml</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <Text style={styles.listTitle}>Refeições de {getDisplayDate(currentDate)}</Text>
+          </>
+        }
+        ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
+        contentContainerStyle={{ paddingBottom: 210 }}
+      />
 
       {/* FABs */}
       <View style={styles.fabContainer}>
