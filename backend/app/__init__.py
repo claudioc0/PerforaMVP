@@ -8,22 +8,16 @@ from werkzeug.exceptions import HTTPException
 
 from .config import Config
 from .extensions import cors, db, configure_sqlite_connection, limiter
-from .models.user import User
-from .models.meal import Meal
-# Lembre-se de importar seus outros models aqui também, como FavoriteMeal e WeightLog
-from .models.favorite_meal import FavoriteMeal
-from .models.weight_log import WeightLog
-from .models.token_blocklist import TokenBlocklist
-from .models.food_cache import FoodCache
-from .models.text_analysis_cache import TextAnalysisCache
-from .models.exercise import Exercise
-from .models.workout_split import WorkoutSplit
-from .models.split_day import SplitDay
-from .models.workout import Workout
-from .models.set_log import SetLog
-from .models.split_day_exercise import SplitDayExercise
-from .models.weekly_plan import WeeklyPlan
-from .models.weekly_plan_day import WeeklyPlanDay
+# Importar do pacote `models` (em vez de enumerar cada módulo individualmente,
+# como esta lista fazia antes) executa app/models/__init__.py por inteiro e
+# registra TODOS os models no metadata do SQLAlchemy antes de qualquer
+# db.create_all()/migração. A lista antiga cobria só uma parte deles —
+# UserGoals e WaterLog nunca apareciam aqui e só funcionavam por serem
+# importados transitivamente por outro módulo (user.py e o próprio
+# app.models.__init__) — e podia voltar a ficar incompleta sem dar erro
+# nenhum. A fonte única de verdade de quais models existem é
+# app/models/__init__.py: um model novo só precisa ser adicionado lá.
+from .models import TokenBlocklist  # usado abaixo, no callback de blocklist do JWT
 
 # <-- 2. INICIALIZAÇÃO GLOBAL DO MIGRATE
 migrate = Migrate()

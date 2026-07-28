@@ -15,6 +15,13 @@ logger = logging.getLogger(__name__)
 # O prefixo completo da API é definido aqui para manter o módulo autônomo.
 user_bp = Blueprint("user_bp", __name__, url_prefix="/api/user")
 
+# Singleton por módulo (uma instância pro processo inteiro) — mesmo padrão em
+# workouts_routes.py. Critério: UserService não guarda estado próprio nem
+# depende de app.config no __init__, então não há motivo pra reconstruir uma
+# instância nova a cada request. MealService é a exceção (ver
+# meals_routes.py): construir um GeminiService de verdade depende de
+# app.config, que só existe dentro de um contexto de app/request — por isso
+# usa uma fábrica chamada por request em vez de um singleton aqui.
 user_service = UserService()
 
 @user_bp.route("/goals", methods=["GET"])
