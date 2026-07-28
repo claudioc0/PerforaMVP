@@ -23,8 +23,23 @@ class MealService:
     diretamente — apenas chamam este serviço.
     """
 
-    def __init__(self, gemini_service: GeminiService):
-        self._gemini_service = gemini_service
+    def __init__(self, gemini_service_factory):
+        """Recebe uma FÁBRICA de GeminiService (sem argumentos), não uma
+        instância pronta — a maioria das rotas que usam MealService (salvar,
+        listar, apagar refeição, resumos) nunca chama a IA, mas antes toda
+        chamada a `_get_meal_service()` construía um GeminiService (e,
+        internamente, um genai.Client) de qualquer jeito. Adiando a
+        construção pra só acontecer se `analyze_image`/`analyze_text` forem
+        chamados de verdade evita esse custo nas rotas que não precisam dele.
+        """
+        self._gemini_service_factory = gemini_service_factory
+        self._gemini_service_instance = None
+
+    @property
+    def _gemini_service(self) -> GeminiService:
+        if self._gemini_service_instance is None:
+            self._gemini_service_instance = self._gemini_service_factory()
+        return self._gemini_service_instance
 
     @staticmethod
     def _items_to_dicts(result: MealAnalysisResult) -> list:

@@ -5,7 +5,7 @@ from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate # <-- 1. IMPORTAÇÃO DO MIGRATE
 
 from .config import Config
-from .extensions import cors, db, enable_sqlite_wal_mode, limiter
+from .extensions import cors, db, configure_sqlite_connection, limiter
 from .models.user import User
 from .models.meal import Meal
 # Lembre-se de importar seus outros models aqui também, como FavoriteMeal e WeightLog
@@ -40,7 +40,7 @@ def create_app(config_class=Config):
     migrate.init_app(app, db) # <-- 3. CONECTA O MIGRATE AO APP E AO BANCO
 
     with app.app_context():
-        enable_sqlite_wal_mode(db.engine)
+        configure_sqlite_connection(db.engine)
 
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     limiter.init_app(app)

@@ -12,16 +12,26 @@ db = SQLAlchemy()
 cors = CORS()
 
 
-def enable_sqlite_wal_mode(engine: Engine) -> None:
-    """Liga o modo WAL (Write-Ahead Log) em toda conexão SQLite nova.
+def configure_sqlite_connection(engine: Engine) -> None:
+    """Ajusta cada conexão SQLite nova pra ficar mais perto do comportamento
+    de um banco cliente/servidor de verdade (Postgres).
 
-    Por padrão o SQLite usa "rollback journal": uma escrita bloqueia TODAS as
-    leituras até terminar (e vice-versa) — o pior caso pra concorrência. WAL
-    deixa leituras acontecerem em paralelo com uma escrita em andamento
-    (só escrita-com-escrita ainda serializa, que é uma limitação do arquivo
-    único do SQLite, não algo que dá pra configurar). Não é um substituto de
-    Postgres em produção, só reduz o quanto o "escritor único" trava outras
-    requisições numa instância SQLite.
+    - journal_mode=WAL: por padrão o SQLite usa "rollback journal", onde uma
+      escrita bloqueia TODAS as leituras até terminar (e vice-versa) — o pior
+      caso pra concorrência. WAL deixa leituras acontecerem em paralelo com
+      uma escrita em andamento (só escrita-com-escrita ainda serializa, que é
+      uma limitação do arquivo único do SQLite, não algo configurável). Não
+      substitui Postgres em produção, só reduz o quanto o "escritor único"
+      trava outras requisições numa instância SQLite.
+    - case_sensitive_like=ON: sem isso, o SQLite não usa nenhum índice em
+      buscas por prefixo (`LIKE 'termo%'`) — só faz a otimização quando o
+      LIKE é case-sensitive. Toda coluna buscada assim neste app
+      (search_query, normalized_name) já é normalizada pra minúsculas antes
+      de gravar E antes de buscar, então virar case-sensitive não muda
+      nenhum resultado — só deixa de exigir uma varredura completa da
+      tabela pra cada busca por prefixo. O Postgres já é case-sensitive por
+      padrão no LIKE, então esse ajuste só existe aqui pro SQLite alcançar o
+      mesmo comportamento.
     """
     if engine.dialect.name != "sqlite":
         return
@@ -31,6 +41,7 @@ def enable_sqlite_wal_mode(engine: Engine) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA case_sensitive_like=ON")
         cursor.close()
 
 # key_func=get_remote_address: cada IP tem seu próprio contador de requisições.

@@ -15,7 +15,7 @@ import pytest
 
 import app.config as config_module
 from app import create_app
-from app.extensions import db, enable_sqlite_wal_mode
+from app.extensions import db, configure_sqlite_connection
 
 
 def _reload_config(monkeypatch, database_url=None):
@@ -100,4 +100,4 @@ class TestModoWALNoSQLite:
         with app.app_context():
             # app (fixture) já usa sqlite:///:memory: — chamar de novo é
             # inofensivo (idempotente) e não deve lançar.
-            enable_sqlite_wal_mode(db.engine)
+            configure_sqlite_connection(db.engine)

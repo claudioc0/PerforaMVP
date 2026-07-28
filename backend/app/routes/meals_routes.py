@@ -22,13 +22,23 @@ def _allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def _get_meal_service() -> MealService:
-    gemini_service = GeminiService(
-        api_key=current_app.config["GEMINI_API_KEY"],
-        model_name=current_app.config["GEMINI_MODEL_NAME"],
-        timeout_ms=current_app.config["GEMINI_TIMEOUT_MS"],
-        retry_attempts=current_app.config["GEMINI_RETRY_ATTEMPTS"],
-    )
-    return MealService(gemini_service)
+    # Passa uma fábrica, não uma instância pronta — a maioria das rotas que
+    # usam MealService (salvar, listar, apagar, resumos) nunca chama a IA, e
+    # construir um GeminiService (e o genai.Client interno) tem um custo real
+    # que não faz sentido pagar em toda requisição. Só é construído de
+    # verdade se `analyze_image`/`analyze_text` forem chamados (ver a
+    # property `_gemini_service` em MealService).
+    app = current_app._get_current_object()
+
+    def _build_gemini_service() -> GeminiService:
+        return GeminiService(
+            api_key=app.config["GEMINI_API_KEY"],
+            model_name=app.config["GEMINI_MODEL_NAME"],
+            timeout_ms=app.config["GEMINI_TIMEOUT_MS"],
+            retry_attempts=app.config["GEMINI_RETRY_ATTEMPTS"],
+        )
+
+    return MealService(_build_gemini_service)
 
 
 # --- ROTA 1: APENAS ANALISA E DEVOLVE O RASCUNHO ---
