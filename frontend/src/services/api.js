@@ -151,10 +151,14 @@ export async function getTodaySummary(dateString) {
 
 /**
  * Busca o resumo nutricional dos últimos 7 dias.
+ * @param {string} [todayString] - "Hoje" no fuso do aparelho (YYYY-MM-DD). Sem
+ *   isso a janela de 7 dias é calculada a partir do relógio UTC do servidor,
+ *   que perto da meia-noite local pode discordar do dia que o aparelho considera "hoje".
  * @returns {Promise<{days: Array<{date: string, day_name: string, calories: number, protein_g: number}>}>}
  */
-export async function getWeeklySummary() {
-  return request("/meals/weekly_summary");
+export async function getWeeklySummary(todayString) {
+  const path = todayString ? `/meals/weekly_summary?today=${todayString}` : "/meals/weekly_summary";
+  return request(path);
 }
 
 /**

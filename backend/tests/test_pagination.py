@@ -17,7 +17,7 @@ from app.utils.pagination import MAX_PER_PAGE
 def _add_weight_logs(user_id, count):
     base = datetime.utcnow() - timedelta(days=count)
     for i in range(count):
-        db.session.add(WeightLog(user_id=user_id, weight=70 + i, date=base + timedelta(days=i)))
+        db.session.add(WeightLog(user_id=user_id, weight=70 + i, created_at=base + timedelta(days=i)))
     db.session.commit()
 
 

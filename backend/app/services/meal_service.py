@@ -1,6 +1,6 @@
 import logging
 from io import BytesIO
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Iterable, Optional
 
 
@@ -158,7 +158,7 @@ class MealService:
 
     def get_meals_for_date(self, target_date: date, user_id: int) -> Iterable[Meal]:
         """Busca todas as refeições de um usuário para uma data específica."""
-        return Meal.query_by_date(target_date).filter_by(user_id=user_id).all()
+        return Meal.query_by_date(target_date, user_id).all()
 
     def get_summary_for_date(self, target_date: date, user_id: int) -> dict:
         """Calcula o resumo nutricional de um usuário para uma data específica."""
@@ -273,17 +273,26 @@ class MealService:
             logger.exception("Erro ao atualizar refeição ID %s.", meal_id)
             return None
 
-    def get_weekly_summary(self, user_id: int) -> dict:
+    def get_weekly_summary(self, user_id: int, today_str: Optional[str] = None) -> dict:
         """
         Calcula o resumo nutricional dos últimos 7 dias para um usuário.
 
         Args:
             user_id: O ID do usuário.
+            today_str: "Hoje" no fuso do aparelho (YYYY-MM-DD). Mesma raiz do
+                bug de refeição/água contabilizada no dia errado perto da
+                virada da meia-noite: sem isso, a janela de 7 dias era
+                calculada a partir de `datetime.utcnow().date()`, o relógio do
+                servidor — perto da virada do dia em UTC, um usuário no fuso
+                de Brasília (UTC-3) via a janela inteira deslocada em relação
+                ao que o próprio aparelho considerava "hoje". Cai para o
+                relógio do servidor apenas se o aparelho não informar (mesmo
+                fallback de `parse_date_str`, usado nos demais endpoints).
 
         Returns:
             Um dicionário com a média semanal e os dados de cada dia.
         """
-        today = datetime.utcnow().date()
+        today = parse_date_str(today_str)
         seven_days_ago = today - timedelta(days=6)
 
         # Antes, o agrupamento por dia era feito no SQL com func.date(created_at)

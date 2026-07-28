@@ -18,6 +18,22 @@ class User(db.Model):
     # Relação um-para-um com as metas do usuário.
     goals = db.relationship('UserGoals', backref='user', uselist=False, cascade="all, delete-orphan")
 
+    # As relações abaixo existiam só como coluna de FK (sem relationship do lado
+    # do User) — apagar um usuário deixava esses registros órfãos (ou, com
+    # PRAGMA foreign_keys=ON já ligado, a própria exclusão falhava com um
+    # IntegrityError de violação de FK, já que o SQLAlchemy não sabia que
+    # precisava apagá-los junto). cascade="all, delete-orphan" garante que
+    # apagar o User apaga tudo isso também.
+    water_logs = db.relationship('WaterLog', backref='user', lazy=True, cascade="all, delete-orphan")
+    weight_logs = db.relationship('WeightLog', backref='user', lazy=True, cascade="all, delete-orphan")
+    favorite_meals = db.relationship('FavoriteMeal', backref='user', lazy=True, cascade="all, delete-orphan")
+    # workouts já cascateia pra SetLog (workout.py define cascade="all, delete-orphan"
+    # em "sets"), então isso cobre a cadeia inteira: User -> Workout -> SetLog.
+    workouts = db.relationship('Workout', backref='user', lazy=True, cascade="all, delete-orphan")
+    # weekly_plan já cascateia pra WeeklyPlanDay (weekly_plan.py define
+    # cascade="all, delete-orphan" em "days"), cobrindo User -> WeeklyPlan -> WeeklyPlanDay.
+    weekly_plan = db.relationship('WeeklyPlan', backref='user', uselist=False, cascade="all, delete-orphan")
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
