@@ -1,9 +1,9 @@
 import logging
 import random
-import re
 
 from app.extensions import db
 from app.models import FoodCache
+from app.utils.text import normalize_search_text as _normalize
 
 logger = logging.getLogger(__name__)
 
@@ -17,11 +17,6 @@ logger = logging.getLogger(__name__)
 # só a variância aumenta um pouco.
 HIT_COUNT_SAMPLE_RATE = 0.1
 HIT_COUNT_INCREMENT = round(1 / HIT_COUNT_SAMPLE_RATE)
-
-
-def _normalize(text: str) -> str:
-    """strip + lower + colapsa espaços múltiplos — maximiza a chance de bater no cache."""
-    return re.sub(r"\s+", " ", text.strip().lower())
 
 
 _LIKE_ESCAPE_CHAR = "\\"

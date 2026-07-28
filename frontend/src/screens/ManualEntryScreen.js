@@ -126,8 +126,10 @@ export default function ManualEntryScreen({ navigation, route }) {
       const draftMeal = await analyzeMeal(null, meal.description);
       navigation.navigate('MealConfirmation', { draftMeal, targetDate });
     } catch (error) {
+      // Checa o status HTTP de verdade (o backend devolve 429 nesse caso) em
+      // vez de adivinhar pelo texto da mensagem de erro.
       const errorMsg = error.message || '';
-      if (errorMsg.includes('429') || errorMsg.includes('quota') || errorMsg.includes('RESOURCE_EXHAUSTED')) {
+      if (error.status === 429) {
         showAlert('Servidores Ocupados ⚡', 'Nossa IA está processando muitos pratos agora. Tente de novo em instantes ou preencha os valores manualmente abaixo.');
       } else {
         showAlert('Erro na Estimativa', errorMsg || 'Não foi possível estimar os valores. Preencha manualmente abaixo.');

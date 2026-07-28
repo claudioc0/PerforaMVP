@@ -6,6 +6,7 @@ from .favorite_meal import FavoriteMeal
 from .weight_log import WeightLog
 from .token_blocklist import TokenBlocklist
 from .food_cache import FoodCache
+from .text_analysis_cache import TextAnalysisCache
 from .exercise import Exercise
 from .workout_split import WorkoutSplit
 from .split_day import SplitDay
@@ -17,6 +18,6 @@ from .weekly_plan_day import WeeklyPlanDay
 
 __all__ = [
     "User", "Meal", "UserGoals", "WaterLog", "FavoriteMeal", "WeightLog",
-    "TokenBlocklist", "FoodCache", "Exercise", "Workout", "SetLog",
+    "TokenBlocklist", "FoodCache", "TextAnalysisCache", "Exercise", "Workout", "SetLog",
     "WorkoutSplit", "SplitDay", "SplitDayExercise", "WeeklyPlan", "WeeklyPlanDay",
 ]

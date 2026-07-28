@@ -40,7 +40,7 @@ class TestConstrucaoPreguicosaDoGeminiService:
 
         factory.assert_not_called()
 
-    def test_analyze_text_invoca_a_fabrica_na_primeira_chamada(self):
+    def test_analyze_text_invoca_a_fabrica_na_primeira_chamada(self, app):
         fake_gemini = MagicMock()
         fake_gemini.analyze_text.return_value = _fake_gemini_result()
         factory = MagicMock(return_value=fake_gemini)
@@ -48,12 +48,13 @@ class TestConstrucaoPreguicosaDoGeminiService:
         service = MealService(factory)
         factory.assert_not_called()
 
-        service.analyze_text("arroz")
+        with app.app_context():
+            service.analyze_text("arroz")
 
         factory.assert_called_once()
         fake_gemini.analyze_text.assert_called_once_with("arroz")
 
-    def test_fabrica_e_chamada_uma_unica_vez_mesmo_com_varias_analises(self):
+    def test_fabrica_e_chamada_uma_unica_vez_mesmo_com_varias_analises(self, app):
         """O GeminiService construído deve ser reaproveitado dentro da mesma
         instância de MealService — não recriar o cliente a cada análise."""
         fake_gemini = MagicMock()
@@ -61,9 +62,14 @@ class TestConstrucaoPreguicosaDoGeminiService:
         factory = MagicMock(return_value=fake_gemini)
 
         service = MealService(factory)
-        service.analyze_text("arroz")
-        service.analyze_text("feijão")
-        service.analyze_text("frango")
+        with app.app_context():
+            # Descrições diferentes — nenhuma bate no cache de texto (ver
+            # test_text_analysis_cache_service.py), então o Gemini é chamado
+            # nas 3 vezes; o que este teste trava é que a FÁBRICA do
+            # GeminiService (não o cache) só constrói o cliente uma vez.
+            service.analyze_text("arroz")
+            service.analyze_text("feijão")
+            service.analyze_text("frango")
 
         factory.assert_called_once()
         assert fake_gemini.analyze_text.call_count == 3

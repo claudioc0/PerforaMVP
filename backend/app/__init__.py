@@ -13,6 +13,7 @@ from .models.favorite_meal import FavoriteMeal
 from .models.weight_log import WeightLog
 from .models.token_blocklist import TokenBlocklist
 from .models.food_cache import FoodCache
+from .models.text_analysis_cache import TextAnalysisCache
 from .models.exercise import Exercise
 from .models.workout_split import WorkoutSplit
 from .models.split_day import SplitDay

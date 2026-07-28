@@ -7,7 +7,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.extensions import db, limiter, rate_limit_key_by_user
 from app.models import FavoriteMeal
-from app.services.gemini_service import GeminiAnalysisError, GeminiService
+from app.services.gemini_service import (
+    GeminiAnalysisError,
+    GeminiRateLimitError,
+    GeminiService,
+    GeminiTimeoutError,
+)
 from app.services.meal_service import MealService
 from app.services.food_cache_service import search_foods
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
@@ -73,6 +78,16 @@ def analyze_meal():
 
         return jsonify({"error": "Envie um campo 'image' ou 'description'."}), 400
 
+    except GeminiRateLimitError as exc:
+        # 429, não 422/500 — o cliente já sabe tratar esse status (ver
+        # CameraScreen/ManualEntryScreen), sem precisar adivinhar pelo texto
+        # da mensagem de erro.
+        return jsonify({"error": str(exc)}), 429
+    except GeminiTimeoutError as exc:
+        # 504 (Gateway Timeout) — infraestrutura upstream não respondeu a
+        # tempo, diferente de um 422 (a IA respondeu, mas o conteúdo não
+        # servia).
+        return jsonify({"error": str(exc)}), 504
     except GeminiAnalysisError as exc:
         logger.warning("Erro de análise da IA: %s", exc)
         return jsonify({"error": str(exc)}), 422
