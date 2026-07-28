@@ -13,12 +13,11 @@ import pytest
 from app.extensions import db
 from app.models import Exercise
 from app.services.exercise_service import (
-    DEFAULT_SEARCH_LIMIT,
     MAX_EQUIPMENT_LENGTH,
     MAX_NAME_LENGTH,
-    MAX_SEARCH_LIMIT,
     VALID_MUSCLE_GROUPS,
 )
+from app.utils.pagination import DEFAULT_PER_PAGE, MAX_PER_PAGE
 
 
 def _seed_exercises(app, count, prefix):
@@ -100,30 +99,62 @@ class TestValidacaoDeExercicioCustomizado:
             assert Exercise.query.filter_by(normalized_name="nunca deveria existir").first() is None
 
 
-class TestTetoDaBuscaDeExercicios:
-    def test_busca_sem_filtro_respeita_o_teto_padrao(self, app, client, auth_headers):
-        _seed_exercises(app, DEFAULT_SEARCH_LIMIT + 30, "Padrao")
+class TestPaginacaoDaBuscaDeExercicios:
+    def test_busca_sem_parametros_respeita_o_per_page_padrao(self, app, client, auth_headers):
+        _seed_exercises(app, DEFAULT_PER_PAGE + 30, "Padrao")
 
         response = client.get("/api/workouts/exercises", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.get_json()) == DEFAULT_SEARCH_LIMIT
+        body = response.get_json()
+        assert len(body["items"]) == DEFAULT_PER_PAGE
+        assert body["page"] == 1
+        assert body["per_page"] == DEFAULT_PER_PAGE
+        assert body["total"] == DEFAULT_PER_PAGE + 30
+        assert body["has_more"] is True
 
-    def test_limit_customizado_e_respeitado(self, app, client, auth_headers):
+    def test_per_page_customizado_e_respeitado(self, app, client, auth_headers):
         _seed_exercises(app, 30, "Custom")
 
-        response = client.get("/api/workouts/exercises?limit=5", headers=auth_headers)
+        response = client.get("/api/workouts/exercises?per_page=5", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.get_json()) == 5
+        body = response.get_json()
+        assert len(body["items"]) == 5
+        assert body["has_more"] is True
 
-    def test_limit_acima_do_teto_maximo_e_limitado(self, app, client, auth_headers):
-        _seed_exercises(app, MAX_SEARCH_LIMIT + 30, "Teto")
+    def test_per_page_acima_do_teto_maximo_e_limitado(self, app, client, auth_headers):
+        _seed_exercises(app, MAX_PER_PAGE + 30, "Teto")
 
-        response = client.get("/api/workouts/exercises?limit=99999", headers=auth_headers)
+        response = client.get("/api/workouts/exercises?per_page=99999", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.get_json()) == MAX_SEARCH_LIMIT
+        body = response.get_json()
+        assert len(body["items"]) == MAX_PER_PAGE
+        assert body["per_page"] == MAX_PER_PAGE
+
+    def test_segunda_pagina_devolve_itens_diferentes_da_primeira(self, app, client, auth_headers):
+        _seed_exercises(app, 30, "Pagina")
+
+        page1 = client.get("/api/workouts/exercises?per_page=10&page=1", headers=auth_headers).get_json()
+        page2 = client.get("/api/workouts/exercises?per_page=10&page=2", headers=auth_headers).get_json()
+
+        ids_page1 = {e["id"] for e in page1["items"]}
+        ids_page2 = {e["id"] for e in page2["items"]}
+        assert len(page1["items"]) == 10
+        assert len(page2["items"]) == 10
+        assert ids_page1.isdisjoint(ids_page2)
+        assert page1["total"] == 30
+        assert page2["has_more"] is True
+
+    def test_ultima_pagina_indica_has_more_falso(self, app, client, auth_headers):
+        _seed_exercises(app, 15, "Final")
+
+        response = client.get("/api/workouts/exercises?per_page=10&page=2", headers=auth_headers)
+
+        body = response.get_json()
+        assert len(body["items"]) == 5
+        assert body["has_more"] is False
 
 
 class TestRateLimitNoCadastroDeExercicio:

@@ -48,9 +48,13 @@ export default function CameraScreen({ navigation, route }) {
         targetDate 
       });
     } catch (error) {
-      // TRATAMENTO DE ERRO DE COTA/LIMITE DA IA (429)
+      // TRATAMENTO DE ERRO DE COTA/LIMITE DA IA (429) — checa o status HTTP
+      // de verdade (o backend agora devolve 429 nesse caso), em vez de
+      // adivinhar pelo texto da mensagem de erro (frágil: dependia de a
+      // mensagem incluir literalmente "429"/"quota"/"RESOURCE_EXHAUSTED",
+      // e não cobria nenhum outro tipo de erro upstream, como timeout).
       const errorMsg = error.message || "";
-      if (errorMsg.includes("429") || errorMsg.includes("quota") || errorMsg.includes("RESOURCE_EXHAUSTED")) {
+      if (error.status === 429) {
         showAlert(
           "Servidores Ocupados ⚡",
           "Nossa IA está processando muitos pratos agora. Aguarde um minuto ou adicione os dados manualmente.",

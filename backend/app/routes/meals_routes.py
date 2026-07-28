@@ -7,9 +7,15 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.extensions import db, limiter, rate_limit_key_by_user
 from app.models import FavoriteMeal
-from app.services.gemini_service import GeminiAnalysisError, GeminiService
+from app.services.gemini_service import (
+    GeminiAnalysisError,
+    GeminiRateLimitError,
+    GeminiService,
+    GeminiTimeoutError,
+)
 from app.services.meal_service import MealService
 from app.services.food_cache_service import search_foods
+from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
 
 logger = logging.getLogger(__name__)
 
@@ -21,13 +27,23 @@ def _allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def _get_meal_service() -> MealService:
-    gemini_service = GeminiService(
-        api_key=current_app.config["GEMINI_API_KEY"],
-        model_name=current_app.config["GEMINI_MODEL_NAME"],
-        timeout_ms=current_app.config["GEMINI_TIMEOUT_MS"],
-        retry_attempts=current_app.config["GEMINI_RETRY_ATTEMPTS"],
-    )
-    return MealService(gemini_service)
+    # Passa uma fábrica, não uma instância pronta — a maioria das rotas que
+    # usam MealService (salvar, listar, apagar, resumos) nunca chama a IA, e
+    # construir um GeminiService (e o genai.Client interno) tem um custo real
+    # que não faz sentido pagar em toda requisição. Só é construído de
+    # verdade se `analyze_image`/`analyze_text` forem chamados (ver a
+    # property `_gemini_service` em MealService).
+    app = current_app._get_current_object()
+
+    def _build_gemini_service() -> GeminiService:
+        return GeminiService(
+            api_key=app.config["GEMINI_API_KEY"],
+            model_name=app.config["GEMINI_MODEL_NAME"],
+            timeout_ms=app.config["GEMINI_TIMEOUT_MS"],
+            retry_attempts=app.config["GEMINI_RETRY_ATTEMPTS"],
+        )
+
+    return MealService(_build_gemini_service)
 
 
 # --- ROTA 1: APENAS ANALISA E DEVOLVE O RASCUNHO ---
@@ -62,6 +78,16 @@ def analyze_meal():
 
         return jsonify({"error": "Envie um campo 'image' ou 'description'."}), 400
 
+    except GeminiRateLimitError as exc:
+        # 429, não 422/500 — o cliente já sabe tratar esse status (ver
+        # CameraScreen/ManualEntryScreen), sem precisar adivinhar pelo texto
+        # da mensagem de erro.
+        return jsonify({"error": str(exc)}), 429
+    except GeminiTimeoutError as exc:
+        # 504 (Gateway Timeout) — infraestrutura upstream não respondeu a
+        # tempo, diferente de um 422 (a IA respondeu, mas o conteúdo não
+        # servia).
+        return jsonify({"error": str(exc)}), 504
     except GeminiAnalysisError as exc:
         logger.warning("Erro de análise da IA: %s", exc)
         return jsonify({"error": str(exc)}), 422
@@ -128,8 +154,13 @@ def search_foods_endpoint():
 @jwt_required()
 def get_favorites():
     current_user_id = int(get_jwt_identity())
-    favorites = FavoriteMeal.query.filter_by(user_id=current_user_id).all()
-    return jsonify([fav.to_dict() for fav in favorites]), 200
+    page, per_page = get_pagination_params()
+    query = FavoriteMeal.query.filter_by(user_id=current_user_id).order_by(FavoriteMeal.id.desc())
+    favorites, total = paginate_query(query, page, per_page)
+    return jsonify({
+        "items": [fav.to_dict() for fav in favorites],
+        **pagination_meta(page, per_page, total),
+    }), 200
 
 @meals_bp.route("/favorites", methods=["POST"])
 @jwt_required()

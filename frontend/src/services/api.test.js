@@ -37,6 +37,10 @@ const {
   logWeight,
   loginUser,
   logoutUser,
+  getFavorites,
+  getWeightHistory,
+  listWorkouts,
+  listExercises,
 } = require('./api');
 
 function mockFetchOnce({ status = 200, body = {}, isJson = true }) {
@@ -186,5 +190,71 @@ describe('request() (via as funções exportadas de api.js)', () => {
 
     const [, options] = fetchMock.mock.calls[0];
     expect(options.headers.Authorization).toBeUndefined();
+  });
+});
+
+describe('funções de listagem paginadas (backend agora devolve {items, page, ...})', () => {
+  // O backend passou a paginar essas 4 listagens (antes devolviam a tabela
+  // inteira do usuário sempre) — as funções abaixo pedem o teto máximo por
+  // página e desembrulham `items`, pra manter o comportamento de "mostra
+  // tudo" que as telas já têm, sem precisar mexer em cada tela agora.
+  beforeEach(() => {
+    AsyncStorage.getItem.mockResolvedValue(null);
+  });
+
+  test('getFavorites pede per_page=100 e desembrulha items', async () => {
+    const fetchMock = mockFetchOnce({
+      body: { items: [{ id: 1 }, { id: 2 }], page: 1, per_page: 100, total: 2, has_more: false },
+    });
+
+    const result = await getFavorites();
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://test.local/api/meals/favorites?per_page=100');
+    expect(result).toEqual([{ id: 1 }, { id: 2 }]);
+  });
+
+  test('getWeightHistory pede per_page=100 e desembrulha items', async () => {
+    const fetchMock = mockFetchOnce({
+      body: { items: [{ id: 1, weight: 80 }], page: 1, per_page: 100, total: 1, has_more: false },
+    });
+
+    const result = await getWeightHistory();
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://test.local/api/user/weight?per_page=100');
+    expect(result).toEqual([{ id: 1, weight: 80 }]);
+  });
+
+  test('listWorkouts pede per_page=100 e desembrulha items', async () => {
+    const fetchMock = mockFetchOnce({
+      body: { items: [{ id: 1 }], page: 1, per_page: 100, total: 1, has_more: false },
+    });
+
+    const result = await listWorkouts();
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://test.local/api/workouts?per_page=100');
+    expect(result).toEqual([{ id: 1 }]);
+  });
+
+  test('listExercises inclui per_page=100 junto com search/muscle_group e desembrulha items', async () => {
+    const fetchMock = mockFetchOnce({
+      body: { items: [{ id: 1, name: 'Supino' }], page: 1, per_page: 100, total: 1, has_more: false },
+    });
+
+    const result = await listExercises('supino', 'peito');
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe('http://test.local/api/workouts/exercises?per_page=100&search=supino&muscle_group=peito');
+    expect(result).toEqual([{ id: 1, name: 'Supino' }]);
+  });
+
+  test('sem `items` na resposta (ex: backend antigo durante deploy), devolve o corpo como veio', async () => {
+    mockFetchOnce({ body: [{ id: 1 }] });
+
+    const result = await getFavorites();
+
+    expect(result).toEqual([{ id: 1 }]);
   });
 });

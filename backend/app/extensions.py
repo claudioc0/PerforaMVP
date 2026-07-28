@@ -1,3 +1,5 @@
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
@@ -8,6 +10,39 @@ from flask_limiter.util import get_remote_address
 # e permitir múltiplos "app factories" (ex: testes).
 db = SQLAlchemy()
 cors = CORS()
+
+
+def configure_sqlite_connection(engine: Engine) -> None:
+    """Ajusta cada conexão SQLite nova pra ficar mais perto do comportamento
+    de um banco cliente/servidor de verdade (Postgres).
+
+    - journal_mode=WAL: por padrão o SQLite usa "rollback journal", onde uma
+      escrita bloqueia TODAS as leituras até terminar (e vice-versa) — o pior
+      caso pra concorrência. WAL deixa leituras acontecerem em paralelo com
+      uma escrita em andamento (só escrita-com-escrita ainda serializa, que é
+      uma limitação do arquivo único do SQLite, não algo configurável). Não
+      substitui Postgres em produção, só reduz o quanto o "escritor único"
+      trava outras requisições numa instância SQLite.
+    - case_sensitive_like=ON: sem isso, o SQLite não usa nenhum índice em
+      buscas por prefixo (`LIKE 'termo%'`) — só faz a otimização quando o
+      LIKE é case-sensitive. Toda coluna buscada assim neste app
+      (search_query, normalized_name) já é normalizada pra minúsculas antes
+      de gravar E antes de buscar, então virar case-sensitive não muda
+      nenhum resultado — só deixa de exigir uma varredura completa da
+      tabela pra cada busca por prefixo. O Postgres já é case-sensitive por
+      padrão no LIKE, então esse ajuste só existe aqui pro SQLite alcançar o
+      mesmo comportamento.
+    """
+    if engine.dialect.name != "sqlite":
+        return
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.execute("PRAGMA case_sensitive_like=ON")
+        cursor.close()
 
 # key_func=get_remote_address: cada IP tem seu próprio contador de requisições.
 # Os limites de cada rota são definidos onde a rota é declarada (ver auth_routes.py).

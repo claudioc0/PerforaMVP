@@ -4,8 +4,11 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional
 
+import httpx
+
 # IMPORTAÇÃO DO SDK ATUALIZADO
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 from PIL import Image
 
@@ -13,6 +16,27 @@ logger = logging.getLogger(__name__)
 
 class GeminiAnalysisError(Exception):
     """Erro de negócio: a IA não conseguiu analisar a refeição de forma confiável."""
+
+
+class GeminiRateLimitError(GeminiAnalysisError):
+    """A API do Gemini recusou a chamada por cota/rate limit (HTTP 429).
+
+    Não é uma falha de verdade (o serviço está funcionando, só recusando
+    tratar mais chamadas agora) — tentar de novo na hora não ajuda, por isso
+    o SDK nunca tenta de novo sozinho pra esse código (ver http_status_codes
+    em __init__). Precisa de um tipo próprio pra a rota devolver 429 (não
+    422/500) e o app mostrar "espere um pouco" em vez de um erro genérico.
+    """
+
+
+class GeminiTimeoutError(GeminiAnalysisError):
+    """A chamada à IA não respondeu dentro do timeout configurado.
+
+    Diferente de um erro de negócio (resposta ruim/mal formatada), isso é um
+    problema de infraestrutura upstream — precisa de um tipo próprio pra a
+    rota devolver 504 (não 422) e diferenciar nos logs "o Gemini não
+    respondeu a tempo" de "a resposta veio mas não deu pra entender".
+    """
 
 @dataclass
 class MealItemResult:
@@ -148,37 +172,60 @@ class GeminiService:
         # INICIALIZAÇÃO DO CLIENTE (google-genai)
         self._client = genai.Client(api_key=api_key, http_options=http_options)
 
-    def analyze_image(self, image: Image.Image) -> MealAnalysisResult:
+    def _generate_content(self, contents, config=None, log_context: str = ""):
+        """Chama o Gemini e classifica a falha (se houver) num tipo específico.
+
+        Antes, TUDO caía num `except Exception` genérico: um timeout (o SDK
+        nunca tenta de novo — só reduz o tempo de travamento, não elimina o
+        erro) e um 429 de cota (também nunca tentado de novo, de propósito —
+        ver GeminiRateLimitError) viravam o mesmo GeminiAnalysisError
+        genérico que um JSON mal formatado. Sem diferenciar, a rota não tinha
+        como devolver o status HTTP certo (429 vs 504 vs 422), e o frontend
+        só conseguia detectar rate limit adivinhando "429"/"quota" dentro do
+        texto da mensagem de erro — frágil, e não cobria timeout nenhum.
+        """
         try:
-            response = self._client.models.generate_content(
-                model=self._model_name,
-                contents=[image, "Analise esta refeição e retorne o JSON conforme instruído."],
-                config=types.GenerateContentConfig(
-                    system_instruction=_SYSTEM_PROMPT,
-                    response_mime_type="application/json"
-                )
+            return self._client.models.generate_content(
+                model=self._model_name, contents=contents, config=config,
             )
+        except httpx.TimeoutException as exc:
+            logger.error("Timeout ao chamar a API do Gemini%s: %s", log_context, exc)
+            raise GeminiTimeoutError(
+                "A IA demorou demais para responder. Tente novamente."
+            ) from exc
+        except genai_errors.APIError as exc:
+            if exc.code == 429:
+                logger.warning("Rate limit do Gemini atingido%s: %s", log_context, exc)
+                raise GeminiRateLimitError(
+                    "Limite de uso da IA atingido no momento. Tente novamente em instantes."
+                ) from exc
+            logger.error("Erro da API do Gemini (código %s)%s: %s", exc.code, log_context, exc)
+            raise GeminiAnalysisError(f"Erro ao comunicar com a IA: {exc}") from exc
         except Exception as exc:
-            logger.exception("Falha ao chamar a API do Gemini")
+            logger.exception("Falha inesperada ao chamar a API do Gemini%s", log_context)
             raise GeminiAnalysisError(f"Erro ao comunicar com a IA: {exc}") from exc
 
+    def analyze_image(self, image: Image.Image) -> MealAnalysisResult:
+        response = self._generate_content(
+            contents=[image, "Analise esta refeição e retorne o JSON conforme instruído."],
+            config=types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+                response_mime_type="application/json"
+            ),
+            log_context=" (imagem)",
+        )
         return self._parse_response(response.text)
 
     def analyze_text(self, description: str) -> MealAnalysisResult:
-        try:
-            prompt = f"Refeição descrita pelo usuário: {description}"
-            response = self._client.models.generate_content(
-                model=self._model_name,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=_SYSTEM_PROMPT,
-                    response_mime_type="application/json"
-                )
-            )
-        except Exception as exc:
-            logger.exception("Falha ao chamar a API do Gemini (texto)")
-            raise GeminiAnalysisError(f"Erro ao comunicar com a IA: {exc}") from exc
-
+        prompt = f"Refeição descrita pelo usuário: {description}"
+        response = self._generate_content(
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=_SYSTEM_PROMPT,
+                response_mime_type="application/json"
+            ),
+            log_context=" (texto)",
+        )
         return self._parse_response(response.text)
 
     def generate_daily_insight(self, goals: dict, consumed: dict) -> str:
@@ -207,14 +254,22 @@ class GeminiService:
         NÃO use formatação markdown, hashtags ou saudações. Apenas a frase de impacto.
         """
 
+        # O card de insight sempre devolve uma frase (mesmo se a IA falhar —
+        # não vale quebrar o Dashboard por um recurso secundário). O que
+        # antes faltava era DIFERENCIAR a falha no log: tudo (chave inválida,
+        # cota estourada, outage total) virava a mesma linha genérica de
+        # exceção, indistinguível de um sistema funcionando — nenhum sinal
+        # chegava até quem opera o serviço. Agora rate limit (esperado sob
+        # uso pesado, não é uma falha de verdade) vira WARNING; qualquer
+        # outra causa (chave inválida, outage, timeout) vira ERROR — grepável
+        # nos logs, e a base pra ligar um alerta de verdade no futuro.
         try:
-            response = self._client.models.generate_content(
-                model=self._model_name,
-                contents=prompt,
-            )
+            response = self._generate_content(contents=prompt, log_context=" (insight diário)")
             return response.text.strip()
-        except Exception:
-            logger.exception("Falha ao gerar insight diário com a IA.")
+        except GeminiRateLimitError:
+            return "Continue focado nas suas metas. Cada refeição conta para sua alta performance!"
+        except GeminiAnalysisError:
+            logger.error("Insight diário não gerado — ver a causa raiz no log acima.")
             return "Continue focado nas suas metas. Cada refeição conta para sua alta performance!"
 
     @staticmethod

@@ -256,8 +256,19 @@ export async function searchFoods(query) {
 /**
  * Funções do Sistema de Favoritos
  */
+/**
+ * Busca os favoritos do usuário (mais recente primeiro).
+ *
+ * O backend agora pagina essa lista (nunca devolve a tabela inteira de uma
+ * vez) — pedimos o teto máximo por página pra manter o comportamento atual
+ * (tela mostra tudo) enquanto a lista de favoritos de ninguém passar de 100.
+ * Se algum dia isso mudar, use `data.has_more`/`data.total` (vem na resposta
+ * crua) pra decidir se vale adicionar "carregar mais" aqui.
+ * @returns {Promise<Array>}
+ */
 export async function getFavorites() {
-  return request("/meals/favorites");
+  const data = await request("/meals/favorites?per_page=100");
+  return data.items ?? data;
 }
 
 export async function addFavorite(mealData) {
@@ -292,8 +303,15 @@ export async function getDailyInsight(goals, consumed) {
 /**
  * Funções de Evolução Corporal
  */
+/**
+ * Busca o histórico de pesagens (mais antiga → mais nova, pro gráfico).
+ *
+ * Paginado no backend — ver comentário de `getFavorites` sobre o per_page=100.
+ * @returns {Promise<Array>}
+ */
 export async function getWeightHistory() {
-  return request("/user/weight");
+  const data = await request("/user/weight?per_page=100");
+  return data.items ?? data;
 }
 
 export async function logWeight(weightData) {
@@ -306,10 +324,13 @@ export async function logWeight(weightData) {
 
 /**
  * Busca o histórico de treinos do usuário logado.
+ *
+ * Paginado no backend — ver comentário de `getFavorites` sobre o per_page=100.
  * @returns {Promise<Array>} Lista de treinos, do mais recente pro mais antigo.
  */
 export async function listWorkouts() {
-  return request("/workouts");
+  const data = await request("/workouts?per_page=100");
+  return data.items ?? data;
 }
 
 /**
@@ -375,15 +396,17 @@ export async function deleteSetLog(workoutId, setId) {
 
 /**
  * Busca exercícios no catálogo global, opcionalmente filtrando por texto/grupo muscular.
+ *
+ * Paginado no backend — ver comentário de `getFavorites` sobre o per_page=100.
  * @param {string} [search]
  * @param {string} [muscleGroup]
  */
 export async function listExercises(search, muscleGroup) {
-  const params = new URLSearchParams();
+  const params = new URLSearchParams({ per_page: "100" });
   if (search) params.append("search", search);
   if (muscleGroup) params.append("muscle_group", muscleGroup);
-  const query = params.toString() ? `?${params.toString()}` : "";
-  return request(`/workouts/exercises${query}`);
+  const data = await request(`/workouts/exercises?${params.toString()}`);
+  return data.items ?? data;
 }
 
 /**

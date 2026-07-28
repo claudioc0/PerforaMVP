@@ -6,6 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.extensions import db
 from app.models import Workout, SetLog, Exercise
+from app.utils.pagination import paginate_query
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,10 @@ class WorkoutService:
         db.session.commit()
         return workout
 
-    def get_workouts_for_user(self, user_id: int) -> list:
-        return Workout.query.filter_by(user_id=user_id).order_by(Workout.started_at.desc()).all()
+    def get_workouts_for_user(self, user_id: int, page: int, per_page: int) -> tuple:
+        """Devolve (treinos, total) da página pedida, mais recente primeiro."""
+        query = Workout.query.filter_by(user_id=user_id).order_by(Workout.started_at.desc())
+        return paginate_query(query, page, per_page)
 
     def get_workout_detail(self, workout_id: int, user_id: int) -> Optional[dict]:
         """Retorna o treino com suas séries, já com nome/grupo do exercício resolvidos."""

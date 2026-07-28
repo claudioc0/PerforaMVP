@@ -5,6 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from app.extensions import limiter, rate_limit_key_by_user
 from app.services import WorkoutService, ExerciseService, SplitService, WeeklyPlanService
+from app.utils.pagination import get_pagination_params, pagination_meta
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,12 @@ weekly_plan_service = WeeklyPlanService()
 @jwt_required()
 def list_workouts():
     current_user_id = int(get_jwt_identity())
-    workouts = workout_service.get_workouts_for_user(current_user_id)
-    return jsonify([w.to_dict() for w in workouts]), 200
+    page, per_page = get_pagination_params()
+    workouts, total = workout_service.get_workouts_for_user(current_user_id, page, per_page)
+    return jsonify({
+        "items": [w.to_dict() for w in workouts],
+        **pagination_meta(page, per_page, total),
+    }), 200
 
 
 @workouts_bp.route("", methods=["POST"])
@@ -116,9 +121,12 @@ def delete_set(workout_id: int, set_id: int):
 def list_exercises():
     query = request.args.get("search")
     muscle_group = request.args.get("muscle_group")
-    limit = request.args.get("limit", type=int)
-    exercises = exercise_service.search_exercises(query, muscle_group, limit)
-    return jsonify([e.to_dict() for e in exercises]), 200
+    page, per_page = get_pagination_params()
+    exercises, total = exercise_service.search_exercises(page, per_page, query, muscle_group)
+    return jsonify({
+        "items": [e.to_dict() for e in exercises],
+        **pagination_meta(page, per_page, total),
+    }), 200
 
 
 @workouts_bp.route("/exercises", methods=["POST"])

@@ -12,6 +12,7 @@ from app.extensions import db
 from app.models import Meal, WaterLog
 from app.services.gemini_service import GeminiService, MealAnalysisResult
 from app.services.food_cache_service import get_cached_or_fetch_macros
+from app.services.text_analysis_cache_service import get_cached_analysis, save_analysis
 from app.utils.dates import day_bounds, parse_date_str, timestamp_within_date
 
 logger = logging.getLogger(__name__)
@@ -23,8 +24,23 @@ class MealService:
     diretamente — apenas chamam este serviço.
     """
 
-    def __init__(self, gemini_service: GeminiService):
-        self._gemini_service = gemini_service
+    def __init__(self, gemini_service_factory):
+        """Recebe uma FÁBRICA de GeminiService (sem argumentos), não uma
+        instância pronta — a maioria das rotas que usam MealService (salvar,
+        listar, apagar refeição, resumos) nunca chama a IA, mas antes toda
+        chamada a `_get_meal_service()` construía um GeminiService (e,
+        internamente, um genai.Client) de qualquer jeito. Adiando a
+        construção pra só acontecer se `analyze_image`/`analyze_text` forem
+        chamados de verdade evita esse custo nas rotas que não precisam dele.
+        """
+        self._gemini_service_factory = gemini_service_factory
+        self._gemini_service_instance = None
+
+    @property
+    def _gemini_service(self) -> GeminiService:
+        if self._gemini_service_instance is None:
+            self._gemini_service_instance = self._gemini_service_factory()
+        return self._gemini_service_instance
 
     @staticmethod
     def _items_to_dicts(result: MealAnalysisResult) -> list:
@@ -63,10 +79,28 @@ class MealService:
 
     # 2. APENAS ANALISA O TEXTO (Não salva mais no banco)
     def analyze_text(self, description: str) -> dict:
+        # Antes, o único cache existente (FoodCache) só entrava em ação
+        # DEPOIS de o Gemini já ter respondido — só estabilizava os macros,
+        # nunca evitava a chamada em si (a alavanca de custo real). Aqui,
+        # descrições de texto repetidas (a mesma pessoa, ou pessoas
+        # diferentes, descrevendo a mesma refeição) pulam o Gemini
+        # inteiramente. Não existe equivalente pro modo foto — cada imagem
+        # tem bytes diferentes mesmo pra pratos parecidos, então cache por
+        # conteúdo raramente bateria ali.
+        cached = get_cached_analysis(description)
+        if cached:
+            return {
+                "items": cached["items"],
+                "confidence": cached["confidence"],
+                "source_type": "text",
+            }
+
         result = self._gemini_service.analyze_text(description)
+        items = self._items_to_dicts(result)
+        save_analysis(description, items, result.confidence)
 
         return {
-            "items": self._items_to_dicts(result),
+            "items": items,
             "confidence": result.confidence,
             "source_type": "text"
         }

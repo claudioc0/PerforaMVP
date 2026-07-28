@@ -67,7 +67,7 @@ class TestResumoSemanalCorretude:
             three_days_ago = today - timedelta(days=3)
             _add_meal(user.id, datetime.combine(three_days_ago, datetime.min.time()).replace(hour=12), 400, 25)
 
-            service = MealService(GeminiService(api_key="fake"))
+            service = MealService(lambda: GeminiService(api_key="fake"))
             summary = service.get_weekly_summary(user.id)
 
             days_by_date = {d["date"]: d for d in summary["days"]}
@@ -79,7 +79,7 @@ class TestResumoSemanalCorretude:
     def test_dias_sem_refeicao_vem_zerados(self, app):
         with app.app_context():
             user = _make_user("weekly2@example.com")
-            service = MealService(GeminiService(api_key="fake"))
+            service = MealService(lambda: GeminiService(api_key="fake"))
             summary = service.get_weekly_summary(user.id)
 
             assert len(summary["days"]) == 7
@@ -94,7 +94,7 @@ class TestResumoSemanalCorretude:
             today = datetime.utcnow().date()
             _add_meal(user_b.id, datetime.combine(today, datetime.min.time()), 999, 99)
 
-            service = MealService(GeminiService(api_key="fake"))
+            service = MealService(lambda: GeminiService(api_key="fake"))
             summary = service.get_weekly_summary(user_a.id)
             for day in summary["days"]:
                 assert day["calories"] == 0
