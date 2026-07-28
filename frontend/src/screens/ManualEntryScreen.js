@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, FlatList } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -240,112 +240,118 @@ export default function ManualEntryScreen({ navigation, route }) {
   );
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.headerRow}>
-        <BackButton />
-        <Text style={styles.headerTitle}>Registro Manual</Text>
-      </View>
+    // Um único FlatList raiz (não um ScrollView com outro FlatList
+    // scrollEnabled=false dentro) — aninhar assim anula a virtualização de
+    // favoritos: TODA linha monta de uma vez, independente do que está
+    // visível na tela. Com um histórico grande de favoritos, a tela travava
+    // por um instante ao abrir. O formulário inteiro vira o
+    // ListHeaderComponent.
+    <FlatList
+      style={styles.container}
+      data={favorites}
+      renderItem={renderFavoriteItem}
+      keyExtractor={(item) => item.id.toString()}
+      ListHeaderComponent={
+        <>
+          <View style={styles.headerRow}>
+            <BackButton />
+            <Text style={styles.headerTitle}>Registro Manual</Text>
+          </View>
 
-      <View style={styles.section}>
-        <View style={styles.card}>
-          <EditableField
-            label="Descrição do Alimento"
-            value={meal.description}
-            onChangeText={(text) => handleFieldChange('description', text)}
-            keyboardType="default"
-            placeholder="Ex: Arroz, feijão e bife"
-          />
+          <View style={styles.section}>
+            <View style={styles.card}>
+              <EditableField
+                label="Descrição do Alimento"
+                value={meal.description}
+                onChangeText={(text) => handleFieldChange('description', text)}
+                keyboardType="default"
+                placeholder="Ex: Arroz, feijão e bife"
+              />
 
-          {meal.description.trim().length >= 2 && (searching || searchResults.length > 0) && (
-            <View style={styles.searchResultsContainer}>
-              {searching ? (
-                <ActivityIndicator color="#00FF66" style={{ marginVertical: 12 }} />
-              ) : (
-                searchResults.map((item) => (
-                  <TouchableOpacity key={item.id} style={styles.searchResultRow} onPress={() => handleSelectCatalogItem(item)}>
-                    <Text style={styles.searchResultName}>{item.name}</Text>
-                    <Text style={styles.searchResultMacros}>{item.calories.toFixed(0)} kcal /100g</Text>
-                  </TouchableOpacity>
-                ))
+              {meal.description.trim().length >= 2 && (searching || searchResults.length > 0) && (
+                <View style={styles.searchResultsContainer}>
+                  {searching ? (
+                    <ActivityIndicator color="#00FF66" style={{ marginVertical: 12 }} />
+                  ) : (
+                    searchResults.map((item) => (
+                      <TouchableOpacity key={item.id} style={styles.searchResultRow} onPress={() => handleSelectCatalogItem(item)}>
+                        <Text style={styles.searchResultName}>{item.name}</Text>
+                        <Text style={styles.searchResultMacros}>{item.calories.toFixed(0)} kcal /100g</Text>
+                      </TouchableOpacity>
+                    ))
+                  )}
+                </View>
               )}
+
+              <TouchableOpacity style={styles.estimateButton} onPress={handleEstimate} disabled={estimating}>
+                {estimating ? (
+                  <ActivityIndicator color="#00FF66" />
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={18} color="#00FF66" style={{ marginRight: 8 }} />
+                    <Text style={styles.estimateText}>Estimar valores com IA</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.estimateHint}>Ou preencha os valores manualmente abaixo</Text>
+
+              <EditableField
+                label="Calorias"
+                value={meal.calories}
+                onChangeText={(text) => handleFieldChange('calories', text)}
+                unit="kcal"
+                keyboardType="numeric"
+                placeholder="550"
+              />
+              <EditableField
+                label="Proteínas"
+                value={meal.protein_g}
+                onChangeText={(text) => handleFieldChange('protein_g', text)}
+                unit="g"
+                keyboardType="numeric"
+                placeholder="45"
+              />
+              <EditableField
+                label="Carboidratos"
+                value={meal.carbs_g}
+                onChangeText={(text) => handleFieldChange('carbs_g', text)}
+                unit="g"
+                keyboardType="numeric"
+                placeholder="50"
+              />
+              <EditableField
+                label="Gorduras"
+                value={meal.fat_g}
+                onChangeText={(text) => handleFieldChange('fat_g', text)}
+                unit="g"
+                keyboardType="numeric"
+                placeholder="18"
+              />
             </View>
-          )}
 
-          <TouchableOpacity style={styles.estimateButton} onPress={handleEstimate} disabled={estimating}>
-            {estimating ? (
-              <ActivityIndicator color="#00FF66" />
-            ) : (
-              <>
-                <Ionicons name="sparkles" size={18} color="#00FF66" style={{ marginRight: 8 }} />
-                <Text style={styles.estimateText}>Estimar valores com IA</Text>
-              </>
-            )}
-          </TouchableOpacity>
-          <Text style={styles.estimateHint}>Ou preencha os valores manualmente abaixo</Text>
+            <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
+              <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
+              <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
+            </TouchableOpacity>
 
-          <EditableField
-            label="Calorias"
-            value={meal.calories}
-            onChangeText={(text) => handleFieldChange('calories', text)}
-            unit="kcal"
-            keyboardType="numeric"
-            placeholder="550"
-          />
-          <EditableField
-            label="Proteínas"
-            value={meal.protein_g}
-            onChangeText={(text) => handleFieldChange('protein_g', text)}
-            unit="g"
-            keyboardType="numeric"
-            placeholder="45"
-          />
-          <EditableField
-            label="Carboidratos"
-            value={meal.carbs_g}
-            onChangeText={(text) => handleFieldChange('carbs_g', text)}
-            unit="g"
-            keyboardType="numeric"
-            placeholder="50"
-          />
-          <EditableField
-            label="Gorduras"
-            value={meal.fat_g}
-            onChangeText={(text) => handleFieldChange('fat_g', text)}
-            unit="g"
-            keyboardType="numeric"
-            placeholder="18"
-          />
-        </View>
+            <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
+              {loading ? <ActivityIndicator color="#121212" /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
+            </TouchableOpacity>
+          </View>
 
-        <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
-          <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
-          <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
+          <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
+          {loadingFavorites && <ActivityIndicator color="#00FF66" style={{ marginTop: 20 }} />}
+        </>
+      }
+      ListEmptyComponent={
+        loadingFavorites ? null : <Text style={styles.emptyText}>Você ainda não tem pratos favoritos.</Text>
+      }
+      ListFooterComponent={
+        <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
+          <Text style={styles.cancelText}>Cancelar</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
-          {loading ? <ActivityIndicator color="#121212" /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
-        {loadingFavorites ? (
-          <ActivityIndicator color="#00FF66" style={{ marginTop: 20 }} />
-        ) : (
-          <FlatList
-            data={favorites}
-            renderItem={renderFavoriteItem}
-            keyExtractor={(item) => item.id.toString()}
-            ListEmptyComponent={<Text style={styles.emptyText}>Você ainda não tem pratos favoritos.</Text>}
-            scrollEnabled={false} // A ScrollView principal já cuida do scroll
-          />
-        )}
-      </View>
-
-      <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancelar</Text>
-      </TouchableOpacity>
-    </ScrollView>
+      }
+    />
   );
 }
 
