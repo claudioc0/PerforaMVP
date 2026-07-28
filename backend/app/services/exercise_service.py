@@ -3,6 +3,7 @@ from typing import Optional
 
 from app.extensions import db
 from app.models import Exercise
+from app.utils.pagination import paginate_query
 
 # Mesmo conjunto usado pelo catálogo pré-cadastrado (ver migration
 # de34e46399fb) + "outro" como fallback. Qualquer usuário pode criar um
@@ -17,12 +18,6 @@ VALID_MUSCLE_GROUPS = {"peito", "costas", "perna", "ombro", "braço", "core", "o
 # pior, em bancos que truncam silenciosamente, um nome cortado no meio).
 MAX_NAME_LENGTH = 120
 MAX_EQUIPMENT_LENGTH = 50
-
-# Teto de resultados por busca — sem isso, a lista devolvida cresce pra
-# sempre conforme o catálogo é poluído (a busca sem filtro nenhum, usada pra
-# abrir o picker, viraria uma resposta cada vez maior).
-DEFAULT_SEARCH_LIMIT = 50
-MAX_SEARCH_LIMIT = 100
 
 
 class ExerciseService:
@@ -66,18 +61,15 @@ class ExerciseService:
 
     def search_exercises(
         self,
+        page: int,
+        per_page: int,
         query: Optional[str] = None,
         muscle_group: Optional[str] = None,
-        limit: Optional[int] = None,
-    ) -> list:
-        """Busca no catálogo, opcionalmente filtrando por texto e/ou grupo muscular.
-
-        `limit` é sempre aplicado (com um teto máximo) — sem isso, a lista
+    ) -> tuple:
+        """Busca paginada no catálogo, opcionalmente filtrando por texto e/ou
+        grupo muscular. Devolve (itens, total) — sem paginação, a lista
         devolvida cresce sem fim conforme o catálogo global acumula entradas.
         """
-        safe_limit = min(limit, MAX_SEARCH_LIMIT) if limit else DEFAULT_SEARCH_LIMIT
-        safe_limit = max(safe_limit, 1)
-
         q = Exercise.query
 
         if muscle_group:
@@ -87,7 +79,8 @@ class ExerciseService:
             normalized_query = self._normalize(query)
             q = q.filter(Exercise.normalized_name.contains(normalized_query))
 
-        return q.order_by(Exercise.name).limit(safe_limit).all()
+        q = q.order_by(Exercise.name)
+        return paginate_query(q, page, per_page)
 
     def create_custom_exercise(self, data: dict) -> Exercise:
         """Cria um exercício customizado. Se já existir um com o mesmo nome

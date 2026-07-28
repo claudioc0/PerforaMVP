@@ -4,7 +4,9 @@ class FavoriteMeal(db.Model):
     __tablename__ = 'favorite_meals'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    # get_favorites (agora paginado) filtra por user_id em toda chamada — sem
+    # índice, tanto o COUNT quanto o LIMIT/OFFSET varrem a tabela inteira.
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     description = db.Column(db.String(255), nullable=False)
     calories = db.Column(db.Float, nullable=False)
     protein_g = db.Column(db.Float, nullable=False)

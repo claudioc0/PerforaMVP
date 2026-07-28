@@ -1,3 +1,5 @@
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
@@ -8,6 +10,28 @@ from flask_limiter.util import get_remote_address
 # e permitir múltiplos "app factories" (ex: testes).
 db = SQLAlchemy()
 cors = CORS()
+
+
+def enable_sqlite_wal_mode(engine: Engine) -> None:
+    """Liga o modo WAL (Write-Ahead Log) em toda conexão SQLite nova.
+
+    Por padrão o SQLite usa "rollback journal": uma escrita bloqueia TODAS as
+    leituras até terminar (e vice-versa) — o pior caso pra concorrência. WAL
+    deixa leituras acontecerem em paralelo com uma escrita em andamento
+    (só escrita-com-escrita ainda serializa, que é uma limitação do arquivo
+    único do SQLite, não algo que dá pra configurar). Não é um substituto de
+    Postgres em produção, só reduz o quanto o "escritor único" trava outras
+    requisições numa instância SQLite.
+    """
+    if engine.dialect.name != "sqlite":
+        return
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 # key_func=get_remote_address: cada IP tem seu próprio contador de requisições.
 # Os limites de cada rota são definidos onde a rota é declarada (ver auth_routes.py).

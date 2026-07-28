@@ -10,6 +10,7 @@ from app.models import FavoriteMeal
 from app.services.gemini_service import GeminiAnalysisError, GeminiService
 from app.services.meal_service import MealService
 from app.services.food_cache_service import search_foods
+from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
 
 logger = logging.getLogger(__name__)
 
@@ -128,8 +129,13 @@ def search_foods_endpoint():
 @jwt_required()
 def get_favorites():
     current_user_id = int(get_jwt_identity())
-    favorites = FavoriteMeal.query.filter_by(user_id=current_user_id).all()
-    return jsonify([fav.to_dict() for fav in favorites]), 200
+    page, per_page = get_pagination_params()
+    query = FavoriteMeal.query.filter_by(user_id=current_user_id).order_by(FavoriteMeal.id.desc())
+    favorites, total = paginate_query(query, page, per_page)
+    return jsonify({
+        "items": [fav.to_dict() for fav in favorites],
+        **pagination_meta(page, per_page, total),
+    }), 200
 
 @meals_bp.route("/favorites", methods=["POST"])
 @jwt_required()

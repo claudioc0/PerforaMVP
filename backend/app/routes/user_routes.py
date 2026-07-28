@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from app.services import UserService
 from app.models import User, WaterLog, WeightLog
+from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
 
 # 1. CRIAÇÃO DO BLUEPRINT
 # O prefixo completo da API é definido aqui para manter o módulo autônomo.
@@ -67,9 +68,19 @@ def add_water():
 @jwt_required()
 def get_weight_history():
     current_user_id = int(get_jwt_identity())
-    # Busca o histórico ordenado da pesagem mais antiga para a mais nova
-    history = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.asc()).all()
-    return jsonify([log.to_dict() for log in history]), 200
+    page, per_page = get_pagination_params()
+
+    # Busca as pesagens mais recentes primeiro (pra paginar a partir do
+    # presente, como qualquer histórico), depois inverte pra manter o
+    # contrato de sempre: mais antiga → mais nova (o gráfico espera essa ordem).
+    query = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.desc(), WeightLog.id.desc())
+    items, total = paginate_query(query, page, per_page)
+    items.reverse()
+
+    return jsonify({
+        "items": [log.to_dict() for log in items],
+        **pagination_meta(page, per_page, total),
+    }), 200
 
 @user_bp.route("/weight", methods=["POST"])
 @jwt_required()

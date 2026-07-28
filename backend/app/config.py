@@ -52,6 +52,34 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # SQLite aceita só um escritor por vez (o próprio arquivo é travado durante
+    # a escrita) — não é algo que "tuning de pool" resolve, é uma limitação do
+    # banco em si. connect_args aqui só ameniza: timeout faz uma escrita
+    # concorrente ESPERAR o lock liberar (até 15s) em vez de falhar na hora
+    # com "database is locked"; a PRAGMA de journal_mode (ligada em
+    # extensions.py, no evento "connect") reduz o quanto leituras bloqueiam
+    # escritas. Nenhum dos dois muda o fato de que só um usuário escreve por
+    # vez — pra aguentar mais que um punhado de usuários simultâneos, defina
+    # DATABASE_URL apontando pra um Postgres de verdade (psycopg2-binary já
+    # está no requirements.txt pra isso).
+    #
+    # Com Postgres (ou outro banco cliente/servidor), as opções abaixo
+    # configuram um pool de conexões de verdade: pool_pre_ping testa a conexão
+    # antes de cada uso (evita erro depois que o provedor cloud derruba uma
+    # conexão ociosa) e pool_recycle recicla conexões antes que isso aconteça.
+    _is_sqlite = SQLALCHEMY_DATABASE_URI.startswith("sqlite")
+    if _is_sqlite:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "connect_args": {"timeout": 15},
+        }
+    else:
+        SQLALCHEMY_ENGINE_OPTIONS = {
+            "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
+            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "10")),
+            "pool_recycle": 1800,
+            "pool_pre_ping": True,
+        }
+
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash-lastest")
 
