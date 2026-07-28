@@ -81,7 +81,13 @@ class Config:
         }
 
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-1.5-flash-lastest")
+    # Typo aqui ("lastest") fazia esse fallback nunca ser um nome de modelo
+    # válido — como essa config sempre tem valor (o os.getenv daqui sempre
+    # roda antes), o fallback mais seguro em gemini_service.py (linha
+    # "model_name or os.getenv(...)") nunca era alcançado: se GEMINI_MODEL_NAME
+    # sumisse do ambiente, toda chamada de IA passava a receber um nome de
+    # modelo inexistente e dar 404. Agora os dois fallbacks concordam.
+    GEMINI_MODEL_NAME = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
     # Antes, uma chamada ao Gemini sem resposta prendia o worker Flask
     # indefinidamente (nenhum timeout configurado) e uma falha transitória (5xx)

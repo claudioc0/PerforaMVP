@@ -303,16 +303,25 @@ class GeminiService:
         try:
             # 1. Converte o texto da IA para um dicionário Python
             data = json.loads(raw_text)
+            if not isinstance(data, dict):
+                raise ValueError("Resposta da IA não é um objeto JSON.")
 
             raw_items = data.get("items")
-            if not raw_items:
-                raise ValueError("Resposta da IA não contém nenhum item.")
+            # isinstance checado ANTES do "not raw_items": sem isso, um "items"
+            # que viesse como string (não uma lista) passava dessa checagem
+            # (string não-vazia é truthy) e quebrava mais adiante com um
+            # AttributeError não tratado ('str' object has no attribute 'get'
+            # dentro de _parse_item, iterando os CARACTERES da string) — um
+            # erro cru que nem esse except pegava, em vez do
+            # GeminiAnalysisError esperado.
+            if not isinstance(raw_items, list) or not raw_items:
+                raise ValueError("Resposta da IA não contém uma lista de itens.")
 
             items = [cls._parse_item(raw_item) for raw_item in raw_items]
             confidence = round(float(data.get("confidence", 0.0)), 2)
 
             # 2. Retorna o objeto limpo e formatado
             return MealAnalysisResult(items=items, confidence=confidence)
-        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        except (json.JSONDecodeError, TypeError, ValueError, AttributeError) as exc:
             logger.error("Resposta da IA fora do formato esperado: %s", raw_text)
             raise GeminiAnalysisError("Erro ao formatar os dados retornados pela IA.") from exc

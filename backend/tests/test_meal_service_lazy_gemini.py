@@ -89,18 +89,21 @@ class TestConstrucaoPreguicosaDoGeminiService:
 
         factory.assert_called_once()
 
-    def test_acesso_direto_a_property_tambem_dispara_a_fabrica(self):
-        """A rota /daily-insight acessa `_gemini_service` diretamente (sem
-        passar por analyze_image/analyze_text) — a fábrica também precisa
-        disparar nesse caminho."""
+    def test_generate_daily_insight_tambem_dispara_a_fabrica(self):
+        """generate_daily_insight (o método público que a rota /daily-insight
+        chama, sem furar a camada de serviço acessando `_gemini_service`
+        diretamente) também precisa disparar a fábrica nesse caminho."""
         fake_gemini = MagicMock()
         factory = MagicMock(return_value=fake_gemini)
 
         service = MealService(factory)
-        result = service._gemini_service
+        result = service.generate_daily_insight({"goal_calories": 2000}, {"calories": 500})
 
         factory.assert_called_once()
-        assert result is fake_gemini
+        fake_gemini.generate_daily_insight.assert_called_once_with(
+            {"goal_calories": 2000}, {"calories": 500}
+        )
+        assert result is fake_gemini.generate_daily_insight.return_value
 
 
 class TestRotasSemIANaoConstroemOGeminiService:
@@ -149,3 +152,30 @@ class TestRotasSemIANaoConstroemOGeminiService:
 
         assert response.status_code == 200
         assert len(calls) == 1
+
+
+class TestRotaNaoAcessaAtributoPrivadoDoService:
+    """meals_routes.py acessava meal_service._gemini_service diretamente na
+    rota /daily-insight — furando a camada de serviço que o resto do código
+    respeita (toda outra rota só chama métodos públicos de MealService).
+    Trava estrutural: nenhum atributo prefixado com "_" de MealService pode
+    aparecer no código da rota."""
+
+    def test_meals_routes_nao_referencia_gemini_service_diretamente(self):
+        import inspect
+        import re
+
+        from app.routes import meals_routes
+
+        source = inspect.getsource(meals_routes)
+        # Busca especificamente ACESSO a atributo (".{_gemini_service}"), não
+        # qualquer menção à string — o próprio arquivo cita
+        # `_gemini_service` num comentário (documentando a property de
+        # MealService) e usa `_build_gemini_service` como nome de função
+        # local, nenhum dos dois é a violação que este teste trava.
+        assert not re.search(r"\._gemini_service\b", source), (
+            "meals_routes.py voltou a acessar MealService._gemini_service "
+            "diretamente — use um método público de MealService "
+            "(ex: generate_daily_insight) em vez de ler o atributo privado "
+            "da camada de serviço."
+        )

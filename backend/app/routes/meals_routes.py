@@ -288,7 +288,7 @@ def daily_insight():
         consumed = data.get("consumed", {})
         
         meal_service = _get_meal_service()
-        insight_text = meal_service._gemini_service.generate_daily_insight(goals, consumed)
+        insight_text = meal_service.generate_daily_insight(goals, consumed)
         
         return jsonify({"insight": insight_text}), 200
     except Exception:
@@ -299,4 +299,15 @@ def daily_insight():
 @meals_bp.route("/health", methods=["GET"])
 # A rota de health_check NÃO precisa de @jwt_required, ela é pública para o servidor saber se a API está viva.
 def health_check():
+    # Antes isso devolvia "ok" sem checar nada — uma queda total do banco
+    # (arquivo do SQLite corrompido, Postgres fora do ar) ficava verde aqui
+    # enquanto toda rota de verdade quebrava. SELECT 1 é a checagem mais
+    # barata que ainda força uma ida real ao banco.
+    try:
+        db.session.execute(db.text("SELECT 1"))
+    except Exception:
+        db.session.rollback()
+        logger.exception("Health check: banco de dados inacessível")
+        return jsonify({"status": "error", "service": "nutrition-meals-service", "error": "Banco de dados inacessível."}), 503
+
     return jsonify({"status": "ok", "service": "nutrition-meals-service"}), 200

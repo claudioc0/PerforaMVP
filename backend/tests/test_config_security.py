@@ -9,6 +9,7 @@ essa única linha bastava pra ligar o debug em produção.
 """
 
 import importlib
+import re
 from pathlib import Path
 
 import pytest
@@ -148,3 +149,37 @@ class TestCorsOriginsFailSafe:
             cors_origins_value="https://meuapp.com, https://admin.meuapp.com",
         )
         assert config.CORS_ORIGINS == ["https://meuapp.com", "https://admin.meuapp.com"]
+
+
+class TestGeminiModelNameFallbackNuncaEhInvalido:
+    """Um typo existiu aqui antes ("gemini-1.5-flash-lastest") — como
+    GEMINI_MODEL_NAME sempre tem valor em config.py, esse fallback é sempre
+    o que chega em GeminiService (o "or os.getenv(...)" dentro do próprio
+    GeminiService.__init__ nunca é alcançado na prática). Se
+    GEMINI_MODEL_NAME sumir do ambiente e o fallback for um nome de modelo
+    inexistente, toda chamada de IA passa a dar 404 justamente no cenário em
+    que o app deveria continuar funcionando com um padrão razoável.
+    """
+
+    def test_ausencia_da_variavel_nao_usa_um_nome_com_typo(self, monkeypatch):
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
+        monkeypatch.delenv("GEMINI_MODEL_NAME", raising=False)
+        importlib.reload(config_module)
+
+        assert "lastest" not in config_module.Config.GEMINI_MODEL_NAME
+
+    def test_fallback_de_config_concorda_com_o_fallback_do_gemini_service(self, monkeypatch):
+        """Os dois fallbacks (config.py e gemini_service.py) precisam apontar
+        pro mesmo modelo — senão o de config.py sempre "vence" (é sempre
+        passado explicitamente pro GeminiService) e o de gemini_service.py
+        nunca é alcançado de verdade."""
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *args, **kwargs: None)
+        monkeypatch.delenv("GEMINI_MODEL_NAME", raising=False)
+        importlib.reload(config_module)
+
+        import app.services.gemini_service as gemini_service_module
+        import inspect
+        source = inspect.getsource(gemini_service_module.GeminiService.__init__)
+        match = re.search(r'os\.getenv\("GEMINI_MODEL_NAME",\s*"([^"]+)"\)', source)
+        assert match, "não encontrou o fallback de GEMINI_MODEL_NAME em GeminiService.__init__"
+        assert config_module.Config.GEMINI_MODEL_NAME == match.group(1)
