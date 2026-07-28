@@ -14,14 +14,19 @@ logger = logging.getLogger(__name__)
 class WorkoutService:
     """Camada de serviço para sessões de treino e suas séries."""
 
-    def create_workout(self, user_id: int, data: dict) -> Workout:
+    def create_workout(self, user_id: int, data: dict) -> Optional[Workout]:
         workout = Workout(
             user_id=user_id,
             name=data.get("name"),
             split_day_id=data.get("split_day_id"),
         )
         db.session.add(workout)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Erro ao criar treino para o usuário ID %s.", user_id)
+            return None
         return workout
 
     def get_workouts_for_user(self, user_id: int, page: int, per_page: int) -> tuple:
@@ -110,7 +115,12 @@ class WorkoutService:
             rest_seconds=data.get("rest_seconds"),
         )
         db.session.add(set_log)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Erro ao adicionar série ao treino ID %s.", workout_id)
+            return None
         return set_log
 
     def _get_owned_set(self, workout_id: int, set_id: int, user_id: int) -> Optional[SetLog]:
@@ -131,7 +141,12 @@ class WorkoutService:
         if "rest_seconds" in data:
             set_log.rest_seconds = data.get("rest_seconds")
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Erro ao atualizar série ID %s.", set_id)
+            return None
         return set_log
 
     def delete_set(self, workout_id: int, set_id: int, user_id: int) -> bool:
@@ -140,7 +155,12 @@ class WorkoutService:
             return False
 
         db.session.delete(set_log)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Erro ao apagar série ID %s.", set_id)
+            return False
         return True
 
     def get_exercise_history(self, exercise_id: int, user_id: int, limit: Optional[int] = None) -> list:

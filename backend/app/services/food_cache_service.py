@@ -93,15 +93,21 @@ def get_cached_or_fetch_macros(description: str, fresh_macros: dict) -> dict:
         carbs_g=fresh_macros["carbs_g"],
         fat_g=fresh_macros["fat_g"],
     )
-    db.session.add(new_entry)
     try:
+        # SAVEPOINT (begin_nested), não a transação inteira: um `except
+        # Exception: db.session.rollback()` direto aqui descartaria QUALQUER
+        # outra coisa pendente na sessão além deste insert (ex: se um dia
+        # esta função passar a ser chamada dentro de um fluxo que já tem
+        # outro objeto pendente antes dela). O rollback do SAVEPOINT desfaz
+        # só o que aconteceu dentro dele — o resto da sessão continua intacto.
+        with db.session.begin_nested():
+            db.session.add(new_entry)
         db.session.commit()
     except Exception:
         # Corrida rara: duas análises com o mesmo alimento novo ao mesmo tempo,
         # ambas tentando criar a mesma search_query (unique constraint). Não é
         # crítico — simplesmente não guarda essa cópia, o valor fresco da IA
         # ainda é retornado normalmente pro usuário.
-        db.session.rollback()
         logger.warning("Corrida ao gravar FoodCache para '%s' — seguindo sem cache.", search_query)
 
     return fresh_macros

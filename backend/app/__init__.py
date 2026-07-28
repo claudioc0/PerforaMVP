@@ -1,8 +1,10 @@
+import logging
 import os
 from datetime import datetime
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate # <-- 1. IMPORTAÇÃO DO MIGRATE
+from werkzeug.exceptions import HTTPException
 
 from .config import Config
 from .extensions import cors, db, configure_sqlite_connection, limiter
@@ -26,6 +28,8 @@ from .models.weekly_plan_day import WeeklyPlanDay
 # <-- 2. INICIALIZAÇÃO GLOBAL DO MIGRATE
 migrate = Migrate()
 
+logger = logging.getLogger(__name__)
+
 def create_app(config_class=Config):
     """
     Application factory pattern.
@@ -46,6 +50,31 @@ def create_app(config_class=Config):
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     limiter.init_app(app)
     jwt = JWTManager(app)
+
+    @app.errorhandler(HTTPException)
+    def handle_http_exception(exc: HTTPException):
+        """Converte os erros do próprio Flask/Werkzeug (404 de rota
+        inexistente, 405, 429 do rate limiter, 413 de upload grande demais
+        etc.) de HTML pra JSON — todo cliente desta API (o app mobile) só
+        sabe interpretar JSON, nunca recebeu uma página HTML de propósito."""
+        return jsonify({"error": exc.description or exc.name}), exc.code
+
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(exc: Exception):
+        """Rede de segurança final: sem isso, qualquer exceção que uma rota
+        não tratasse explicitamente (várias rotas de user_routes.py e
+        praticamente todas as de workouts_routes.py não tinham NENHUM
+        try/except) devolvia a página HTML de erro 500 do Flask/Werkzeug pra
+        um client que só sabe interpretar JSON.
+
+        Também limpa a sessão do SQLAlchemy — um commit() que falhou sem seu
+        próprio rollback deixaria a sessão numa transação pendente/inválida,
+        arriscando contaminar qualquer código que ainda rode nesta mesma
+        requisição (ou dependa dela) depois da falha.
+        """
+        db.session.rollback()
+        logger.exception("Erro não tratado")
+        return jsonify({"error": "Erro interno do servidor."}), 500
 
     @jwt.token_in_blocklist_loader
     def check_if_token_revoked(jwt_header, jwt_payload):

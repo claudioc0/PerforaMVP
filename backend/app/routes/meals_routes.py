@@ -92,6 +92,7 @@ def analyze_meal():
         logger.warning("Erro de análise da IA: %s", exc)
         return jsonify({"error": str(exc)}), 422
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao analisar refeição")
         return jsonify({"error": "Erro interno ao processar a refeição."}), 500
 
@@ -116,6 +117,7 @@ def save_meal_endpoint():
         return jsonify(saved_meal.to_dict()), 201 # 201 (Created) porque agora sim foi pro banco
         
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao salvar refeição confirmada")
         return jsonify({"error": "Erro interno ao salvar a refeição."}), 500
 
@@ -136,6 +138,7 @@ def get_today():
         
         return jsonify(summary), 200
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao buscar resumo do dia")
         return jsonify({"error": "Erro interno ao buscar o resumo."}), 500
 
@@ -166,19 +169,28 @@ def get_favorites():
 @jwt_required()
 def add_favorite():
     current_user_id = int(get_jwt_identity())
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
 
-    new_favorite = FavoriteMeal(
-        user_id=current_user_id,
-        description=data.get("description"),
-        calories=float(data.get("calories", 0)),
-        protein_g=float(data.get("protein_g", 0)),
-        carbs_g=float(data.get("carbs_g", 0)),
-        fat_g=float(data.get("fat_g", 0))
-    )
-    
-    db.session.add(new_favorite)
-    db.session.commit()
+    try:
+        new_favorite = FavoriteMeal(
+            user_id=current_user_id,
+            description=data.get("description"),
+            calories=float(data.get("calories", 0)),
+            protein_g=float(data.get("protein_g", 0)),
+            carbs_g=float(data.get("carbs_g", 0)),
+            fat_g=float(data.get("fat_g", 0))
+        )
+    except (TypeError, ValueError):
+        return jsonify({"error": "Valores nutricionais inválidos."}), 400
+
+    try:
+        db.session.add(new_favorite)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao favoritar refeição para o usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao favoritar a refeição."}), 500
+
     return jsonify({"message": "Refeição favoritada com sucesso!"}), 201
 
 @meals_bp.route("/favorites/<int:fav_id>", methods=["DELETE"])
@@ -190,8 +202,14 @@ def remove_favorite(fav_id):
     if not favorite or favorite.user_id != current_user_id:
         return jsonify({"error": "Favorito não encontrado."}), 404
 
-    db.session.delete(favorite)
-    db.session.commit()
+    try:
+        db.session.delete(favorite)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao remover favorito ID %s.", fav_id)
+        return jsonify({"error": "Erro interno ao remover o favorito."}), 500
+
     return jsonify({"message": "Favorito removido."}), 200
 
 
@@ -204,6 +222,7 @@ def get_weekly_summary_endpoint():
         summary = meal_service.get_weekly_summary(current_user_id)
         return jsonify(summary), 200
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao buscar resumo semanal")
         return jsonify({"error": "Erro interno ao buscar o resumo semanal."}), 500
 
@@ -225,6 +244,7 @@ def update_meal(meal_id: int):
             return jsonify(updated_meal.to_dict()), 200
         return jsonify({"error": "Refeição não encontrada ou não pertence ao usuário."}), 404
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao atualizar refeição")
         return jsonify({"error": "Erro interno ao atualizar a refeição."}), 500
 
@@ -242,6 +262,7 @@ def delete_meal(meal_id: int):
             return jsonify({"message": "Refeição apagada com sucesso."}), 200
         return jsonify({"error": "Refeição não encontrada ou não pertence ao usuário."}), 404
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao apagar refeição")
         return jsonify({"error": "Erro interno ao apagar a refeição."}), 500
     
@@ -262,6 +283,7 @@ def daily_insight():
         
         return jsonify({"insight": insight_text}), 200
     except Exception:
+        db.session.rollback()
         logger.exception("Erro inesperado ao gerar insight diário")
         return jsonify({"error": "Erro interno ao gerar o insight."}), 500
 

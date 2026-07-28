@@ -5,6 +5,7 @@ from app.extensions import db
 from app.models import User, UserGoals, WaterLog
 from app.utils.dates import day_bounds, parse_date_str, timestamp_within_date
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,18 @@ class UserService:
         user.goals.goal_fat_g = goals_data.get('goal_fat_g', user.goals.goal_fat_g)
         user.goals.goal_type = goals_data.get('goal_type', user.goals.goal_type)
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            # Sem isso, um commit que falhasse deixava a sessão numa
+            # transação pendente/inválida — qualquer outra query que a rota
+            # (ou o teardown do Flask) tentasse rodar depois herdaria esse
+            # estado sujo. Devolve a sessão a um estado limpo e deixa quem
+            # chamou decidir o que responder ao cliente.
+            db.session.rollback()
+            logger.exception("Erro ao salvar metas do usuário ID %s.", user_id)
+            raise
+
         return user
 
     def calculate_and_save_smart_goals(self, user_id: int, physical_data: dict) -> Optional[UserGoals]:
@@ -120,7 +132,12 @@ class UserService:
             created_at=timestamp_within_date(target_date),
         )
         db.session.add(new_log)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Erro ao registrar água para o usuário ID %s.", user_id)
+            raise
 
         # 2. Soma o total daquele dia (já incluindo o registro recém-salvo)
         day_start, day_end = day_bounds(target_date)
