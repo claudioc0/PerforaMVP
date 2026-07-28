@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWeeklyPlan } from '../services/api';
 
@@ -107,59 +108,52 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
           const isDefault = trainingDaysCount === item.days.length;
 
           return (
-            <View style={styles.splitCard}>
-              <TouchableOpacity style={styles.splitHeader} onPress={() => toggleSplit(item)}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.splitName}>{item.name}</Text>
-                  {item.description && <Text style={styles.splitDescription}>{item.description}</Text>}
-                </View>
-                <Ionicons name={isExpanded ? 'chevron-up' : 'chevron-down'} size={20} color="#888" />
-              </TouchableOpacity>
-
-              {isExpanded && (
-                <View style={styles.daysContainer}>
-                  <View style={styles.stepperRow}>
-                    <Text style={styles.stepperLabel}>Dias de treino por semana</Text>
-                    <View style={styles.stepperControls}>
-                      <TouchableOpacity onPress={() => adjustTrainingDays(item, -1)}>
-                        <Ionicons name="remove-circle-outline" size={22} color="#888" />
-                      </TouchableOpacity>
-                      <Text style={styles.stepperValue}>{trainingDaysCount}</Text>
-                      <TouchableOpacity onPress={() => adjustTrainingDays(item, 1)}>
-                        <Ionicons name="add-circle-outline" size={22} color="#888" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-
-                  <Text style={styles.slotsHint}>
-                    {isDefault
-                      ? 'Padrão: um treino de cada, na ordem da divisão.'
-                      : 'Toque num dia pra escolher qual treino repetir nele.'}
-                  </Text>
-
-                  {slotAssignments.map((splitDayId, index) => {
-                    const day = item.days.find((d) => d.id === splitDayId);
-                    return (
-                      <TouchableOpacity key={index} style={styles.slotRow} onPress={() => openSlotPicker(item, index)}>
-                        <Text style={styles.slotLabel}>Dia {index + 1}</Text>
-                        <View style={styles.slotValueRow}>
-                          <Text style={styles.slotValue}>{day ? day.name : '—'}</Text>
-                          <Ionicons name="chevron-forward" size={16} color="#888" />
-                        </View>
-                      </TouchableOpacity>
-                    );
-                  })}
-
-                  <TouchableOpacity
-                    style={styles.useSplitButton}
-                    onPress={() => handleUseSplit(item, slotAssignments)}
-                    disabled={saving}
-                  >
-                    {saving ? <ActivityIndicator color="#121212" /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
+            <ExpandableSplitCard
+              split={item}
+              expanded={isExpanded}
+              onToggle={() => toggleSplit(item)}
+              contentStyle={styles.daysContainer}
+            >
+              <View style={styles.stepperRow}>
+                <Text style={styles.stepperLabel}>Dias de treino por semana</Text>
+                <View style={styles.stepperControls}>
+                  <TouchableOpacity onPress={() => adjustTrainingDays(item, -1)}>
+                    <Ionicons name="remove-circle-outline" size={22} color="#888" />
+                  </TouchableOpacity>
+                  <Text style={styles.stepperValue}>{trainingDaysCount}</Text>
+                  <TouchableOpacity onPress={() => adjustTrainingDays(item, 1)}>
+                    <Ionicons name="add-circle-outline" size={22} color="#888" />
                   </TouchableOpacity>
                 </View>
-              )}
-            </View>
+              </View>
+
+              <Text style={styles.slotsHint}>
+                {isDefault
+                  ? 'Padrão: um treino de cada, na ordem da divisão.'
+                  : 'Toque num dia pra escolher qual treino repetir nele.'}
+              </Text>
+
+              {slotAssignments.map((splitDayId, index) => {
+                const day = item.days.find((d) => d.id === splitDayId);
+                return (
+                  <TouchableOpacity key={index} style={styles.slotRow} onPress={() => openSlotPicker(item, index)}>
+                    <Text style={styles.slotLabel}>Dia {index + 1}</Text>
+                    <View style={styles.slotValueRow}>
+                      <Text style={styles.slotValue}>{day ? day.name : '—'}</Text>
+                      <Ionicons name="chevron-forward" size={16} color="#888" />
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.useSplitButton}
+                onPress={() => handleUseSplit(item, slotAssignments)}
+                disabled={saving}
+              >
+                {saving ? <ActivityIndicator color="#121212" /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
+              </TouchableOpacity>
+            </ExpandableSplitCard>
           );
         }}
         contentContainerStyle={{ paddingBottom: 40 }}
@@ -174,11 +168,7 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
   sectionLabel: { color: '#888', fontSize: 13, marginBottom: 18, lineHeight: 18 },
-  splitCard: { backgroundColor: '#1E1E1E', borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
-  splitHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  splitName: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  splitDescription: { color: '#888', fontSize: 12, marginTop: 2 },
-  daysContainer: { borderTopWidth: 1, borderTopColor: '#333', padding: 16 },
+  daysContainer: { padding: 16 },
   stepperRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   stepperLabel: { color: '#FFF', fontSize: 14, fontWeight: '600' },
   stepperControls: { flexDirection: 'row', alignItems: 'center' },

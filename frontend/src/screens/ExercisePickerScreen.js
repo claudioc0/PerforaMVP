@@ -27,11 +27,19 @@ export default function ExercisePickerScreen({ navigation, route }) {
     }
   }, []);
 
+  // Um só efeito cuida da busca inicial E da busca com debounce — antes, um
+  // useEffect rodava fetchExercises() de imediato na montagem e ESTE efeito
+  // (que também dispara na montagem, já que query começa vazia) rodava de
+  // novo 300ms depois com o mesmo argumento: o catálogo inteiro baixava duas
+  // vezes toda vez que o picker abria. Na primeira execução, busca na hora,
+  // sem esperar o debounce; nas próximas (usuário digitando), debounce normal.
+  const isFirstRun = useRef(true);
   useEffect(() => {
-    fetchExercises();
-  }, [fetchExercises]);
-
-  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      fetchExercises();
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetchExercises(query || undefined);

@@ -4,6 +4,7 @@ import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searc
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 
 const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder }) => (
@@ -226,7 +227,13 @@ export default function ManualEntryScreen({ navigation, route }) {
     <View style={styles.favCard}>
       <View style={styles.favInfo}>
         <Text style={styles.favDesc}>{item.description}</Text>
-        <Text style={styles.favMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
+        <MacroSummaryLine
+          calories={item.calories}
+          proteinG={item.protein_g}
+          carbsG={item.carbs_g}
+          fatG={item.fat_g}
+          style={styles.favMacros}
+        />
       </View>
       <View style={styles.favActions}>
         <TouchableOpacity style={styles.favButton} onPress={() => handleAddFavoriteToToday(item)}>

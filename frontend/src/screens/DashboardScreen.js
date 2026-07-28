@@ -9,6 +9,7 @@ import { DAILY_INSIGHT_CACHE_KEY } from '../services/session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
+import MacroSummaryLine from '../components/MacroSummaryLine';
 
 // --- Funções utilitárias para manipulação de datas ---
 // A data enviada pra API é sempre montada a partir dos componentes LOCAIS do aparelho.
@@ -91,6 +92,12 @@ export default function DashboardScreen({ navigation }) {
     () => startOfDay(currentDate) > startOfDay(new Date()),
     [currentDate]
   );
+  // getDisplayDate aloca Date novos (hoje/ontem) e chama toDateString() a cada
+  // chamada — antes era invocada 3x por render (2x no JSX + 1x dentro do
+  // efeito do insight), inclusive em re-renders que nada tinham a ver com a
+  // data (digitar água, carregar insight). Memoizado aqui, só recalcula
+  // quando currentDate muda de fato.
+  const displayDate = useMemo(() => getDisplayDate(currentDate), [currentDate]);
 
   const fetchData = useCallback(async () => {
     setLoading(true); 
@@ -122,7 +129,7 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     const fetchInsight = async () => {
       const CACHE_KEY = DAILY_INSIGHT_CACHE_KEY;
-      const isToday = getDisplayDate(currentDate) === "Hoje";
+      const isToday = displayDate === "Hoje";
 
       if (summary && goals && isToday) {
         setLoadingInsight(true);
@@ -170,7 +177,7 @@ export default function DashboardScreen({ navigation }) {
       }
     };
     fetchInsight();
-  }, [summary, goals, currentDate, formattedCurrentDate]);
+  }, [summary, goals, displayDate, formattedCurrentDate]);
 
   const changeDay = (amount) => {
     const newDate = new Date(currentDate);
@@ -277,7 +284,13 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
           </View>
-          <Text style={styles.mealMacros}>{item.calories.toFixed(0)} kcal • P: {item.protein_g.toFixed(1)}g • C: {item.carbs_g.toFixed(1)}g • G: {item.fat_g.toFixed(1)}g</Text>
+          <MacroSummaryLine
+            calories={item.calories}
+            proteinG={item.protein_g}
+            carbsG={item.carbs_g}
+            fatG={item.fat_g}
+            style={styles.mealMacros}
+          />
         </View>
       </TouchableOpacity>
       <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
@@ -342,7 +355,7 @@ export default function DashboardScreen({ navigation }) {
                 <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
                   <Ionicons name="chevron-back" size={24} color="#FFF" />
                 </TouchableOpacity>
-                <Text style={styles.title}>{getDisplayDate(currentDate)}</Text>
+                <Text style={styles.title}>{displayDate}</Text>
                 <TouchableOpacity onPress={() => changeDay(1)} style={[styles.arrowButton, isFutureDate && styles.disabledArrow] } disabled={isFutureDate}>
                   <Ionicons name="chevron-forward" size={24} color="#FFF" />
                 </TouchableOpacity>
@@ -389,7 +402,7 @@ export default function DashboardScreen({ navigation }) {
               </View>
             </View>
 
-            <Text style={styles.listTitle}>Refeições de {getDisplayDate(currentDate)}</Text>
+            <Text style={styles.listTitle}>Refeições de {displayDate}</Text>
           </>
         }
         ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}

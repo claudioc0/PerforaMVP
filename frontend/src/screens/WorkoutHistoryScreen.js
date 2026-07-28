@@ -12,12 +12,7 @@ import {
   updateWeeklyPlanDay,
   deleteWeeklyPlan,
 } from '../services/api';
-
-function formatDate(isoString) {
-  if (!isoString) return '';
-  const date = new Date(isoString);
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+import { formatShortDate } from '../utils/formatDate';
 
 // JS: 0=Domingo...6=Sábado. Plano: 0=Segunda...6=Domingo.
 function todayPlanIndex() {
@@ -274,7 +269,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
           <View style={styles.badgeActive}><Text style={styles.badgeActiveText}>Em andamento</Text></View>
         )}
       </View>
-      <Text style={styles.cardDate}>{formatDate(item.started_at)}</Text>
+      <Text style={styles.cardDate}>{formatShortDate(item.started_at, { includeYear: true })}</Text>
     </TouchableOpacity>
   );
 

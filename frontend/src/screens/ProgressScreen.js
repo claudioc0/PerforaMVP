@@ -5,10 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkoutProgress } from '../services/api';
-
-function formatDate(isoString) {
-  return new Date(isoString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
+import { formatShortDate } from '../utils/formatDate';
 
 export default function ProgressScreen() {
   const showAlert = useAppAlert();
@@ -74,7 +71,7 @@ export default function ProgressScreen() {
             return (
               <View key={workout.workout_id} style={styles.card}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.cardDate}>{formatDate(workout.started_at)}</Text>
+                  <Text style={styles.cardDate}>{formatShortDate(workout.started_at)}</Text>
                   {trendIcon && <Ionicons name={trendIcon} size={20} color={trendColor} />}
                 </View>
                 <View style={styles.statsRow}>
