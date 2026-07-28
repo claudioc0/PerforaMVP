@@ -1,3 +1,5 @@
+import logging
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -5,6 +7,8 @@ from app.extensions import db
 from app.services import UserService
 from app.models import User, WaterLog, WeightLog
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
+
+logger = logging.getLogger(__name__)
 
 # 1. CRIAÇÃO DO BLUEPRINT
 # O prefixo completo da API é definido aqui para manter o módulo autônomo.
@@ -16,8 +20,13 @@ user_service = UserService()
 @jwt_required()
 def get_user_goals_route():
     user_id = int(get_jwt_identity())
-    goals = user_service.get_user_goals(user_id)
-    
+    try:
+        goals = user_service.get_user_goals(user_id)
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao buscar metas do usuário ID %s.", user_id)
+        return jsonify({"error": "Erro interno ao buscar metas."}), 500
+
     if goals:
         return jsonify(goals.to_dict())
     # Se o usuário ainda não tem metas, retorna um objeto vazio para não quebrar o frontend.
@@ -27,26 +36,45 @@ def get_user_goals_route():
 @jwt_required()
 def update_user_goals_route():
     user_id = int(get_jwt_identity())
-    data = request.get_json()
-    updated_user = user_service.update_user_goals(user_id, data)
+    data = request.get_json(silent=True) or {}
+    try:
+        updated_user = user_service.update_user_goals(user_id, data)
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao atualizar metas do usuário ID %s.", user_id)
+        return jsonify({"error": "Erro interno ao atualizar metas."}), 500
+
+    if not updated_user:
+        return jsonify({"error": "Usuário não encontrado."}), 404
     return jsonify(message="Metas atualizadas com sucesso", goals=updated_user.goals.to_dict())
 
 @user_bp.route("/calculate-goals", methods=["POST"])
 @jwt_required()
 def calculate_goals_route():
     user_id = int(get_jwt_identity())
-    data = request.get_json()
-    
-    # O user_service agora lida com o cálculo e a atualização
-    new_goals = user_service.calculate_and_save_smart_goals(user_id, data)
+    data = request.get_json(silent=True) or {}
 
+    try:
+        # O user_service agora lida com o cálculo e a atualização
+        new_goals = user_service.calculate_and_save_smart_goals(user_id, data)
+    except ValueError as exc:
+        # Dados físicos incompletos/inválidos (ver user_service.py) — erro de
+        # requisição do cliente, não uma falha do servidor.
+        return jsonify({"error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao calcular metas do usuário ID %s.", user_id)
+        return jsonify({"error": "Erro interno ao calcular metas."}), 500
+
+    if not new_goals:
+        return jsonify({"error": "Usuário não encontrado."}), 404
     return jsonify(message="Metas calculadas e salvas com sucesso.", goals=new_goals.to_dict())
 
 @user_bp.route("/water/add", methods=["POST"])
 @jwt_required()
 def add_water():
     current_user_id = int(get_jwt_identity())
-    data = request.get_json()
+    data = request.get_json(silent=True) or {}
     amount = data.get("amount")
 
     if not amount or not isinstance(amount, (int, float)) or amount <= 0:
@@ -59,7 +87,9 @@ def add_water():
             date_str=data.get("date"),
         )
         return jsonify({"message": "Água registrada!", "total": total_today}), 200
-    except Exception as e:
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao registrar água para o usuário ID %s.", current_user_id)
         return jsonify({"error": "Erro interno ao registrar água."}), 500
     
 # --- ROTAS DE EVOLUÇÃO DE PESO ---
@@ -70,12 +100,16 @@ def get_weight_history():
     current_user_id = int(get_jwt_identity())
     page, per_page = get_pagination_params()
 
-    # Busca as pesagens mais recentes primeiro (pra paginar a partir do
-    # presente, como qualquer histórico), depois inverte pra manter o
-    # contrato de sempre: mais antiga → mais nova (o gráfico espera essa ordem).
-    query = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.desc(), WeightLog.id.desc())
-    items, total = paginate_query(query, page, per_page)
-    items.reverse()
+    try:
+        # Busca as pesagens mais recentes primeiro (pra paginar a partir do
+        # presente, como qualquer histórico), depois inverte pra manter o
+        # contrato de sempre: mais antiga → mais nova (o gráfico espera essa ordem).
+        query = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.desc(), WeightLog.id.desc())
+        items, total = paginate_query(query, page, per_page)
+        items.reverse()
+    except Exception:
+        logger.exception("Erro inesperado ao buscar histórico de peso do usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao buscar histórico de peso."}), 500
 
     return jsonify({
         "items": [log.to_dict() for log in items],
@@ -86,19 +120,27 @@ def get_weight_history():
 @jwt_required()
 def log_weight():
     current_user_id = int(get_jwt_identity())
-    data = request.get_json()
-    
-    new_weight = float(data.get("weight", 0))
+    data = request.get_json(silent=True) or {}
+
+    try:
+        new_weight = float(data.get("weight", 0))
+    except (TypeError, ValueError):
+        # Antes, um valor não-numérico (ex: string "abc") derrubava float()
+        # sem nenhum try/except — uma exceção não tratada que virava a
+        # página HTML de erro 500 do Flask pra um client que só espera JSON.
+        return jsonify({"error": "Peso inválido."}), 400
+
     if new_weight <= 0:
-        return jsonify({"error": "Peso inválido"}), 400
+        return jsonify({"error": "Peso inválido."}), 400
 
     log = WeightLog(user_id=current_user_id, weight=new_weight)
-    
-    # Opcional: Atualiza também o peso atual do usuário na tabela Users se você tiver essa coluna
-    # user = User.query.get(current_user_id)
-    # user.current_weight = new_weight
-    
-    db.session.add(log)
-    db.session.commit()
-    
+
+    try:
+        db.session.add(log)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao registrar peso do usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao registrar peso."}), 500
+
     return jsonify({"message": "Peso registrado com sucesso!", "log": log.to_dict()}), 201

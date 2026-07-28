@@ -178,3 +178,40 @@ class TestBuscaDeAlimentosPorPrefixo:
 
             results = search_foods("arroz", limit=2)
             assert len(results) == 2
+
+
+class TestRollbackDaCorridaNaoDescartaTrabalhoNaoRelacionado:
+    """Antes, o `except Exception: db.session.rollback()` do insert de um
+    alimento novo desfazia a SESSÃO INTEIRA, não só o insert conflitante —
+    se qualquer outra coisa estivesse pendente na mesma sessão (ex: outro
+    objeto adicionado antes, ainda não commitado), essa outra escrita
+    também seria descartada silenciosamente. Agora o insert roda dentro de
+    um SAVEPOINT (begin_nested): o rollback desfaz só o que aconteceu
+    dentro dele."""
+
+    def test_trabalho_pendente_nao_relacionado_sobrevive_a_uma_corrida(self, app):
+        from app.models import User
+
+        with app.app_context():
+            # Já existe uma entrada com essa chave — a próxima tentativa de
+            # criar a MESMA search_query bate na unique constraint.
+            _make_cached_food(search_query="banana", name="Banana")
+
+            # Simula outra escrita pendente na mesma sessão, ainda sem commit,
+            # no momento em que a corrida do FoodCache acontece.
+            pending_user = User(name="Pendente", email="pendente@example.com")
+            pending_user.set_password("SenhaForte1")
+            db.session.add(pending_user)
+
+            # Dispara o caminho de "nunca visto antes" pra "banana" de novo —
+            # como já existe uma linha com essa chave, o insert bate no
+            # unique constraint e cai no except.
+            get_cached_or_fetch_macros(
+                "banana", {"calories": 90, "protein_g": 1, "carbs_g": 20, "fat_g": 0}
+            )
+
+            # O usuário pendente não pode ter sido descartado pelo rollback
+            # do FoodCache — ele deveria continuar na sessão, pronto pra ser
+            # commitado normalmente.
+            db.session.commit()
+            assert User.query.filter_by(email="pendente@example.com").first() is not None

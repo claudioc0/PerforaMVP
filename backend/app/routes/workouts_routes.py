@@ -37,6 +37,8 @@ def create_workout():
     current_user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
     workout = workout_service.create_workout(current_user_id, data)
+    if not workout:
+        return jsonify({"error": "Erro interno ao criar o treino."}), 500
     return jsonify(workout.to_dict()), 201
 
 
