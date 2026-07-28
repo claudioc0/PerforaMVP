@@ -11,7 +11,6 @@ from app.utils.pagination import get_pagination_params, paginate_query, paginati
 
 logger = logging.getLogger(__name__)
 
-# 1. CRIAÇÃO DO BLUEPRINT
 # O prefixo completo da API é definido aqui para manter o módulo autônomo.
 user_bp = Blueprint("user_bp", __name__, url_prefix="/api/user")
 

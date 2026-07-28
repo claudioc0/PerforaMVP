@@ -57,7 +57,6 @@ class UserService:
         """
         Calcula as metas (TDEE e macros) com base nos dados físicos e as salva para o usuário.
         """
-        # 1. Extrair e validar dados de entrada
         weight = physical_data.get("weight")
         height = physical_data.get("height")
         age = physical_data.get("age")
@@ -68,16 +67,14 @@ class UserService:
         if not all([weight, height, age, gender, activity_level, goal]):
             raise ValueError("Dados físicos incompletos para o cálculo de metas.")
 
-        # 2. Calcular TMB (Taxa Metabólica Basal) - Fórmula de Mifflin-St Jeor
+        # Fórmula de Mifflin-St Jeor para TMB (Taxa Metabólica Basal).
         if gender == 'M':
             tmb = (10 * weight) + (6.25 * height) - (5 * age) + 5
         else:  # 'F'
             tmb = (10 * weight) + (6.25 * height) - (5 * age) - 161
 
-        # 3. Calcular TDEE (Gasto Energético Diário Total)
-        tdee = tmb * activity_level
+        tdee = tmb * activity_level  # TDEE: Gasto Energético Diário Total
 
-        # 4. Ajustar calorias com base no objetivo
         if goal == 'lose':
             calorie_goal = tdee - 500  # Déficit de 500 kcal
         elif goal == 'gain':
@@ -85,7 +82,6 @@ class UserService:
         else:  # 'maintain'
             calorie_goal = tdee
 
-        # 5. Calcular Macronutrientes
         # Proteína: 2g por kg de peso corporal (padrão para quem treina)
         protein_g = 2.0 * weight
         protein_calories = protein_g * 4
@@ -98,7 +94,6 @@ class UserService:
         carb_calories = calorie_goal - protein_calories - fat_calories
         carbs_g = carb_calories / 4
 
-        # 6. Montar o objeto de metas e salvar no banco
         new_goals_data = {
             "goal_calories": round(calorie_goal),
             "goal_protein_g": round(protein_g),
@@ -125,7 +120,6 @@ class UserService:
         """
         target_date = parse_date_str(date_str)
 
-        # 1. Cria o novo registro dentro do dia declarado pelo usuário
         new_log = WaterLog(
             user_id=user_id,
             amount_ml=amount,
@@ -139,7 +133,7 @@ class UserService:
             logger.exception("Erro ao registrar água para o usuário ID %s.", user_id)
             raise
 
-        # 2. Soma o total daquele dia (já incluindo o registro recém-salvo)
+        # Já inclui o registro recém-salvo, por isso soma depois do commit acima.
         day_start, day_end = day_bounds(target_date)
         total_today = db.session.query(
             func.sum(WaterLog.amount_ml)

@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
-from flask_migrate import Migrate # <-- 1. IMPORTAÇÃO DO MIGRATE
+from flask_migrate import Migrate
 from werkzeug.exceptions import HTTPException
 
 from .config import Config
@@ -19,7 +19,6 @@ from .extensions import cors, db, configure_sqlite_connection, limiter
 # app/models/__init__.py: um model novo só precisa ser adicionado lá.
 from .models import TokenBlocklist  # usado abaixo, no callback de blocklist do JWT
 
-# <-- 2. INICIALIZAÇÃO GLOBAL DO MIGRATE
 migrate = Migrate()
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ def create_app(config_class=Config):
 
     # Inicializa as extensões do Flask
     db.init_app(app)
-    migrate.init_app(app, db) # <-- 3. CONECTA O MIGRATE AO APP E AO BANCO
+    migrate.init_app(app, db)
 
     with app.app_context():
         configure_sqlite_connection(db.engine)
@@ -114,8 +113,5 @@ def create_app(config_class=Config):
         deleted = TokenBlocklist.query.filter(TokenBlocklist.expires_at < datetime.utcnow()).delete()
         db.session.commit()
         print(f"{deleted} token(s) expirado(s) removido(s) da blocklist.")
-
-    # with app.app_context():
-        # db.create_all() # <-- 4. COMENTADO PARA DEIXAR O MIGRATE TRABALHAR
 
     return app

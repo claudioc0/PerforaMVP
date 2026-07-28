@@ -301,7 +301,6 @@ class GeminiService:
     @classmethod
     def _parse_response(cls, raw_text: str) -> MealAnalysisResult:
         try:
-            # 1. Converte o texto da IA para um dicionário Python
             data = json.loads(raw_text)
             if not isinstance(data, dict):
                 raise ValueError("Resposta da IA não é um objeto JSON.")
@@ -320,7 +319,6 @@ class GeminiService:
             items = [cls._parse_item(raw_item) for raw_item in raw_items]
             confidence = round(float(data.get("confidence", 0.0)), 2)
 
-            # 2. Retorna o objeto limpo e formatado
             return MealAnalysisResult(items=items, confidence=confidence)
         except (json.JSONDecodeError, TypeError, ValueError, AttributeError) as exc:
             logger.error("Resposta da IA fora do formato esperado: %s", raw_text)
