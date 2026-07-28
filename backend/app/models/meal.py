@@ -61,8 +61,13 @@ class Meal(db.Model):
         }
 
     @staticmethod
-    def query_by_date(target_date: date):
-        """Retorna todas as refeições registradas no dia informado pelo usuário.
+    def query_by_date(target_date: date, user_id: int):
+        """Retorna todas as refeições de um usuário registradas no dia informado.
+
+        O escopo por user_id é obrigatório aqui, não deixado a cargo de quem
+        chama — uma versão anterior devolvia a query sem esse filtro e exigia
+        que cada chamador lembrasse de encadear `.filter_by(user_id=...)`; um
+        chamador novo que esquecesse devolveria refeições de todos os usuários.
 
         A ordenação é por id (ordem de inserção) e não por created_at: a hora
         gravada vem do relógio UTC do servidor, então perto da virada do dia em
@@ -71,5 +76,7 @@ class Meal(db.Model):
         """
         start, end = day_bounds(target_date)
 
-        # Retorna a Query base. O filtro de user_id é adicionado dinamicamente no MealService.
-        return Meal.query.filter(Meal.created_at.between(start, end)).order_by(Meal.id.asc())
+        return Meal.query.filter(
+            Meal.user_id == user_id,
+            Meal.created_at.between(start, end),
+        ).order_by(Meal.id.asc())

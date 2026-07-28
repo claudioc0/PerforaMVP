@@ -99,6 +99,33 @@ class TestResumoSemanalCorretude:
             for day in summary["days"]:
                 assert day["calories"] == 0
 
+    def test_janela_de_7_dias_usa_o_hoje_do_aparelho_nao_o_relogio_do_servidor(self, app):
+        """Mesma raiz do bug de refeição/água contabilizada no dia errado perto
+        da meia-noite: sem o "hoje" do aparelho, a janela de 7 dias era
+        calculada a partir de datetime.utcnow().date() (relógio do servidor).
+        Aqui simulamos um aparelho num fuso à frente do UTC, cujo "hoje" já
+        virou o dia seguinte ao que datetime.utcnow().date() diria no servidor
+        — a janela devolvida precisa seguir o aparelho, não o servidor."""
+        with app.app_context():
+            user = _make_user("weekly5@example.com")
+            server_today = datetime.utcnow().date()
+            device_today = server_today + timedelta(days=1)
+            _add_meal(
+                user.id,
+                datetime.combine(device_today, datetime.min.time()).replace(hour=8),
+                300, 20,
+            )
+
+            service = MealService(lambda: GeminiService(api_key="fake"))
+            summary = service.get_weekly_summary(user.id, today_str=device_today.strftime("%Y-%m-%d"))
+
+            days_by_date = {d["date"]: d for d in summary["days"]}
+            assert device_today.strftime("%Y-%m-%d") in days_by_date
+            assert days_by_date[device_today.strftime("%Y-%m-%d")]["calories"] == 300
+            # A janela é ancorada em device_today, não em server_today — o
+            # último dia da lista tem que ser device_today, não server_today.
+            assert summary["days"][-1]["date"] == device_today.strftime("%Y-%m-%d")
+
 
 class TestResumoSemanalNaoDependeDeFuncDate:
     """func.date() é a raiz dos dois bugs (tipo de retorno inconsistente entre

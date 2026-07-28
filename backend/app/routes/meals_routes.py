@@ -219,7 +219,8 @@ def get_weekly_summary_endpoint():
     try:
         current_user_id = int(get_jwt_identity())
         meal_service = _get_meal_service()
-        summary = meal_service.get_weekly_summary(current_user_id)
+        today_str = request.args.get("today")
+        summary = meal_service.get_weekly_summary(current_user_id, today_str)
         return jsonify(summary), 200
     except Exception:
         db.session.rollback()

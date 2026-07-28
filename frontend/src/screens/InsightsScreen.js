@@ -7,6 +7,16 @@ import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
 
+// A janela de 7 dias do resumo semanal é ancorada em "hoje" no fuso LOCAL do
+// aparelho, não em toISOString() (que converte pra UTC): perto da meia-noite
+// no horário de Brasília (UTC-3), toISOString() já estaria no dia seguinte.
+function getLocalDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // --- Componente de Gráfico de Barras Customizado ---
 const WeeklyBarChart = ({ data, goal, label }) => {
   if (!data || data.length === 0 || !goal) {
@@ -53,7 +63,7 @@ export default function InsightsScreen({ navigation }) {
         try {
           const [summaryData, , weightHistoryData] = await Promise.all([
             // Proteção adicionada caso o backend retorne erro na rota semanal
-            getWeeklySummary().catch(() => ({ days: [] })),
+            getWeeklySummary(getLocalDateString(new Date())).catch(() => ({ days: [] })),
             refreshGoals(),
             getWeightHistory().catch(() => []),
           ]);

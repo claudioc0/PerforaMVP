@@ -24,7 +24,7 @@ def _explain(query) -> str:
 class TestIndiceDeMeals:
     def test_query_by_date_com_filtro_de_usuario_usa_o_indice_composto(self, app):
         with app.app_context():
-            query = Meal.query_by_date(__import__("datetime").date(2026, 7, 27)).filter_by(user_id=1)
+            query = Meal.query_by_date(__import__("datetime").date(2026, 7, 27), user_id=1)
             plan = _explain(query)
             assert "ix_meals_user_id_created_at" in plan
             assert "SCAN" not in plan.upper() or "SCAN TABLE meals" not in plan
