@@ -105,6 +105,12 @@ class MealService:
             "source_type": "text"
         }
 
+    def generate_daily_insight(self, goals: dict, consumed: dict) -> str:
+        """Ponto de entrada público pro insight diário — a rota não deve
+        acessar self._gemini_service diretamente (fura a camada de serviço
+        que o resto do código respeita)."""
+        return self._gemini_service.generate_daily_insight(goals, consumed)
+
     @staticmethod
     def _aggregate_from_items(items: list) -> dict:
         """Soma os itens confirmados (já escalados pra quantidade real) num total da refeição."""
