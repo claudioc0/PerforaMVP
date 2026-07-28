@@ -29,6 +29,12 @@ def _allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def _get_meal_service() -> MealService:
+    # Diferente de user_routes.py/workouts_routes.py (singleton por módulo,
+    # uma instância pro processo inteiro): MealService precisa ser construído
+    # por request porque sua fábrica de GeminiService lê app.config, que só
+    # existe dentro de um contexto de app/request — não dá pra montar isso
+    # uma vez só, no import do módulo, como os outros services fazem.
+    #
     # Passa uma fábrica, não uma instância pronta — a maioria das rotas que
     # usam MealService (salvar, listar, apagar, resumos) nunca chama a IA, e
     # construir um GeminiService (e o genai.Client interno) tem um custo real

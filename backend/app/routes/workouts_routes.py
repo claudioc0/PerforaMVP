@@ -11,6 +11,13 @@ logger = logging.getLogger(__name__)
 
 workouts_bp = Blueprint("workouts_bp", __name__, url_prefix="/api/workouts")
 
+# Singletons por módulo (uma instância pro processo inteiro) — mesmo padrão em
+# user_routes.py. Nenhum desses services guarda estado próprio nem depende de
+# app.config no __init__, então não há motivo pra reconstruir uma instância
+# nova a cada request. MealService é a exceção (ver meals_routes.py): construir
+# um GeminiService de verdade depende de app.config, que só existe dentro de
+# um contexto de app/request — por isso usa uma fábrica chamada por request
+# em vez de um singleton aqui.
 workout_service = WorkoutService()
 exercise_service = ExerciseService()
 split_service = SplitService()
