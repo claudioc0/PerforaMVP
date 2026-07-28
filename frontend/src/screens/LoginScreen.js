@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser } from '../services/api';
+import { setToken } from '../services/secureTokenStorage';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
 
@@ -27,8 +28,8 @@ export default function LoginScreen({ navigation }) {
       // sem isso, o backend não tem como revogá-lo, e ele continua válido
       // por até 7 dias mesmo depois do usuário "sair" do app.
       await Promise.all([
-        AsyncStorage.setItem('jwt_token', data.token),
-        AsyncStorage.setItem('refresh_token', data.refresh_token),
+        setToken('jwt_token', data.token),
+        setToken('refresh_token', data.refresh_token),
         AsyncStorage.setItem('user_data', JSON.stringify(data.user)) // Salva o objeto do usuário
       ]);
       

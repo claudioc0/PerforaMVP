@@ -5,6 +5,7 @@ import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
 import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
+import { DAILY_INSIGHT_CACHE_KEY } from '../services/session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
@@ -120,7 +121,7 @@ export default function DashboardScreen({ navigation }) {
   // --- LÓGICA DE CACHE DA IA OTIMIZADA ---
   useEffect(() => {
     const fetchInsight = async () => {
-      const CACHE_KEY = '@perfora_daily_insight';
+      const CACHE_KEY = DAILY_INSIGHT_CACHE_KEY;
       const isToday = getDisplayDate(currentDate) === "Hoje";
 
       if (summary && goals && isToday) {

@@ -36,7 +36,6 @@ class Meal(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    # NOVA COLUNA: Chave estrangeira que obriga toda refeição a ter um dono (usuário)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     # Toda leitura de refeições filtra por user_id E created_at juntos

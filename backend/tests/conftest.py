@@ -40,3 +40,41 @@ def auth_headers(client, registered_user):
     )
     assert response.status_code == 200
     return {"Authorization": f"Bearer {response.get_json()['token']}"}
+
+
+class _AuthenticatedClient:
+    """Encapsula o FlaskClient injetando o header de autorização em todo
+    GET/POST/PUT/DELETE — escrever um teste de rota nova não precisa mais
+    repetir `headers=auth_headers` em cada chamada. Headers passados
+    explicitamente numa chamada têm prioridade sobre o padrão (útil pra
+    testar, por exemplo, um token ausente/inválido de propósito)."""
+
+    def __init__(self, client, default_headers):
+        self._client = client
+        self._default_headers = default_headers
+
+    def _call(self, method, *args, **kwargs):
+        headers = {**self._default_headers, **(kwargs.pop("headers", None) or {})}
+        return getattr(self._client, method)(*args, headers=headers, **kwargs)
+
+    def get(self, *args, **kwargs):
+        return self._call("get", *args, **kwargs)
+
+    def post(self, *args, **kwargs):
+        return self._call("post", *args, **kwargs)
+
+    def put(self, *args, **kwargs):
+        return self._call("put", *args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        return self._call("delete", *args, **kwargs)
+
+
+@pytest.fixture
+def auth_client(client, auth_headers):
+    """Cliente de teste já autenticado — todo GET/POST/PUT/DELETE sai com o
+    header Authorization sem precisar passar `headers=auth_headers` em cada
+    chamada. Use `client`+`auth_headers` direto só quando o teste precisar
+    controlar os headers manualmente (ex: testar sem token, ou com um token
+    inválido de propósito)."""
+    return _AuthenticatedClient(client, auth_headers)

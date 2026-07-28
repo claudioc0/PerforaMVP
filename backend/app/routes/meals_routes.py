@@ -2,7 +2,6 @@ import logging
 from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
-# NOVAS IMPORTAÇÕES DO JWT
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 from sqlalchemy.exc import IntegrityError
@@ -130,18 +129,16 @@ def save_meal_endpoint():
         return jsonify({"error": "Erro interno ao salvar a refeição."}), 500
 
 
-@meals_bp.route("/today", methods=["GET"]) # (Você pode renomear para /daily_summary depois)
-@jwt_required() # <--- TRAVA DE SEGURANÇA ADICIONADA
+@meals_bp.route("/today", methods=["GET"])
+@jwt_required()
 def get_today():
     try:
-        # Pega a identidade (ID) do usuário de dentro do Token JWT
         current_user_id = int(get_jwt_identity())
-        
+
         meal_service = _get_meal_service()
         date_str = request.args.get("date")
         target_date = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else datetime.utcnow().date() # type: ignore
-        
-        # ATENÇÃO: Passando o current_user_id para o service filtrar o banco
+
         summary = meal_service.get_summary_for_date(target_date, current_user_id)
         
         return jsonify(summary), 200

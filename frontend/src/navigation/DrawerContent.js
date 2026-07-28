@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Pressable } from 'react-native';
-import { StackActions } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
-import { navigationRef, navigate } from './RootNavigation';
+import { navigate, resetToLogin } from './RootNavigation';
 import { useDrawerMenu } from './DrawerMenuContext';
 import { logoutUser } from '../services/api';
+import { getToken } from '../services/secureTokenStorage';
+import { clearLocalSession } from '../services/session';
 
 const DRAWER_WIDTH = Math.min(300, Dimensions.get('window').width * 0.8);
 
@@ -57,21 +57,21 @@ export default function DrawerContent() {
     // dias) eram revogados de verdade. Um dos dois vazado continuava
     // funcionando normalmente mesmo depois do usuário ter "saído" do app.
     try {
-      const refreshToken = await AsyncStorage.getItem('refresh_token');
+      const refreshToken = await getToken('refresh_token');
       await logoutUser(refreshToken);
     } catch (error) {
       // Best-effort: sem rede (ou token já expirado), o logout local
       // continua — não faz sentido prender o usuário na tela por causa disso.
     }
 
-    await Promise.all([
-      AsyncStorage.removeItem('jwt_token'),
-      AsyncStorage.removeItem('refresh_token'),
-    ]);
+    // clearLocalSession (não só os tokens) — senão o nome do usuário
+    // anterior e o insight de IA em cache continuavam visíveis até a
+    // próxima chamada sobrescrever.
+    await clearLocalSession();
 
-    if (navigationRef.isReady()) {
-      navigationRef.dispatch(StackActions.replace('Login'));
-    }
+    // reset (não navigate/replace) limpa a pilha inteira — senão o botão de
+    // voltar do Android ainda alcançava o Dashboard do usuário anterior.
+    resetToLogin();
   };
 
   // Mantém o overlay fora da árvore quando fechado, sem bloquear toques na tela.

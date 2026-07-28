@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getToken } from "../services/secureTokenStorage";
 import DrawerContent from './DrawerContent';
 import { DrawerMenuProvider } from './DrawerMenuContext';
 import { AppAlertProvider } from '../components/AppAlertProvider';
@@ -32,7 +32,7 @@ function MainStack() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await AsyncStorage.getItem("jwt_token");
+        const token = await getToken("jwt_token");
         setInitialRoute(token ? "Dashboard" : "Login");
       } catch (error) {
         setInitialRoute("Login");

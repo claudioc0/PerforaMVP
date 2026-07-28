@@ -65,7 +65,6 @@ class MealService:
             })
         return items
 
-    # 1. APENAS ANALISA A IMAGEM (Não salva mais no banco)
     def analyze_image(self, image_bytes: bytes) -> dict:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
         result = self._gemini_service.analyze_image(image)
@@ -77,7 +76,6 @@ class MealService:
             "source_type": "image"
         }
 
-    # 2. APENAS ANALISA O TEXTO (Não salva mais no banco)
     def analyze_text(self, description: str) -> dict:
         # Antes, o único cache existente (FoodCache) só entrava em ação
         # DEPOIS de o Gemini já ter respondido — só estabilizava os macros,
@@ -123,7 +121,6 @@ class MealService:
             "quantity_g": sum(float(item.get("quantity_g", 0)) for item in items),
         }
 
-    # 3. NOVO MÉTODO: SALVA A REFEIÇÃO (Recebe os dados confirmados do celular)
     def save_meal(self, meal_data: dict, date_str: Optional[str], user_id: int) -> Meal:
         target_date = parse_date_str(date_str)
         creation_timestamp = timestamp_within_date(target_date)
