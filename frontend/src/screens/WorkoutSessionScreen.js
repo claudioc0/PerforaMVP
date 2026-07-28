@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,7 +159,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         }
       }
     } catch (error) {
-      showAlert('Erro', 'Não foi possível carregar o treino.');
+      showAlert('Erro', error.message || 'Não foi possível carregar o treino.');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -265,7 +265,11 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setLastPerformance(null);
       startRestTimer();
     } catch (error) {
-      showAlert('Erro', 'Não foi possível registrar a série.');
+      // error.message já vem específico ("Sem conexão...", "A conexão demorou
+      // demais...") quando a falha é de rede/timeout — sem sinal na academia,
+      // por exemplo. O peso/reps digitados NÃO são limpos aqui (só no try,
+      // acima), então o usuário pode tentar salvar de novo sem redigitar nada.
+      showAlert('Erro', error.message || 'Não foi possível registrar a série.');
     } finally {
       setSaving(false);
     }
@@ -283,7 +287,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             stopRestTimer();
             navigation.goBack();
           } catch (error) {
-            showAlert('Erro', 'Não foi possível finalizar o treino.');
+            showAlert('Erro', error.message || 'Não foi possível finalizar o treino.');
           } finally {
             setFinishing(false);
           }
@@ -305,7 +309,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setWorkout((prev) => ({ ...prev, name: updated.name }));
       setEditingName(false);
     } catch (error) {
-      showAlert('Erro', 'Não foi possível renomear o treino.');
+      showAlert('Erro', error.message || 'Não foi possível renomear o treino.');
     }
   };
 
@@ -323,7 +327,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               await deleteWorkout(workoutId);
               navigation.goBack();
             } catch (error) {
-              showAlert('Erro', 'Não foi possível excluir o treino.');
+              showAlert('Erro', error.message || 'Não foi possível excluir o treino.');
             }
           },
         },
@@ -354,7 +358,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       }));
       setEditingSetId(null);
     } catch (error) {
-      showAlert('Erro', 'Não foi possível atualizar a série.');
+      showAlert('Erro', error.message || 'Não foi possível atualizar a série.');
     } finally {
       setSavingSetEdit(false);
     }
@@ -372,7 +376,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             setWorkout((prev) => ({ ...prev, sets: prev.sets.filter((s) => s.id !== setId) }));
             setEditingSetId((current) => (current === setId ? null : current));
           } catch (error) {
-            showAlert('Erro', 'Não foi possível excluir a série.');
+            showAlert('Erro', error.message || 'Não foi possível excluir a série.');
           }
         },
       },
@@ -402,6 +406,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const isFinished = workout.is_finished;
 
   return (
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={styles.container}>
       <View style={styles.headerRow}>
         <BackButton />
@@ -548,6 +553,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         </>
       )}
     </View>
+    </KeyboardAvoidingView>
   );
 }
 

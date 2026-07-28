@@ -1,38 +1,62 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
-import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkoutProgress } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
 
 export default function ProgressScreen() {
-  const showAlert = useAppAlert();
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Antes, falha de rede só mostrava um Alert genérico e a tela ficava presa
+  // no spinner (loading nunca virava false direito em alguns casos) ou caía
+  // numa lista vazia indistinguível de "sem treinos ainda" — sem botão de
+  // tentar de novo, a única saída era sair da tela e voltar.
+  const [error, setError] = useState(false);
+
+  const fetchProgress = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await getWorkoutProgress();
+      setProgress(data);
+    } catch (err) {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      const fetchProgress = async () => {
-        setLoading(true);
-        try {
-          const data = await getWorkoutProgress();
-          setProgress(data);
-        } catch (error) {
-          showAlert('Erro', 'Não foi possível carregar seu progresso.');
-        } finally {
-          setLoading(false);
-        }
-      };
       fetchProgress();
-    }, [])
+    }, [fetchProgress])
   );
 
   if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#00FF66" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.rootContainer}>
+        <View style={styles.header}>
+          <BackButton style={styles.backButton} />
+          <Text style={styles.headerTitle}>Progresso</Text>
+        </View>
+        <View style={styles.center}>
+          <Ionicons name="cloud-offline-outline" size={40} color="#888" style={{ marginBottom: 12 }} />
+          <Text style={styles.errorTitle}>Não foi possível carregar seu progresso</Text>
+          <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchProgress}>
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -102,7 +126,11 @@ export default function ProgressScreen() {
 const styles = StyleSheet.create({
   rootContainer: { flex: 1, backgroundColor: '#121212' },
   container: { flex: 1, padding: 20 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
+  errorTitle: { color: '#FFF', fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
+  errorSubtitle: { color: '#888', fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
+  retryButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: '#121212' },
   backButton: { position: 'absolute', left: 20, top: 60, zIndex: 10 },
   headerTitle: { flex: 1, textAlign: 'center', color: '#FFF', fontSize: 22, fontWeight: 'bold' },

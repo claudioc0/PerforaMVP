@@ -323,6 +323,48 @@ describe('renovação de access token (refresh) em request()', () => {
   });
 });
 
+describe('erro de rede/timeout (sem dependência nativa de netinfo)', () => {
+  // Antes, toda falha de fetch (queda de conexão, timeout) caía no mesmo catch
+  // genérico das telas — indistinguível de um erro de negócio do backend. Sem
+  // isso, telas não tinham como mostrar "sem conexão, tente de novo" nem
+  // diferenciar de "não há dados". status:0 é o sinal que permite essa distinção.
+  beforeEach(() => {
+    getToken.mockReset();
+    getToken.mockResolvedValue(null);
+  });
+
+  test('fetch rejeita com TypeError (sinal padrão do RN pra "sem conexão") vira ApiError com status 0', async () => {
+    global.fetch = jest.fn().mockRejectedValue(new TypeError('Network request failed'));
+
+    await expect(getUserGoals()).rejects.toMatchObject({
+      status: 0,
+      message: expect.stringContaining('conexão'),
+    });
+  });
+
+  test('requisição que nunca resolve é abortada pelo timeout e vira ApiError com status 0', async () => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn((url, options) => new Promise((resolve, reject) => {
+      options.signal.addEventListener('abort', () => {
+        const err = new Error('Aborted');
+        err.name = 'AbortError';
+        reject(err);
+      });
+    }));
+
+    const promise = getUserGoals();
+    // Evita rejeição não tratada entre o advanceTimersByTime e o await abaixo.
+    const assertion = expect(promise).rejects.toMatchObject({
+      status: 0,
+      message: expect.stringContaining('demorou'),
+    });
+    await jest.advanceTimersByTimeAsync(30000);
+    await assertion;
+
+    jest.useRealTimers();
+  });
+});
+
 describe('funções de listagem paginadas (backend agora devolve {items, page, ...})', () => {
   // O backend passou a paginar essas 4 listagens (antes devolviam a tabela
   // inteira do usuário sempre) — as funções abaixo pedem o teto máximo por

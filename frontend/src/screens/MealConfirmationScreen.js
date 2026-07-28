@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { saveMeal, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
@@ -9,8 +9,11 @@ import { useScaledMealItems } from '../hooks/useScaledMealItems';
 
 export default function MealConfirmationScreen({ navigation, route }) {
   const showAlert = useAppAlert();
-  // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da tela anterior
-  const { draftMeal, targetDate } = route.params;
+  // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da
+  // tela anterior. `|| {}` evita quebrar o destructuring se a tela for aberta
+  // sem params (deep link, rota antiga) — o `!draftMeal` logo abaixo já cobre
+  // esse caso mostrando a tela de erro em vez de crashar.
+  const { draftMeal, targetDate } = route.params || {};
 
   // A IA já devolve os macros de cada item por 100g — são a "base" pra escalar.
   // "quantity" é editável, pré-preenchida com a estimativa de peso da própria IA.
@@ -38,6 +41,15 @@ export default function MealConfirmationScreen({ navigation, route }) {
   );
 
   const handleConfirmMeal = async () => {
+    // Sem isso, limpar o campo de quantidade (texto vira '') fazia
+    // parseFloat('') || 0 virar 0 silenciosamente em scaleMealItems — a
+    // refeição era confirmada com 0 kcal / 0g de tudo, sem nenhum aviso.
+    const invalidItem = scaledItems.find((item) => !item.numQuantity || item.numQuantity <= 0);
+    if (invalidItem) {
+      showAlert('Atenção', `Informe uma quantidade válida (em gramas) para "${invalidItem.description}" antes de confirmar.`);
+      return;
+    }
+
     setLoading(true);
     try {
       const finalItems = scaledItems.map((item) => ({
@@ -85,13 +97,20 @@ export default function MealConfirmationScreen({ navigation, route }) {
   if (!draftMeal || scaledItems.length === 0) {
     return (
       <View style={styles.container}>
+        {/* Sem isso, essa tela de erro não tinha NENHUM jeito de sair no iOS
+            (sem gesto de voltar do Android, e sem botão nenhum na tela) —
+            o usuário ficava preso aqui. */}
+        <View style={styles.headerRow}>
+          <BackButton />
+        </View>
         <Text style={styles.errorText}>Erro: Dados da refeição não encontrados.</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Confirmar Refeição</Text>
@@ -168,6 +187,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
         <Text style={styles.cancelText}>Cancelar</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

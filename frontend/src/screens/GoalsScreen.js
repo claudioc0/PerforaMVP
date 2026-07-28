@@ -8,7 +8,10 @@ import {
   ActivityIndicator,
   ScrollView,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { updateUserGoals, calculateSmartGoals } from '../services/api';
 import BackButton from '../components/BackButton';
@@ -59,27 +62,38 @@ export default function GoalsScreen({ navigation }) {
   const [goal, setGoal] = useState('maintain');
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
   const [calculating, setCalculating] = useState(false);
 
+  // Extraído de dentro do useFocusEffect pra poder ser chamado de novo pelo
+  // botão "Tentar novamente" — antes, se a busca falhasse, o alerta de erro
+  // era a ÚNICA reação: fechá-lo deixava a tela cair no formulário normal com
+  // os 4 campos em branco (o estado nunca foi preenchido). Nada impedia
+  // tocar "Salvar Metas" ali — parseFloat('') || 0 manda 0/0/0/0 pro backend,
+  // apagando as metas reais do usuário sem aviso nenhum. Agora um erro de
+  // carregamento mantém uma tela de erro dedicada (sem formulário, sem botão
+  // de salvar) até a busca ter sucesso.
+  const loadGoals = useCallback(async () => {
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const goals = await refreshGoals();
+      setCalories(goals.goal_calories?.toString() || '');
+      setProtein(goals.goal_protein_g?.toString() || '');
+      setCarbs(goals.goal_carbs_g?.toString() || '');
+      setFat(goals.goal_fat_g?.toString() || '');
+    } catch (error) {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [refreshGoals]);
+
   useFocusEffect(
     useCallback(() => {
-      const loadGoals = async () => {
-        setLoading(true);
-        try {
-          const goals = await refreshGoals();
-          setCalories(goals.goal_calories?.toString() || '');
-          setProtein(goals.goal_protein_g?.toString() || '');
-          setCarbs(goals.goal_carbs_g?.toString() || '');
-          setFat(goals.goal_fat_g?.toString() || '');
-        } catch (error) {
-          showAlert('Erro', 'Não foi possível carregar suas metas.');
-        } finally {
-          setLoading(false);
-        }
-      };
       loadGoals();
-    }, [refreshGoals])
+    }, [loadGoals])
   );
 
   const handleSaveGoals = async () => {
@@ -144,8 +158,28 @@ export default function GoalsScreen({ navigation }) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#00FF66" /></View>;
   }
 
+  if (loadError) {
+    return (
+      <View style={styles.center}>
+        <View style={styles.errorHeaderRow}>
+          <BackButton />
+        </View>
+        <Ionicons name="cloud-offline-outline" size={40} color="#888" style={{ marginBottom: 12 }} />
+        <Text style={styles.errorTitle}>Não foi possível carregar suas metas</Text>
+        <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadGoals}>
+          <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Definir Metas</Text>
@@ -249,13 +283,19 @@ export default function GoalsScreen({ navigation }) {
           </ScrollView>
         </View>
       </Modal>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  errorHeaderRow: { position: 'absolute', top: 60, left: 20 },
+  errorTitle: { color: '#FFF', fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
+  errorSubtitle: { color: '#888', fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
+  retryButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   smartButton: {

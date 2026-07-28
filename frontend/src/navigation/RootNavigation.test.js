@@ -25,7 +25,7 @@ jest.mock('@react-navigation/native', () => ({
 }));
 
 const { CommonActions } = require('@react-navigation/native');
-const { navigate, resetToLogin } = require('./RootNavigation');
+const { navigate, resetToLogin, resetToDashboard } = require('./RootNavigation');
 
 describe('resetToLogin', () => {
   beforeEach(() => {
@@ -47,6 +47,34 @@ describe('resetToLogin', () => {
     mockRef.isReady.mockReturnValue(false);
 
     resetToLogin();
+
+    expect(mockRef.dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('resetToDashboard', () => {
+  // Usado pelo ErrorBoundary global depois de um crash de render — a tela que
+  // crashou pode ter deixado a pilha de navegação num estado inconsistente,
+  // então goBack() não é confiável; resetar pra uma tela conhecida é.
+  beforeEach(() => {
+    mockRef.isReady.mockReset();
+    mockRef.dispatch.mockReset();
+  });
+
+  test('quando a navegação está pronta, despacha um RESET que deixa só Dashboard na pilha', () => {
+    mockRef.isReady.mockReturnValue(true);
+
+    resetToDashboard();
+
+    expect(mockRef.dispatch).toHaveBeenCalledWith(
+      CommonActions.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
+    );
+  });
+
+  test('não faz nada se a navegação ainda não estiver pronta', () => {
+    mockRef.isReady.mockReturnValue(false);
+
+    resetToDashboard();
 
     expect(mockRef.dispatch).not.toHaveBeenCalled();
   });

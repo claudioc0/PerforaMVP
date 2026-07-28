@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'rea
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { analyzeMeal } from '../services/api';
-import { fetchProductByBarcode } from '../services/openFoodFacts';
+import { fetchProductByBarcode, ProductNotFoundError } from '../services/openFoodFacts';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 
@@ -80,20 +80,21 @@ export default function CameraScreen({ navigation, route }) {
 
     try {
       const product = await fetchProductByBarcode(data);
-      if (product) {
-        navigation.navigate('ManualEntry', {
-          scannedProduct: product,
-          targetDate: targetDate,
-        });
-      } else {
-        // MELHORIA UX: Redireciona para cadastro manual se não achar
+      navigation.navigate('ManualEntry', {
+        scannedProduct: product,
+        targetDate: targetDate,
+      });
+    } catch (error) {
+      if (error instanceof ProductNotFoundError) {
+        // Isso aqui é uma resposta de verdade do banco de dados ("status !== 1"),
+        // não uma falha de rede — o produto genuinamente não está cadastrado.
         showAlert(
           "Produto inédito! 🕵️",
           "Não encontramos este código de barras no banco mundial. Deseja cadastrá-lo manualmente?",
           [
             { text: 'Tentar Novamente', onPress: () => setScanned(false), style: 'cancel' },
-            { 
-              text: 'Cadastrar Manual', 
+            {
+              text: 'Cadastrar Manual',
               onPress: () => {
                 setScanned(false);
                 navigation.navigate('ManualEntry', { targetDate });
@@ -101,13 +102,16 @@ export default function CameraScreen({ navigation, route }) {
             }
           ]
         );
+      } else {
+        // BarcodeNetworkError (ou qualquer outro erro inesperado): a consulta
+        // nem chegou a acontecer de verdade — não faz sentido sugerir "cadastrar
+        // manualmente" como se o produto não existisse.
+        showAlert(
+          "Erro de Conexão",
+          error.message || "Ocorreu um erro ao buscar o produto na internet.",
+          [{ text: 'Tentar Novamente', onPress: () => setScanned(false) }]
+        );
       }
-    } catch (error) {
-      showAlert(
-        "Erro de Conexão",
-        "Ocorreu um erro ao buscar o produto na internet.",
-        [{ text: 'OK', onPress: () => setScanned(false) }]
-      );
     }
   };
 

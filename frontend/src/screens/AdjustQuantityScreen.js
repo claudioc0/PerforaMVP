@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { updateMeal } from '../services/api';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
@@ -9,17 +9,21 @@ import { deriveBaseFromSavedItem } from '../utils/mealMacros';
 
 export default function AdjustQuantityScreen({ navigation, route }) {
   const showAlert = useAppAlert();
-  const { meal: initialMeal } = route.params;
+  // `|| {}` evita quebrar o destructuring se a tela for aberta sem params
+  // (deep link, rota antiga) — o `!initialMeal` logo abaixo mostra uma tela
+  // de erro em vez de crashar tentando ler `.items` de undefined.
+  const { meal: initialMeal } = route.params || {};
 
   // Refeições registradas via IA (foto/texto) têm detalhamento por item — refeições antigas
   // ou manuais (sem "items") caem no modo legado: um único campo de quantidade pra refeição toda,
   // tratado aqui como uma lista de 1 item só (mesma conta, sem caminho separado).
-  const hasItems = Boolean(initialMeal.items && initialMeal.items.length > 0);
+  const hasItems = Boolean(initialMeal?.items && initialMeal.items.length > 0);
 
   // Deriva os macros base (por 100g) a partir do que já foi salvo, sem precisar
   // chamar a IA de novo — o backend guarda o total pra quantity_g gramas, não o
   // valor por 100g.
   const initialItems = useMemo(() => {
+    if (!initialMeal) return [];
     if (hasItems) {
       return initialMeal.items.map(deriveBaseFromSavedItem);
     }
@@ -78,8 +82,21 @@ export default function AdjustQuantityScreen({ navigation, route }) {
     }
   };
 
+  if (!initialMeal) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.headerRow}>
+          <BackButton />
+          <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
+        </View>
+        <Text style={styles.errorText}>Erro: dados da refeição não encontrados.</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
@@ -145,6 +162,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
         <Text style={styles.cancelText}>Cancelar</Text>
       </TouchableOpacity>
     </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -153,6 +171,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  errorText: { color: 'red', textAlign: 'center', fontSize: 18, marginTop: 20 },
   descriptionText: { color: '#00FF66', fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 20, textTransform: 'capitalize' },
   itemCard: { backgroundColor: '#1E1E1E', padding: 16, borderRadius: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
   itemDesc: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 10, textTransform: 'capitalize' },

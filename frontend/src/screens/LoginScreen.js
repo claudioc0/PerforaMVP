@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser } from '../services/api';
 import { setToken } from '../services/secureTokenStorage';
@@ -42,7 +42,11 @@ export default function LoginScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <View style={styles.header}>
         <View style={styles.logoRow}>
           <LogoMark size={44} />
@@ -92,12 +96,13 @@ export default function LoginScreen({ navigation }) {
           <Text style={styles.linkText}>Não tem uma conta? <Text style={styles.linkTextBold}>Cadastre-se</Text></Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', justifyContent: 'center', padding: 25 },
+  container: { flexGrow: 1, backgroundColor: '#121212', justifyContent: 'center', padding: 25 },
   header: { marginBottom: 40, alignItems: 'center' },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
   title: { color: '#FFF', fontSize: 32, fontFamily: 'Orbitron_900Black', letterSpacing: 2, marginLeft: 10 },

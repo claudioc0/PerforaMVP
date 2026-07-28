@@ -31,12 +31,18 @@ export default function WorkoutHistoryScreen({ navigation }) {
   const [loadingDayExercises, setLoadingDayExercises] = useState(false);
   const [startingDay, setStartingDay] = useState(false);
 
+  // Antes, uma falha aqui só mostrava um Alert e deixava `workouts` vazio —
+  // indistinguível de "usuário sem treinos ainda", e sem jeito de tentar de
+  // novo sem sair e voltar pra tela.
+  const [workoutsError, setWorkoutsError] = useState(false);
+
   const fetchWorkouts = useCallback(async () => {
+    setWorkoutsError(false);
     try {
       const data = await listWorkouts();
       setWorkouts(data);
     } catch (error) {
-      showAlert('Erro', 'Não foi possível carregar seu histórico de treinos.');
+      setWorkoutsError(true);
     } finally {
       setLoading(false);
     }
@@ -284,6 +290,15 @@ export default function WorkoutHistoryScreen({ navigation }) {
 
       {loading ? (
         <ActivityIndicator size="large" color="#00FF66" style={{ marginTop: 40 }} />
+      ) : workoutsError ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="cloud-offline-outline" size={36} color="#888" style={{ marginBottom: 10 }} />
+          <Text style={styles.errorTitle}>Não foi possível carregar seu histórico</Text>
+          <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchWorkouts}>
+            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={workouts}
@@ -317,6 +332,11 @@ const styles = StyleSheet.create({
   badgeActive: { backgroundColor: 'rgba(0,255,102,0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#00FF66' },
   badgeActiveText: { color: '#00FF66', fontSize: 11, fontWeight: 'bold' },
   emptyText: { color: '#888', textAlign: 'center', marginTop: 30, fontSize: 14 },
+  errorContainer: { alignItems: 'center', marginTop: 40, paddingHorizontal: 20 },
+  errorTitle: { color: '#FFF', fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
+  errorSubtitle: { color: '#888', fontSize: 13, textAlign: 'center', marginBottom: 18 },
+  retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
+  retryButtonText: { color: '#121212', fontSize: 15, fontWeight: 'bold' },
   fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: '#00FF66', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#00FF66', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
 
   weeklySection: { marginBottom: 18 },

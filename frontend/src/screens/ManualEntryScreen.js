@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,8 +26,11 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
 
 export default function ManualEntryScreen({ navigation, route }) {
   const showAlert = useAppAlert();
-  // Usa route.params diretamente, que já é fornecido pelo React Navigation
-  const { targetDate, scannedProduct } = route.params;
+  // route.params pode vir ausente (navegação sem os parâmetros esperados,
+  // ex: um deep link ou uma rota antiga) — sem o `|| {}`, o destructuring
+  // quebra na hora, derrubando a tela inteira (só o ErrorBoundary global
+  // evitaria a tela branca; melhor nem chegar lá).
+  const { targetDate, scannedProduct } = route.params || {};
 
   const [favorites, setFavorites] = useState([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
@@ -253,11 +256,13 @@ export default function ManualEntryScreen({ navigation, route }) {
     // visível na tela. Com um histórico grande de favoritos, a tela travava
     // por um instante ao abrir. O formulário inteiro vira o
     // ListHeaderComponent.
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <FlatList
       style={styles.container}
       data={favorites}
       renderItem={renderFavoriteItem}
       keyExtractor={(item) => item.id.toString()}
+      keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
           <View style={styles.headerRow}>
@@ -359,6 +364,7 @@ export default function ManualEntryScreen({ navigation, route }) {
         </TouchableOpacity>
       }
     />
+    </KeyboardAvoidingView>
   );
 }
 
