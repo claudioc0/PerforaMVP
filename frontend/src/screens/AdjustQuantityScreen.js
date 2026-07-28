@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { updateMeal } from '../services/api';
 import BackButton from '../components/BackButton';
+import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
 import { deriveBaseFromSavedItem } from '../utils/mealMacros';
@@ -100,9 +101,13 @@ export default function AdjustQuantityScreen({ navigation, route }) {
               />
               <Text style={styles.unitText}>gramas</Text>
             </View>
-            <Text style={styles.itemMacros}>
-              {item.scaledCalories.toFixed(0)} kcal • P: {item.scaledProtein_g.toFixed(1)}g • C: {item.scaledCarbs_g.toFixed(1)}g • G: {item.scaledFat_g.toFixed(1)}g
-            </Text>
+            <MacroSummaryLine
+              calories={item.scaledCalories}
+              proteinG={item.scaledProtein_g}
+              carbsG={item.scaledCarbs_g}
+              fatG={item.scaledFat_g}
+              style={styles.itemMacros}
+            />
           </View>
         ))
       ) : (

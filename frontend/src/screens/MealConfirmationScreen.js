@@ -3,6 +3,7 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { saveMeal, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
+import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
 
@@ -114,9 +115,13 @@ export default function MealConfirmationScreen({ navigation, route }) {
             />
             <Text style={styles.unitText}>gramas</Text>
           </View>
-          <Text style={styles.itemMacros}>
-            {item.scaledCalories.toFixed(0)} kcal • P: {item.scaledProtein_g.toFixed(1)}g • C: {item.scaledCarbs_g.toFixed(1)}g • G: {item.scaledFat_g.toFixed(1)}g
-          </Text>
+          <MacroSummaryLine
+            calories={item.scaledCalories}
+            proteinG={item.scaledProtein_g}
+            carbsG={item.scaledCarbs_g}
+            fatG={item.scaledFat_g}
+            style={styles.itemMacros}
+          />
         </View>
       ))}
 

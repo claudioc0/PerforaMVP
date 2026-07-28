@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
+import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWorkout } from '../services/api';
 
@@ -75,35 +76,23 @@ export default function ChooseSplitScreen({ navigation }) {
         data={splits}
         keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
-          <View style={styles.splitCard}>
-            <TouchableOpacity style={styles.splitHeader} onPress={() => toggleSplit(item.id)}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.splitName}>{item.name}</Text>
-                {item.description && <Text style={styles.splitDescription}>{item.description}</Text>}
-              </View>
-              <Ionicons
-                name={expandedSplitId === item.id ? 'chevron-up' : 'chevron-down'}
-                size={20}
-                color="#888"
-              />
-            </TouchableOpacity>
-
-            {expandedSplitId === item.id && (
-              <View style={styles.daysContainer}>
-                {item.days.map((day) => (
-                  <TouchableOpacity
-                    key={day.id}
-                    style={styles.dayRow}
-                    onPress={() => handleStart({ split_day_id: day.id, name: day.name })}
-                    disabled={creating}
-                  >
-                    <Text style={styles.dayName}>{day.name}</Text>
-                    <Ionicons name="chevron-forward" size={18} color="#00FF66" />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
+          <ExpandableSplitCard
+            split={item}
+            expanded={expandedSplitId === item.id}
+            onToggle={() => toggleSplit(item.id)}
+          >
+            {item.days.map((day) => (
+              <TouchableOpacity
+                key={day.id}
+                style={styles.dayRow}
+                onPress={() => handleStart({ split_day_id: day.id, name: day.name })}
+                disabled={creating}
+              >
+                <Text style={styles.dayName}>{day.name}</Text>
+                <Ionicons name="chevron-forward" size={18} color="#00FF66" />
+              </TouchableOpacity>
+            ))}
+          </ExpandableSplitCard>
         )}
         contentContainerStyle={{ paddingBottom: 40 }}
       />
@@ -126,11 +115,6 @@ const styles = StyleSheet.create({
   freestyleTitle: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
   freestyleSubtitle: { color: '#121212', fontSize: 12, marginTop: 2, opacity: 0.8 },
   sectionLabel: { color: '#888', fontSize: 14, marginBottom: 12 },
-  splitCard: { backgroundColor: '#1E1E1E', borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
-  splitHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  splitName: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  splitDescription: { color: '#888', fontSize: 12, marginTop: 2 },
-  daysContainer: { borderTopWidth: 1, borderTopColor: '#333' },
   dayRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#2A2A2A' },
   dayName: { color: '#FFF', fontSize: 15 },
   creatingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },

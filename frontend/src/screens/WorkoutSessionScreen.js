@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
@@ -122,6 +123,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const [restRunning, setRestRunning] = useState(false);
   const [restTarget, setRestTarget] = useState(DEFAULT_REST_TARGET);
   const restIntervalRef = useRef(null);
+  const restStartRef = useRef(null);
 
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState('');
@@ -168,25 +170,40 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     fetchWorkout();
   }, [fetchWorkout]);
 
-  useEffect(() => {
-    return () => {
-      if (restIntervalRef.current) clearInterval(restIntervalRef.current);
-    };
-  }, []);
-
+  // O interval do descanso só existe enquanto a tela está em foco — antes,
+  // ele era criado em startRestTimer() e só limpo no unmount, o que significa
+  // que navegar pro ExercisePicker (empilha por cima, não desmonta esta tela)
+  // deixava um setState por segundo rodando escondido. Aqui, restStartRef
+  // guarda o timestamp real do início do descanso; o interval em si é
+  // recriado/limpo pelo useFocusEffect abaixo, e sempre recalcula o elapsed a
+  // partir do timestamp real — então voltar de outra tela mostra o tempo
+  // correto mesmo sem o interval ter rodado enquanto estava fora de foco.
   const startRestTimer = () => {
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    restStartRef.current = Date.now();
     setRestElapsed(0);
     setRestRunning(true);
-    restIntervalRef.current = setInterval(() => {
-      setRestElapsed((prev) => prev + 1);
-    }, 1000);
   };
 
   const stopRestTimer = () => {
-    if (restIntervalRef.current) clearInterval(restIntervalRef.current);
+    restStartRef.current = null;
     setRestRunning(false);
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      if (restRunning && restStartRef.current) {
+        restIntervalRef.current = setInterval(() => {
+          setRestElapsed(Math.floor((Date.now() - restStartRef.current) / 1000));
+        }, 1000);
+      }
+      return () => {
+        if (restIntervalRef.current) {
+          clearInterval(restIntervalRef.current);
+          restIntervalRef.current = null;
+        }
+      };
+    }, [restRunning])
+  );
 
   const selectExercise = async (exercise) => {
     setPendingExercise(exercise);
