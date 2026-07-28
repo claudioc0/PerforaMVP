@@ -4,8 +4,9 @@
  * o que facilita trocar de backend ou mockar em testes.
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { navigate } from '../navigation/RootNavigation'; // Importa o helper de navegação
+import { getToken, setToken } from './secureTokenStorage';
+import { clearLocalSession } from './session';
+import { resetToLogin } from '../navigation/RootNavigation'; // Importa o helper de navegação
 
 // Configurável via .env (EXPO_PUBLIC_API_URL) — veja .env.example.
 // Em desenvolvimento, use o IP da sua máquina na rede local (não use "localhost"
@@ -39,17 +40,6 @@ async function handleResponse(response) {
   const isJson = contentType.includes("application/json");
   const body = isJson ? await response.json() : await response.text();
 
-  // --- INTERCEPTADOR GLOBAL DE ERRO 401 ---
-  // Se a resposta for 401 (Não Autorizado), o token é inválido ou expirou.
-  // Deslogamos o usuário e o redirecionamos para a tela de Login.
-  if (response.status === 401) {
-    console.log("API: Recebido erro 401. Deslogando usuário.");
-    await AsyncStorage.removeItem('jwt_token'); // Limpa o token inválido
-    navigate('Login'); // Redireciona para o login
-    // Lança um erro específico para interromper o fluxo e evitar que a tela de origem tente renderizar dados.
-    throw new ApiError("Sessão expirada. Por favor, faça o login novamente.", 401);
-  }
-
   if (!response.ok) {
     const message = isJson && body?.error ? body.error : "Erro ao comunicar com o servidor.";
     throw new ApiError(message, response.status);
@@ -58,13 +48,69 @@ async function handleResponse(response) {
   return body;
 }
 
+// --- RENOVAÇÃO DE ACCESS TOKEN (refresh) ---
+// Sem isso, um access token expirado (validade de 1h — ver JWT_ACCESS_TOKEN_EXPIRES
+// no backend) ejetava o usuário na hora pro Login, mesmo no meio de uma série de
+// treino em andamento, perdendo o formulário preenchido. Agora `request()` tenta
+// renovar com o refresh token (validade de 7 dias) e refaz a chamada original de
+// forma transparente antes de desistir.
+let refreshPromise = null;
+
+async function refreshAccessToken() {
+  // Duas chamadas que expiram "ao mesmo tempo" (ex: um Promise.all com duas
+  // requisições) cairiam aqui juntas — sem isso, cada uma disparava sua
+  // própria renovação concorrente. Dedup: só a primeira chamada renova de
+  // verdade; a segunda espera a MESMA promise em vez de tentar de novo.
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const refreshToken = await getToken('refresh_token');
+      if (!refreshToken) {
+        throw new Error('Sem refresh token salvo.');
+      }
+
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${refreshToken}`, Accept: 'application/json' },
+      });
+      if (!response.ok) {
+        throw new Error('Refresh token inválido ou expirado.');
+      }
+
+      const data = await response.json();
+      await setToken('jwt_token', data.token);
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
+// --- LOGOUT FORÇADO (sessão irrecuperável) ---
+let forceLogoutPromise = null;
+
+async function forceLogout() {
+  // Mesmo raciocínio do dedup acima: se várias chamadas concorrentes falham
+  // a renovação ao mesmo tempo, cada uma chamando resetToLogin() por conta
+  // própria disparava várias navegações de reset ao mesmo tempo.
+  if (!forceLogoutPromise) {
+    forceLogoutPromise = (async () => {
+      console.log("API: Sessão não pôde ser renovada. Deslogando usuário.");
+      await clearLocalSession();
+      resetToLogin();
+    })().finally(() => {
+      forceLogoutPromise = null;
+    });
+  }
+  return forceLogoutPromise;
+}
+
 /**
  * Cria os cabeçalhos padrão para requisições, incluindo o token JWT se disponível.
  * @param {object} additionalHeaders - Cabeçalhos adicionais, como 'Content-Type'.
  * @returns {Promise<object>}
  */
 async function getAuthHeaders(additionalHeaders = {}) {
-  const token = await AsyncStorage.getItem('jwt_token'); // Chave onde o token foi salvo no login
+  const token = await getToken('jwt_token'); // Chave onde o token foi salvo no login
   const headers = {
     Accept: 'application/json',
     ...additionalHeaders,
@@ -88,7 +134,7 @@ async function getAuthHeaders(additionalHeaders = {}) {
  * @param {boolean} [options.isFormData] - true para upload de arquivo (não define Content-Type).
  * @param {object} [options.headers] - Cabeçalhos extras/sobrescritos.
  */
-async function request(path, { method = 'GET', body, isFormData = false, headers: extraHeaders = {} } = {}) {
+async function request(path, { method = 'GET', body, isFormData = false, headers: extraHeaders = {}, _isRetry = false } = {}) {
   const hasJsonBody = body !== undefined && !isFormData;
   const headers = await getAuthHeaders({
     ...(hasJsonBody ? { 'Content-Type': 'application/json' } : {}),
@@ -100,6 +146,27 @@ async function request(path, { method = 'GET', body, isFormData = false, headers
     headers,
     body: isFormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
   });
+
+  if (response.status === 401) {
+    if (_isRetry) {
+      // Já tentamos renovar e refizemos a chamada — se AINDA assim voltou
+      // 401, não há mais o que fazer além de forçar o logout.
+      await forceLogout();
+      throw new ApiError("Sessão expirada. Por favor, faça o login novamente.", 401);
+    }
+
+    try {
+      await refreshAccessToken();
+    } catch (refreshError) {
+      await forceLogout();
+      throw new ApiError("Sessão expirada. Por favor, faça o login novamente.", 401);
+    }
+
+    // Refaz a MESMA chamada uma vez, de forma transparente pro código que
+    // chamou — quem estava salvando uma série de treino nem percebe que o
+    // token foi renovado no meio do caminho.
+    return request(path, { method, body, isFormData, headers: extraHeaders, _isRetry: true });
+  }
 
   return handleResponse(response);
 }
