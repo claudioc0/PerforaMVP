@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.services import UserService
@@ -104,7 +105,7 @@ def get_weight_history():
         # Busca as pesagens mais recentes primeiro (pra paginar a partir do
         # presente, como qualquer histórico), depois inverte pra manter o
         # contrato de sempre: mais antiga → mais nova (o gráfico espera essa ordem).
-        query = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.date.desc(), WeightLog.id.desc())
+        query = WeightLog.query.filter_by(user_id=current_user_id).order_by(WeightLog.log_date.desc(), WeightLog.id.desc())
         items, total = paginate_query(query, page, per_page)
         items.reverse()
     except Exception:
@@ -138,6 +139,13 @@ def log_weight():
     try:
         db.session.add(log)
         db.session.commit()
+    except IntegrityError:
+        # Já existe um registro de peso pra esse usuário nesse dia (constraint
+        # uq_weight_logs_user_log_date) — não é uma falha de servidor, é um
+        # duplicado que o próprio cliente pode evitar (editar o registro do
+        # dia em vez de criar outro).
+        db.session.rollback()
+        return jsonify({"error": "Você já registrou seu peso hoje."}), 409
     except Exception:
         db.session.rollback()
         logger.exception("Erro inesperado ao registrar peso do usuário ID %s.", current_user_id)

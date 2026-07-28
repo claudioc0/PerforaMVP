@@ -115,11 +115,6 @@ class Config:
     # provisionado ainda.
     RATELIMIT_STORAGE_URI = os.getenv("RATELIMIT_STORAGE_URI", "memory://")
 
-    # --- Criptografia de dados sensíveis em repouso (preparação) ---
-    # Chave Fernet (32 bytes url-safe base64). Gere uma com:
-    # python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-    ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
-
 
 class TestConfig(Config):
     """Configuração usada pela suite de testes (pytest).
@@ -131,7 +126,6 @@ class TestConfig(Config):
     TESTING = True
     SECRET_KEY = "test-only-secret-key-never-use-in-production"
     JWT_SECRET_KEY = "test-only-jwt-secret-key-never-use-in-production"
-    ENCRYPTION_KEY = "wcGnCYFwPmWJv7Cnu5PJIkYyLwm7_lJ-a5wR8h5uQXo="  # chave Fernet válida, só de teste
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     RATELIMIT_STORAGE_URI = "memory://"
     RATELIMIT_ENABLED = True

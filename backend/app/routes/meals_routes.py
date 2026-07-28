@@ -5,6 +5,8 @@ from flask import Blueprint, current_app, jsonify, request
 # NOVAS IMPORTAÇÕES DO JWT
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
+from sqlalchemy.exc import IntegrityError
+
 from app.extensions import db, limiter, rate_limit_key_by_user
 from app.models import FavoriteMeal
 from app.services.gemini_service import (
@@ -186,6 +188,12 @@ def add_favorite():
     try:
         db.session.add(new_favorite)
         db.session.commit()
+    except IntegrityError:
+        # Já existe um favorito com essa descrição pra esse usuário
+        # (constraint uq_favorite_meals_user_description) — não é uma falha
+        # de servidor, é uma tentativa de duplicar um favorito já existente.
+        db.session.rollback()
+        return jsonify({"error": "Essa refeição já está nos seus favoritos."}), 409
     except Exception:
         db.session.rollback()
         logger.exception("Erro inesperado ao favoritar refeição para o usuário ID %s.", current_user_id)

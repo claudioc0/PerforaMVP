@@ -2,6 +2,11 @@ from app.extensions import db
 
 class FavoriteMeal(db.Model):
     __tablename__ = 'favorite_meals'
+    __table_args__ = (
+        # Nada impedia favoritar a mesma refeição várias vezes — a lista
+        # crescia com duplicatas idênticas sem limite nenhum.
+        db.UniqueConstraint('user_id', 'description', name='uq_favorite_meals_user_description'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     # get_favorites (agora paginado) filtra por user_id em toda chamada — sem

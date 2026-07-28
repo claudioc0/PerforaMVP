@@ -1,4 +1,7 @@
 from datetime import datetime, date
+
+from sqlalchemy import event
+
 from app.extensions import db
 from app.utils.dates import day_bounds
 
@@ -80,3 +83,28 @@ class Meal(db.Model):
             Meal.user_id == user_id,
             Meal.created_at.between(start, end),
         ).order_by(Meal.id.asc())
+
+
+@event.listens_for(Meal, "before_insert")
+@event.listens_for(Meal, "before_update")
+def _recompute_aggregate_from_items(mapper, connection, target: Meal) -> None:
+    """Quando há detalhamento por item, os totais (calories/protein_g/...)
+    são SEMPRE derivados da soma dos itens, nunca do que o chamador passou.
+
+    Antes esse invariante (total == soma dos itens) dependia inteiramente de
+    disciplina no service que constrói o Meal (MealService._aggregate_from_items)
+    — qualquer outro caminho de escrita que esquecesse de recalcular os
+    totais salvaria uma refeição inconsistente sem nenhum aviso. Isso roda no
+    próprio flush, então vale pra qualquer forma de gravar um Meal com items,
+    não só a usada hoje.
+    """
+    items = target.items
+    if not items:
+        return
+
+    target.description = ", ".join(str(item.get("description", "Item")) for item in items)
+    target.calories = sum(float(item.get("calories", 0)) for item in items)
+    target.protein_g = sum(float(item.get("protein_g", 0)) for item in items)
+    target.carbs_g = sum(float(item.get("carbs_g", 0)) for item in items)
+    target.fat_g = sum(float(item.get("fat_g", 0)) for item in items)
+    target.quantity_g = sum(float(item.get("quantity_g", 0)) for item in items)

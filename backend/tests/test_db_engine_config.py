@@ -74,7 +74,6 @@ class TestModoWALNoSQLite:
                 RATELIMIT_STORAGE_URI = "memory://"
                 GEMINI_API_KEY = "test-fake-gemini-key"
                 CORS_ORIGINS = []
-                ENCRYPTION_KEY = "wcGnCYFwPmWJv7Cnu5PJIkYyLwm7_lJ-a5wR8h5uQXo="
 
             app = create_app(_FileDbConfig)
             with app.app_context():
