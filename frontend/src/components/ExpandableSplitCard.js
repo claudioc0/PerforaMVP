@@ -9,7 +9,13 @@ import { Ionicons } from '@expo/vector-icons';
 export default function ExpandableSplitCard({ split, expanded, onToggle, contentStyle, children }) {
   return (
     <View style={styles.splitCard}>
-      <TouchableOpacity style={styles.splitHeader} onPress={onToggle}>
+      <TouchableOpacity
+        style={styles.splitHeader}
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        accessibilityLabel={`${split.name}, ${expanded ? 'recolher' : 'expandir'}`}
+      >
         <View style={{ flex: 1 }}>
           <Text style={styles.splitName}>{split.name}</Text>
           {split.description && <Text style={styles.splitDescription}>{split.description}</Text>}

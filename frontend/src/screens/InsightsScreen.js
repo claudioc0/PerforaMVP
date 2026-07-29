@@ -143,12 +143,12 @@ export default function InsightsScreen({ navigation }) {
           <Text style={styles.cardTitle}>Média da Semana</Text>
           <View style={styles.avgContainer}>
             <View style={styles.avgBox}>
-              <Text style={styles.avgValue}>{weeklyAverages.avgCalories.toFixed(0)}</Text>
-              <Text style={styles.avgLabel}>Média de Kcal / dia</Text>
+              <Text style={styles.avgValue} maxFontSizeMultiplier={1.3}>{weeklyAverages.avgCalories.toFixed(0)}</Text>
+              <Text style={styles.avgLabel} maxFontSizeMultiplier={1.3}>Média de Kcal / dia</Text>
             </View>
             <View style={styles.avgBox}>
-              <Text style={styles.avgValue}>{weeklyAverages.avgProtein.toFixed(1)}g</Text>
-              <Text style={styles.avgLabel}>Média de Proteína / dia</Text>
+              <Text style={styles.avgValue} maxFontSizeMultiplier={1.3}>{weeklyAverages.avgProtein.toFixed(1)}g</Text>
+              <Text style={styles.avgLabel} maxFontSizeMultiplier={1.3}>Média de Proteína / dia</Text>
             </View>
           </View>
         </View>
@@ -187,17 +187,21 @@ export default function InsightsScreen({ navigation }) {
                   const olderLog = arr[index + 1];
                   let trendIcon = null;
                   let indicatorColor = '#333';
+                  let trendLabel = null;
 
                   if (olderLog) {
                     if (log.weight < olderLog.weight) {
                       trendIcon = 'trending-down';
                       indicatorColor = '#00FF66'; // Perdeu peso (Verde)
+                      trendLabel = 'Peso caiu em relação ao registro anterior';
                     } else if (log.weight > olderLog.weight) {
                       trendIcon = 'trending-up';
                       indicatorColor = '#FF6B6B'; // Ganhou peso (Vermelho)
+                      trendLabel = 'Peso subiu em relação ao registro anterior';
                     } else {
                       trendIcon = 'remove'; // Manteve
                       indicatorColor = '#888';
+                      trendLabel = 'Peso estável em relação ao registro anterior';
                     }
                   }
 
@@ -207,7 +211,7 @@ export default function InsightsScreen({ navigation }) {
                         {new Date(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg
                       </Text>
                       {trendIcon && (
-                        <Ionicons name={trendIcon} size={14} color={indicatorColor} style={styles.weightTagIcon} />
+                        <Ionicons name={trendIcon} size={14} color={indicatorColor} style={styles.weightTagIcon} accessibilityLabel={trendLabel} />
                       )}
                     </View>
                   );

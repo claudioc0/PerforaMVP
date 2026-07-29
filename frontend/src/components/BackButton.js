@@ -15,6 +15,8 @@ export default function BackButton({ onPress, style }) {
       onPress={onPress || (() => navigation.goBack())}
       style={[styles.button, style]}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      accessibilityRole="button"
+      accessibilityLabel="Voltar"
     >
       <Ionicons name="chevron-back" size={26} color="#00FF66" />
     </TouchableOpacity>

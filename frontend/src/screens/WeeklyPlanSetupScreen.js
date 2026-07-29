@@ -119,11 +119,19 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
               <View style={styles.stepperRow}>
                 <Text style={styles.stepperLabel}>Dias de treino por semana</Text>
                 <View style={styles.stepperControls}>
-                  <TouchableOpacity onPress={() => adjustTrainingDays(item, -1)}>
+                  <TouchableOpacity
+                    onPress={() => adjustTrainingDays(item, -1)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Diminuir dias de treino por semana"
+                  >
                     <Ionicons name="remove-circle-outline" size={22} color="#888" />
                   </TouchableOpacity>
                   <Text style={styles.stepperValue}>{trainingDaysCount}</Text>
-                  <TouchableOpacity onPress={() => adjustTrainingDays(item, 1)}>
+                  <TouchableOpacity
+                    onPress={() => adjustTrainingDays(item, 1)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Aumentar dias de treino por semana"
+                  >
                     <Ionicons name="add-circle-outline" size={22} color="#888" />
                   </TouchableOpacity>
                 </View>

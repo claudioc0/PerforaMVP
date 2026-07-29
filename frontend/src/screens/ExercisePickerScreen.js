@@ -86,6 +86,7 @@ export default function ExercisePickerScreen({ navigation, route }) {
           placeholderTextColor="#666"
           value={query}
           onChangeText={setQuery}
+          accessibilityLabel="Buscar exercício"
         />
       </View>
 

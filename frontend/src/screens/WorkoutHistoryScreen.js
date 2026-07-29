@@ -200,7 +200,12 @@ export default function WorkoutHistoryScreen({ navigation }) {
         <View style={styles.weeklyHeaderRow}>
           <Text style={styles.weeklyTitle}>Sua Semana</Text>
           <Text style={styles.weeklySplitName}>{weeklyPlan.split_name}</Text>
-          <TouchableOpacity onPress={handlePlanOptions} style={{ padding: 4 }}>
+          <TouchableOpacity
+            onPress={handlePlanOptions}
+            style={{ padding: 4 }}
+            accessibilityRole="button"
+            accessibilityLabel="Opções do plano semanal"
+          >
             <Ionicons name="ellipsis-horizontal" size={20} color="#888" />
           </TouchableOpacity>
         </View>
@@ -220,10 +225,10 @@ export default function WorkoutHistoryScreen({ navigation }) {
                 ]}
                 onPress={() => toggleDay(day)}
               >
-                <Text style={[styles.dayChipLabel, isToday && styles.dayChipLabelToday]}>
+                <Text style={[styles.dayChipLabel, isToday && styles.dayChipLabelToday]} maxFontSizeMultiplier={1.3}>
                   {day.day_label.slice(0, 3)}
                 </Text>
-                <Text style={[styles.dayChipValue, isRest && styles.dayChipValueRest]} numberOfLines={1}>
+                <Text style={[styles.dayChipValue, isRest && styles.dayChipValueRest]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
                   {isRest ? 'Descanso' : day.split_day_name}
                 </Text>
               </TouchableOpacity>
@@ -237,7 +242,11 @@ export default function WorkoutHistoryScreen({ navigation }) {
               <Text style={styles.dayDetailTitle}>
                 {expanded.day_label}{expanded.day_of_week === todayIndex ? ' · Hoje' : ''}
               </Text>
-              <TouchableOpacity onPress={() => handleReassignDay(expanded)}>
+              <TouchableOpacity
+                onPress={() => handleReassignDay(expanded)}
+                accessibilityRole="button"
+                accessibilityLabel="Reatribuir dia da divisão"
+              >
                 <Ionicons name="pencil" size={16} color="#888" />
               </TouchableOpacity>
             </View>
@@ -314,6 +323,8 @@ export default function WorkoutHistoryScreen({ navigation }) {
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate('ChooseSplit')}
+        accessibilityRole="button"
+        accessibilityLabel="Novo treino"
       >
         <Ionicons name="add" size={32} color="#121212" />
       </TouchableOpacity>

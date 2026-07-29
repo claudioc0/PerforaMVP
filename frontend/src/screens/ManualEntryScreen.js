@@ -241,10 +241,20 @@ export default function ManualEntryScreen({ navigation, route }) {
         />
       </View>
       <View style={styles.favActions}>
-        <TouchableOpacity style={styles.favButton} onPress={() => handleAddFavoriteToToday(item)}>
+        <TouchableOpacity
+          style={styles.favButton}
+          onPress={() => handleAddFavoriteToToday(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`Adicionar "${item.description}" aos registros de hoje`}
+        >
           <Ionicons name="add-circle" size={26} color="#00FF66" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.favButton} onPress={() => handleRemoveFavorite(item.id)}>
+        <TouchableOpacity
+          style={styles.favButton}
+          onPress={() => handleRemoveFavorite(item.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`Remover "${item.description}" dos favoritos`}
+        >
           <Ionicons name="trash" size={22} color="#FF6B6B" />
         </TouchableOpacity>
       </View>
@@ -343,7 +353,12 @@ export default function ManualEntryScreen({ navigation, route }) {
               />
             </View>
 
-            <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
+            <TouchableOpacity
+              style={styles.favoriteToggleRow}
+              onPress={() => setSaveAsFavorite((prev) => !prev)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: saveAsFavorite }}
+            >
               <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
               <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
             </TouchableOpacity>

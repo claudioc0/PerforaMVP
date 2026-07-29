@@ -80,17 +80,21 @@ export default function ProgressScreen() {
             const olderWorkout = progress[index + 1];
             let trendIcon = null;
             let trendColor = '#888';
+            let trendLabel = null;
 
             if (olderWorkout) {
               if (workout.total_tonnage > olderWorkout.total_tonnage) {
                 trendIcon = 'trending-up';
                 trendColor = '#00FF66';
+                trendLabel = 'Tonelagem em alta em relação ao treino anterior';
               } else if (workout.total_tonnage < olderWorkout.total_tonnage) {
                 trendIcon = 'trending-down';
                 trendColor = '#FF6B6B';
+                trendLabel = 'Tonelagem em queda em relação ao treino anterior';
               } else {
                 trendIcon = 'remove';
                 trendColor = '#888';
+                trendLabel = 'Tonelagem estável em relação ao treino anterior';
               }
             }
 
@@ -98,22 +102,22 @@ export default function ProgressScreen() {
               <View key={workout.workout_id} style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardDate}>{formatShortDate(workout.started_at)}</Text>
-                  {trendIcon && <Ionicons name={trendIcon} size={20} color={trendColor} />}
+                  {trendIcon && <Ionicons name={trendIcon} size={20} color={trendColor} accessibilityLabel={trendLabel} />}
                 </View>
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{workout.total_tonnage.toFixed(0)}kg</Text>
-                    <Text style={styles.statLabel}>Tonelagem</Text>
+                    <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>{workout.total_tonnage.toFixed(0)}kg</Text>
+                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Tonelagem</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statValue}>{workout.total_reps}</Text>
-                    <Text style={styles.statLabel}>Reps</Text>
+                    <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>{workout.total_reps}</Text>
+                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Reps</Text>
                   </View>
                   <View style={styles.statBox}>
-                    <Text style={styles.statValue}>
+                    <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>
                       {workout.avg_rest_seconds !== null ? `${workout.avg_rest_seconds.toFixed(0)}s` : '—'}
                     </Text>
-                    <Text style={styles.statLabel}>Descanso médio</Text>
+                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Descanso médio</Text>
                   </View>
                 </View>
               </View>

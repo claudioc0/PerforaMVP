@@ -74,13 +74,20 @@ const SetRow = React.memo(function SetRow({
           <Text style={styles.editSeparator}>reps</Text>
         </View>
         <View style={styles.editActionsRow}>
-          <TouchableOpacity onPress={onCancelEdit} style={styles.editActionButton}>
+          <TouchableOpacity
+            onPress={onCancelEdit}
+            style={styles.editActionButton}
+            accessibilityRole="button"
+            accessibilityLabel="Cancelar edição da série"
+          >
             <Ionicons name="close" size={22} color="#888" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onSaveEdit(editWeight, editReps)}
             style={styles.editActionButton}
             disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Salvar série"
           >
             {saving ? <ActivityIndicator color="#00FF66" /> : <Ionicons name="checkmark" size={22} color="#00FF66" />}
           </TouchableOpacity>
@@ -97,7 +104,12 @@ const SetRow = React.memo(function SetRow({
       </View>
       <View style={styles.setCardRight}>
         <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
-        <TouchableOpacity onPress={onDelete} style={styles.setDeleteButton}>
+        <TouchableOpacity
+          onPress={onDelete}
+          style={styles.setDeleteButton}
+          accessibilityRole="button"
+          accessibilityLabel="Excluir série"
+        >
           <Ionicons name="trash-outline" size={17} color="#FF5555" />
         </TouchableOpacity>
       </View>
@@ -427,19 +439,39 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         <View style={styles.headerActions}>
           {editingName ? (
             <>
-              <TouchableOpacity onPress={cancelEditName} style={styles.headerIconButton}>
+              <TouchableOpacity
+                onPress={cancelEditName}
+                style={styles.headerIconButton}
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar edição do nome do treino"
+              >
                 <Ionicons name="close" size={22} color="#888" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={saveWorkoutName} style={styles.headerIconButton}>
+              <TouchableOpacity
+                onPress={saveWorkoutName}
+                style={styles.headerIconButton}
+                accessibilityRole="button"
+                accessibilityLabel="Salvar nome do treino"
+              >
                 <Ionicons name="checkmark" size={22} color="#00FF66" />
               </TouchableOpacity>
             </>
           ) : (
             <>
-              <TouchableOpacity onPress={startEditName} style={styles.headerIconButton}>
+              <TouchableOpacity
+                onPress={startEditName}
+                style={styles.headerIconButton}
+                accessibilityRole="button"
+                accessibilityLabel="Editar nome do treino"
+              >
                 <Ionicons name="pencil" size={19} color="#888" />
               </TouchableOpacity>
-              <TouchableOpacity onPress={handleDeleteWorkout} style={styles.headerIconButton}>
+              <TouchableOpacity
+                onPress={handleDeleteWorkout}
+                style={styles.headerIconButton}
+                accessibilityRole="button"
+                accessibilityLabel="Excluir treino"
+              >
                 <Ionicons name="trash-outline" size={19} color="#FF5555" />
               </TouchableOpacity>
             </>
@@ -451,11 +483,19 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         <View style={styles.restTargetRow}>
           <Text style={styles.restTargetLabel}>Meta de descanso</Text>
           <View style={styles.restTargetControls}>
-            <TouchableOpacity onPress={() => adjustRestTarget(-REST_STEP)}>
+            <TouchableOpacity
+              onPress={() => adjustRestTarget(-REST_STEP)}
+              accessibilityRole="button"
+              accessibilityLabel="Diminuir meta de descanso"
+            >
               <Ionicons name="remove-circle-outline" size={22} color="#888" />
             </TouchableOpacity>
             <Text style={styles.restTargetValue}>{restTarget}s</Text>
-            <TouchableOpacity onPress={() => adjustRestTarget(REST_STEP)}>
+            <TouchableOpacity
+              onPress={() => adjustRestTarget(REST_STEP)}
+              accessibilityRole="button"
+              accessibilityLabel="Aumentar meta de descanso"
+            >
               <Ionicons name="add-circle-outline" size={22} color="#888" />
             </TouchableOpacity>
           </View>

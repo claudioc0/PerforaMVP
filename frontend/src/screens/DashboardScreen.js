@@ -295,7 +295,12 @@ export default function DashboardScreen({ navigation }) {
           />
         </View>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
+      <TouchableOpacity
+        onPress={() => handleFavorite(item)}
+        style={styles.actionButton}
+        accessibilityRole="button"
+        accessibilityLabel="Salvar como favorito"
+      >
         <Ionicons name="star" size={20} color="#00FF66" />
       </TouchableOpacity>
       <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
@@ -349,16 +354,29 @@ export default function DashboardScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.menuButton}
                   onPress={openDrawerMenu}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir menu"
                 >
                   <Ionicons name="menu" size={28} color="#FFF" />
                 </TouchableOpacity>
               </View>
               <View style={styles.dateSelector}>
-                <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
+                <TouchableOpacity
+                  onPress={() => changeDay(-1)}
+                  style={styles.arrowButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dia anterior"
+                >
                   <Ionicons name="chevron-back" size={24} color="#FFF" />
                 </TouchableOpacity>
                 <Text style={styles.title}>{displayDate}</Text>
-                <TouchableOpacity onPress={() => changeDay(1)} style={[styles.arrowButton, isFutureDate && styles.disabledArrow] } disabled={isFutureDate}>
+                <TouchableOpacity
+                  onPress={() => changeDay(1)}
+                  style={[styles.arrowButton, isFutureDate && styles.disabledArrow] }
+                  disabled={isFutureDate}
+                  accessibilityRole="button"
+                  accessibilityLabel="Próximo dia"
+                >
                   <Ionicons name="chevron-forward" size={24} color="#FFF" />
                 </TouchableOpacity>
               </View>
@@ -413,10 +431,20 @@ export default function DashboardScreen({ navigation }) {
 
       {/* FABs */}
       <View style={styles.fabContainer}>
-        <TouchableOpacity style={styles.fabSecondary} onPress={() => navigation.navigate('ManualEntry', { targetDate: formattedCurrentDate })}>
+        <TouchableOpacity
+          style={styles.fabSecondary}
+          onPress={() => navigation.navigate('ManualEntry', { targetDate: formattedCurrentDate })}
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar refeição manualmente"
+        >
           <Ionicons name="create" size={22} color="#00FF66" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Camera', { targetDate: formattedCurrentDate })}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate('Camera', { targetDate: formattedCurrentDate })}
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar refeição com foto"
+        >
           <Ionicons name="camera" size={28} color="#121212" />
         </TouchableOpacity>
       </View>

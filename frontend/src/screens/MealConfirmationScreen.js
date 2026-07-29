@@ -150,25 +150,30 @@ export default function MealConfirmationScreen({ navigation, route }) {
         <Text style={styles.cardTitle}>Total da Refeição</Text>
         <View style={styles.macrosGrid}>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{totals.calories.toFixed(0)}</Text>
-            <Text style={styles.macroLabel}>Kcal</Text>
+            <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.calories.toFixed(0)}</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Kcal</Text>
           </View>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{totals.protein_g.toFixed(1)} g</Text>
-            <Text style={styles.macroLabel}>Proteína</Text>
+            <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.protein_g.toFixed(1)} g</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Proteína</Text>
           </View>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{totals.carbs_g.toFixed(1)} g</Text>
-            <Text style={styles.macroLabel}>Carbo</Text>
+            <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.carbs_g.toFixed(1)} g</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Carbo</Text>
           </View>
           <View style={styles.macroBox}>
-            <Text style={styles.macroValue}>{totals.fat_g.toFixed(1)} g</Text>
-            <Text style={styles.macroLabel}>Gordura</Text>
+            <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.fat_g.toFixed(1)} g</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Gordura</Text>
           </View>
         </View>
       </View>
 
-      <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
+      <TouchableOpacity
+        style={styles.favoriteToggleRow}
+        onPress={() => setSaveAsFavorite((prev) => !prev)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: saveAsFavorite }}
+      >
         <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
         <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
       </TouchableOpacity>
