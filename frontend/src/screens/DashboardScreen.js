@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
@@ -8,6 +8,7 @@ import { useUserGoals } from '../contexts/UserContext';
 import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite, saveMeal, getStreak, getWeeklyPlan } from '../services/api';
 import { getStreakTier } from '../utils/streak';
 import { getAdjustedGoals } from '../utils/adjustedGoals';
+import { isHealthConnectAvailable, hasHealthPermissions, requestHealthPermissions, getTodayActivity } from '../services/healthConnect';
 import { DAILY_INSIGHT_CACHE_KEY } from '../services/session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -112,6 +113,14 @@ export default function DashboardScreen({ navigation }) {
   const [streak, setStreak] = useState(null);
   const [weeklyPlan, setWeeklyPlan] = useState(null);
 
+  // Health Connect é só informativo (não ajusta goal_calories — a meta já
+  // assume um activity_level estático do onboarding, somar atividade medida
+  // por cima contaria a atividade de base duas vezes).
+  const [healthAvailable, setHealthAvailable] = useState(false);
+  const [healthConnected, setHealthConnected] = useState(false);
+  const [connectingHealth, setConnectingHealth] = useState(false);
+  const [todayActivity, setTodayActivity] = useState(null);
+
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
   // Compara só o dia: currentDate carrega o horário em que foi criada, então comparar
   // os timestamps direto marcava o próprio dia de hoje como "futuro" o dia inteiro.
@@ -199,6 +208,38 @@ export default function DashboardScreen({ navigation }) {
     }
   }, []);
 
+  // Health Connect só existe no Android nesta rodada (Apple Health fica pra
+  // quando houver acesso a Mac/Xcode). Reflete o estado real de permissão do
+  // SO a cada vez que a tela ganha foco, em vez de uma flag local que pode
+  // dessincronizar se o usuário revogar o acesso nas configurações.
+  const fetchHealthActivity = useCallback(async () => {
+    if (Platform.OS !== 'android') return;
+    const available = await isHealthConnectAvailable();
+    setHealthAvailable(available);
+    if (!available) return;
+
+    const granted = await hasHealthPermissions();
+    setHealthConnected(granted);
+    if (granted) {
+      const activity = await getTodayActivity();
+      setTodayActivity(activity);
+    }
+  }, []);
+
+  const handleConnectHealth = async () => {
+    setConnectingHealth(true);
+    try {
+      const granted = await requestHealthPermissions();
+      setHealthConnected(granted);
+      if (granted) {
+        const activity = await getTodayActivity();
+        setTodayActivity(activity);
+      }
+    } finally {
+      setConnectingHealth(false);
+    }
+  };
+
   // --- LÓGICA DE CACHE DA IA OTIMIZADA ---
   useEffect(() => {
     const fetchInsight = async () => {
@@ -273,6 +314,7 @@ export default function DashboardScreen({ navigation }) {
         fetchYesterdayMeals();
         fetchStreak();
         fetchWeeklyPlan();
+        fetchHealthActivity();
         try {
           const userDataString = await AsyncStorage.getItem('user_data');
           if (userDataString) {
@@ -285,7 +327,7 @@ export default function DashboardScreen({ navigation }) {
         }
       };
       loadScreenData();
-    }, [fetchData, fetchYesterdayMeals, fetchStreak, fetchWeeklyPlan])
+    }, [fetchData, fetchYesterdayMeals, fetchStreak, fetchWeeklyPlan, fetchHealthActivity])
   );
 
   const handleDeleteMeal = async (mealId) => {
@@ -528,6 +570,51 @@ export default function DashboardScreen({ navigation }) {
               <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={adjustedGoals?.goal_fat_g} />
             </View>
 
+            {/* Atividade Hoje (Health Connect) — só informativo, não altera
+                nenhuma meta acima. Só faz sentido pra "Hoje": o dado é sempre
+                do dia real do aparelho, mostrar isso navegando por dias
+                passados seria confuso. */}
+            {healthAvailable && displayDate === 'Hoje' && (
+              <View style={styles.progressSection}>
+                <Text style={styles.cardTitle}>Atividade Hoje</Text>
+                {!healthConnected ? (
+                  <TouchableOpacity
+                    style={[styles.connectHealthButton, connectingHealth && styles.disabledButton]}
+                    onPress={handleConnectHealth}
+                    disabled={connectingHealth}
+                  >
+                    {connectingHealth ? (
+                      <ActivityIndicator color={colors.background} />
+                    ) : (
+                      <Text style={styles.connectHealthButtonText}>Conectar Health Connect</Text>
+                    )}
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.activityRow}>
+                    <View style={styles.activityItem}>
+                      <Ionicons name="footsteps" size={20} color={colors.primary} />
+                      <Text style={styles.activityValue}>{todayActivity?.steps ?? '—'}</Text>
+                      <Text style={styles.activityLabel}>Passos</Text>
+                    </View>
+                    <View style={styles.activityItem}>
+                      <Ionicons name="flame" size={20} color={colors.primary} />
+                      <Text style={styles.activityValue}>
+                        {todayActivity?.activeCalories != null ? Math.round(todayActivity.activeCalories) : '—'}
+                      </Text>
+                      <Text style={styles.activityLabel}>Cal. ativas</Text>
+                    </View>
+                    <View style={styles.activityItem}>
+                      <Ionicons name="heart" size={20} color={colors.primary} />
+                      <Text style={styles.activityValue}>
+                        {todayActivity?.avgHeartRateBpm != null ? Math.round(todayActivity.avgHeartRateBpm) : '—'}
+                      </Text>
+                      <Text style={styles.activityLabel}>FC média</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Seção de Hidratação */}
             <View style={styles.progressSection}>
               <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color={colors.info} />
@@ -617,6 +704,14 @@ const styles = StyleSheet.create({
   streakText: { color: colors.white, fontSize: 14, fontWeight: '600', marginLeft: 8 },
   progressSection: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25 },
   adjustedGoalLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 12, fontWeight: '600' },
+  cardTitle: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: 15 },
+  disabledButton: { opacity: 0.7 },
+  connectHealthButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  connectHealthButtonText: { color: colors.background, fontWeight: 'bold', fontSize: 14 },
+  activityRow: { flexDirection: 'row', justifyContent: 'space-around' },
+  activityItem: { alignItems: 'center' },
+  activityValue: { color: colors.white, fontSize: 18, fontWeight: 'bold', marginTop: 6 },
+  activityLabel: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   insightCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
   insightHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   insightIcon: { marginRight: 10 },

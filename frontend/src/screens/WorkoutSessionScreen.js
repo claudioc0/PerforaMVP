@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
+import { getSuggestedWeight } from '../utils/loadProgression';
+import { scheduleRestTimerNotification, cancelRestTimerNotification } from '../services/notifications';
 import { colors } from '../theme/colors';
 import { ROUTES } from '../navigation/routes';
 
@@ -133,6 +135,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [lastPerformance, setLastPerformance] = useState(null);
+  const [suggestedWeight, setSuggestedWeight] = useState(null);
   const [suggestedExercises, setSuggestedExercises] = useState([]);
 
   const [restElapsed, setRestElapsed] = useState(0);
@@ -203,6 +206,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const stopRestTimer = () => {
     restStartRef.current = null;
     setRestRunning(false);
+    // Cobre finalizar o treino direto do background, sem passar pelo
+    // listener de volta-ao-foreground abaixo.
+    cancelRestTimerNotification();
   };
 
   useFocusEffect(
@@ -221,18 +227,50 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     }, [restRunning])
   );
 
+  // O setInterval acima é suspenso pelo SO quando o app é minimizado — sem
+  // isso, o usuário nunca saberia que o descanso terminou fora do app. Ao
+  // voltar pro foreground, cancela a notificação (mesmo que já tenha
+  // disparado) porque o banner in-app já mostra "Meta atingida!" na tela.
+  useEffect(() => {
+    const handleAppStateChange = (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        if (restRunning && restStartRef.current) {
+          const remaining = restTarget - Math.floor((Date.now() - restStartRef.current) / 1000);
+          if (remaining > 0) {
+            scheduleRestTimerNotification(remaining);
+          }
+        }
+      } else if (nextState === 'active') {
+        cancelRestTimerNotification();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [restRunning, restTarget]);
+
   const selectExercise = useCallback(async (exercise) => {
     setPendingExercise(exercise);
     setWeight('');
     setReps('');
     setLastPerformance(null);
+    setSuggestedWeight(null);
 
     try {
       const history = await getExerciseHistory(exercise.id, 1);
       const lastSets = history[0]?.sets;
       if (lastSets && lastSets.length > 0) {
         const lastSet = lastSets[lastSets.length - 1];
-        setLastPerformance({ weight_kg: lastSet.weight_kg, reps: lastSet.reps, date: history[0].started_at });
+        const performance = { weight_kg: lastSet.weight_kg, reps: lastSet.reps, date: history[0].started_at };
+        setLastPerformance(performance);
+
+        // Pré-preenche com a sugestão pra economizar o toque de redigitar o
+        // mesmo peso na maioria das séries — o campo continua editável.
+        const suggestion = getSuggestedWeight(performance);
+        if (suggestion !== null) {
+          setSuggestedWeight(suggestion);
+          setWeight(String(suggestion));
+        }
       }
     } catch {
       // Referência de histórico é só um "nice to have" — não bloqueia o registro da série.
@@ -292,6 +330,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setWeight('');
       setReps('');
       setLastPerformance(null);
+      setSuggestedWeight(null);
       startRestTimer();
     } catch (error) {
       // error.message já vem específico ("Sem conexão...", "A conexão demorou
@@ -560,6 +599,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               {lastPerformance && (
                 <Text style={styles.lastPerformanceText}>
                   Última vez: {lastPerformance.weight_kg}kg × {lastPerformance.reps}
+                  {suggestedWeight !== null && suggestedWeight !== lastPerformance.weight_kg
+                    ? ` — hoje, tente ${suggestedWeight}kg.`
+                    : ''}
                 </Text>
               )}
               <View style={styles.pendingInputsRow}>
@@ -587,7 +629,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 </View>
               </View>
               <View style={styles.pendingActionsRow}>
-                <TouchableOpacity style={styles.cancelSetButton} onPress={() => { setPendingExercise(null); setLastPerformance(null); }}>
+                <TouchableOpacity style={styles.cancelSetButton} onPress={() => { setPendingExercise(null); setLastPerformance(null); setSuggestedWeight(null); }}>
                   <Text style={styles.cancelSetText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.saveSetButton} onPress={handleSaveSet} disabled={saving}>
