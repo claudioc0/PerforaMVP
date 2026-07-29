@@ -231,6 +231,28 @@ export async function analyzeMeal(imageUri, description) {
 }
 
 /**
+ * Fotografa um rótulo/tabela nutricional e devolve um produto único (mesmo
+ * shape de fetchProductByBarcode) — pro caso de produtos fora do
+ * OpenFoodFacts, sem código de barras legível.
+ * @param {string} imageUri - URI local da foto do rótulo.
+ * @returns {Promise<{description:string, calories:number, protein_g:number, carbs_g:number, fat_g:number}>}
+ */
+export async function analyzeLabel(imageUri) {
+  const formData = new FormData();
+  const filename = imageUri.split("/").pop();
+  const match = /\.(\w+)$/.exec(filename ?? "");
+  const fileType = match ? `image/${match[1]}` : "image/jpeg";
+
+  formData.append("image", {
+    uri: imageUri,
+    name: filename ?? "rotulo.jpg",
+    type: fileType,
+  });
+
+  return request("/meals/analyze-label", { method: "POST", body: formData, isFormData: true, timeoutMs: ANALYZE_MEAL_TIMEOUT_MS });
+}
+
+/**
  * Salva a refeição confirmada pelo usuário no banco de dados.
  * @param {object} mealData - Os dados completos da refeição (com macros recalculados e a data).
  * @returns {Promise<object>} A refeição salva.
@@ -431,6 +453,49 @@ export async function getWeightHistory() {
 
 export async function logWeight(weightData) {
   return request("/user/weight", { method: "POST", body: weightData });
+}
+
+/**
+ * Fotos de progresso — mesma cadência de peso (uma por dia). Upload real,
+ * arquivo fica guardado no backend (não só no aparelho).
+ */
+export async function getProgressPhotos() {
+  const data = await request("/user/progress-photos?per_page=100");
+  return data.items ?? data;
+}
+
+export async function addProgressPhoto(imageUri) {
+  const formData = new FormData();
+  const filename = imageUri.split("/").pop();
+  const match = /\.(\w+)$/.exec(filename ?? "");
+  const fileType = match ? `image/${match[1]}` : "image/jpeg";
+
+  formData.append("image", {
+    uri: imageUri,
+    name: filename ?? "progresso.jpg",
+    type: fileType,
+  });
+
+  return request("/user/progress-photos", { method: "POST", body: formData, isFormData: true });
+}
+
+export async function deleteProgressPhoto(photoId) {
+  return request(`/user/progress-photos/${photoId}`, { method: "DELETE" });
+}
+
+/**
+ * Monta um `source` autenticado pro componente <Image> do React Native —
+ * a foto de progresso é conteúdo privado, servida só mediante o JWT do
+ * próprio dono (rota .../image em user_routes.py), então a URL sozinha não
+ * basta como um arquivo público serviria.
+ * @param {string} imageUrl - o `image_url` relativo devolvido por ProgressPhoto.to_dict().
+ */
+export async function getAuthenticatedImageSource(imageUrl) {
+  const token = await getToken('jwt_token');
+  return {
+    uri: `${API_BASE_URL}${imageUrl}`,
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+  };
 }
 
 /**

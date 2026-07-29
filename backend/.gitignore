@@ -10,3 +10,6 @@ __pycache__/
 # Banco de dados local (Para não enviar os testes)
 instance/
 *.db
+
+# Fotos de progresso enviadas pelos usuários (conteúdo, não código)
+uploads/

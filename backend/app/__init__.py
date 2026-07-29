@@ -40,6 +40,16 @@ def create_app(config_class=Config):
     with app.app_context():
         configure_sqlite_connection(db.engine)
 
+    # Cria a pasta de fotos de progresso se ainda não existir — sem isso, o
+    # primeiro upload falharia com "diretório não encontrado" em vez de um
+    # erro claro, e não faz sentido exigir criação manual num MVP. .get() (não
+    # []) de propósito: configs mínimas usadas em teste (ex:
+    # test_db_engine_config.py, que isola só o comportamento do engine SQLite)
+    # não definem essa chave e não deveriam precisar, só pra criar o app.
+    photos_folder = app.config.get("PROGRESS_PHOTOS_FOLDER")
+    if photos_folder:
+        os.makedirs(photos_folder, exist_ok=True)
+
     cors.init_app(app, resources={r"/api/*": {"origins": app.config["CORS_ORIGINS"]}})
     limiter.init_app(app)
     jwt = JWTManager(app)

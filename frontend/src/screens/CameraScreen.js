@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'rea
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { analyzeMeal } from '../services/api';
+import { analyzeMeal, analyzeLabel } from '../services/api';
 import { fetchProductByBarcode, ProductNotFoundError } from '../services/openFoodFacts';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
@@ -15,6 +15,7 @@ export default function CameraScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const [imageUri, setImageUri] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [analyzingLabel, setAnalyzingLabel] = useState(false);
   const { targetDate } = route.params || {}; 
   const [scanned, setScanned] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
@@ -75,6 +76,48 @@ export default function CameraScreen({ navigation, route }) {
       }
     } finally {
       setAnalyzing(false);
+    }
+  };
+
+  // Captura e analisa num só toque (diferente da foto de prato, que tem um
+  // passo de conferir/tirar de novo antes de analisar) — um rótulo não
+  // precisa de enquadramento revisável, e o resultado já cai no ManualEntry
+  // pra edição, então uma segunda etapa de confirmação aqui só atrasaria.
+  const handlePhotographLabel = async () => {
+    const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permissionResult.granted) {
+      showAlert("Permissão Necessária", "Precisamos da permissão da câmera para ler o rótulo!");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+
+    setAnalyzingLabel(true);
+    try {
+      // Mesmo shape/destino que um produto escaneado por código de barras —
+      // reaproveita o pre-fill que ManualEntryScreen já faz pra scannedProduct.
+      const product = await analyzeLabel(result.assets[0].uri);
+      navigation.navigate(ROUTES.MANUAL_ENTRY, { scannedProduct: product, targetDate });
+    } catch (error) {
+      if (error.status === 429) {
+        showAlert(
+          "Servidores Ocupados ⚡",
+          "Nossa IA está processando muitos rótulos agora. Aguarde um minuto ou adicione os dados manualmente.",
+          [
+            { text: "Aguardar", style: "cancel" },
+            { text: "Entrada Manual", onPress: () => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate }) }
+          ]
+        );
+      } else {
+        showAlert("Erro na Leitura", error.message || "Não foi possível ler o rótulo. Tente novamente ou cadastre manualmente.");
+      }
+    } finally {
+      setAnalyzingLabel(false);
     }
   };
 
@@ -180,6 +223,21 @@ export default function CameraScreen({ navigation, route }) {
          </TouchableOpacity>
       )}
 
+      <TouchableOpacity
+        style={[styles.labelButton, analyzingLabel && styles.disabledButton]}
+        onPress={handlePhotographLabel}
+        disabled={analyzingLabel || analyzing}
+      >
+        {analyzingLabel ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <ActivityIndicator color={colors.primary} style={{ marginRight: 10 }} />
+            <Text style={styles.labelButtonText}>Lendo rótulo...</Text>
+          </View>
+        ) : (
+          <Text style={styles.labelButtonText}>Fotografar Rótulo Nutricional</Text>
+        )}
+      </TouchableOpacity>
+
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
         <Text style={styles.cancelText}>Cancelar e Voltar</Text>
       </TouchableOpacity>
@@ -204,6 +262,8 @@ const styles = StyleSheet.create({
   submitButton: { backgroundColor: colors.primary, padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
   disabledButton: { opacity: 0.7 },
   submitText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  labelButton: { borderColor: colors.primary, borderWidth: 1, padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
+  labelButtonText: { color: colors.primary, fontSize: 16, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center' },
   cancelText: { color: colors.textSecondary, fontSize: 16 }
 });

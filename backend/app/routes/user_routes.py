@@ -1,13 +1,16 @@
 import logging
+import os
+from datetime import date
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app, send_from_directory
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.services import UserService, StreakService
-from app.models import User, WaterLog, WeightLog
+from app.models import User, WaterLog, WeightLog, ProgressPhoto
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
+from app.utils.file_uploads import is_allowed_image_file
 
 logger = logging.getLogger(__name__)
 
@@ -173,3 +176,112 @@ def get_streak():
         db.session.rollback()
         logger.exception("Erro inesperado ao calcular a sequência do usuário ID %s.", current_user_id)
         return jsonify({"error": "Erro interno ao calcular a sequência."}), 500
+
+# --- FOTOS DE PROGRESSO ---
+# Mesma cadência de WeightLog: uma foto por usuário por dia (o objetivo é
+# comparar o MESMO ângulo ao longo do tempo, não acumular fotos soltas).
+
+@user_bp.route("/progress-photos", methods=["GET"])
+@jwt_required()
+def get_progress_photos():
+    current_user_id = int(get_jwt_identity())
+    page, per_page = get_pagination_params()
+
+    try:
+        # Mais recente primeiro pra paginar a partir do presente (como
+        # qualquer histórico), depois inverte pra manter o contrato de
+        # sempre: mais antiga → mais nova (mesmo padrão de GET /weight).
+        query = ProgressPhoto.query.filter_by(user_id=current_user_id).order_by(
+            ProgressPhoto.taken_at.desc(), ProgressPhoto.id.desc()
+        )
+        items, total = paginate_query(query, page, per_page)
+        items.reverse()
+    except Exception:
+        logger.exception("Erro inesperado ao buscar fotos de progresso do usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao buscar fotos de progresso."}), 500
+
+    return jsonify({
+        "items": [photo.to_dict() for photo in items],
+        **pagination_meta(page, per_page, total),
+    }), 200
+
+
+@user_bp.route("/progress-photos", methods=["POST"])
+@jwt_required()
+def add_progress_photo():
+    current_user_id = int(get_jwt_identity())
+
+    if "image" not in request.files:
+        return jsonify({"error": "Envie um campo 'image'."}), 400
+    file = request.files["image"]
+    if file.filename == "":
+        return jsonify({"error": "Nenhum arquivo selecionado."}), 400
+    if not is_allowed_image_file(file.filename):
+        return jsonify({"error": "Formato de arquivo não suportado."}), 400
+
+    today = date.today()
+    extension = file.filename.rsplit(".", 1)[1].lower()
+    filename = f"{current_user_id}_{today.isoformat()}.{extension}"
+    folder = current_app.config["PROGRESS_PHOTOS_FOLDER"]
+
+    photo = ProgressPhoto(user_id=current_user_id, filename=filename, taken_at=today)
+
+    try:
+        db.session.add(photo)
+        db.session.commit()
+    except IntegrityError:
+        # Já tem foto de hoje (uq_progress_photos_user_taken_at) — mesmo
+        # espírito de "Você já registrou seu peso hoje." em POST /weight.
+        db.session.rollback()
+        return jsonify({"error": "Você já registrou uma foto de progresso hoje."}), 409
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao registrar foto de progresso do usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao registrar a foto."}), 500
+
+    # Só grava o arquivo em disco DEPOIS do commit ter sucesso — se o registro
+    # falhar (ex: já tem foto hoje), não sobra um arquivo órfão sem linha no banco.
+    file.save(os.path.join(folder, filename))
+
+    return jsonify(photo.to_dict()), 201
+
+
+@user_bp.route("/progress-photos/<int:photo_id>/image", methods=["GET"])
+@jwt_required()
+def get_progress_photo_image(photo_id):
+    current_user_id = int(get_jwt_identity())
+    photo = ProgressPhoto.query.get(photo_id)
+
+    # 404 (não 403) pra uma foto de outro usuário — não confirma pra quem
+    # pergunta que aquele ID existe, só que não pertence a ele.
+    if not photo or photo.user_id != current_user_id:
+        return jsonify({"error": "Foto não encontrada."}), 404
+
+    folder = current_app.config["PROGRESS_PHOTOS_FOLDER"]
+    return send_from_directory(folder, photo.filename)
+
+
+@user_bp.route("/progress-photos/<int:photo_id>", methods=["DELETE"])
+@jwt_required()
+def delete_progress_photo(photo_id):
+    current_user_id = int(get_jwt_identity())
+    photo = ProgressPhoto.query.get(photo_id)
+
+    if not photo or photo.user_id != current_user_id:
+        return jsonify({"error": "Foto não encontrada."}), 404
+
+    folder = current_app.config["PROGRESS_PHOTOS_FOLDER"]
+    file_path = os.path.join(folder, photo.filename)
+
+    try:
+        db.session.delete(photo)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao apagar foto de progresso ID %s.", photo_id)
+        return jsonify({"error": "Erro interno ao apagar a foto."}), 500
+
+    if os.path.exists(file_path):
+        os.remove(file_path)
+
+    return jsonify({"message": "Foto removida com sucesso."}), 200

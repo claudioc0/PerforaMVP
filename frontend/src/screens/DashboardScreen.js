@@ -5,8 +5,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
-import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite, saveMeal, getStreak } from '../services/api';
+import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite, saveMeal, getStreak, getWeeklyPlan } from '../services/api';
 import { getStreakTier } from '../utils/streak';
+import { getAdjustedGoals } from '../utils/adjustedGoals';
 import { DAILY_INSIGHT_CACHE_KEY } from '../services/session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -44,6 +45,10 @@ const getDisplayDate = (date) => {
 
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 };
+
+// Date.getDay() do JS: 0=Domingo...6=Sábado. O plano semanal usa 0=Segunda...6=Domingo
+// (mesma conversão já usada em WorkoutHistoryScreen.js, pra não inventar uma segunda regra).
+const getPlanDayIndex = (date) => (date.getDay() + 6) % 7;
 
 // --- Componente de Barra de Progresso Customizada ---
 const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = colors.primary }) => {
@@ -105,6 +110,7 @@ export default function DashboardScreen({ navigation }) {
   const [loadingInsight, setLoadingInsight] = useState(false);
   const [yesterdayMeals, setYesterdayMeals] = useState([]);
   const [streak, setStreak] = useState(null);
+  const [weeklyPlan, setWeeklyPlan] = useState(null);
 
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
   // Compara só o dia: currentDate carrega o horário em que foi criada, então comparar
@@ -119,6 +125,17 @@ export default function DashboardScreen({ navigation }) {
   // data (digitar água, carregar insight). Memoizado aqui, só recalcula
   // quando currentDate muda de fato.
   const displayDate = useMemo(() => getDisplayDate(currentDate), [currentDate]);
+
+  // Só ajusta a meta em "Hoje" — pra dias passados, o plano semanal de HOJE não
+  // necessariamente reflete o que valia naquele dia (o usuário pode ter trocado de
+  // divisão desde então), então mostrar a meta base ali evita uma suposição confusa.
+  const isTrainingDay = useMemo(() => {
+    if (displayDate !== 'Hoje' || !weeklyPlan?.has_plan) return null;
+    const todayIndex = getPlanDayIndex(new Date());
+    return Boolean(weeklyPlan.days?.[todayIndex]?.split_day_id);
+  }, [displayDate, weeklyPlan]);
+
+  const adjustedGoals = useMemo(() => getAdjustedGoals(goals, isTrainingDay), [goals, isTrainingDay]);
 
   const fetchData = useCallback(async () => {
     setLoading(true); 
@@ -169,6 +186,16 @@ export default function DashboardScreen({ navigation }) {
     } catch {
       // Badge de streak não é funcionalidade core — falha aqui não bloqueia o resto do Dashboard.
       setStreak(null);
+    }
+  }, []);
+
+  const fetchWeeklyPlan = useCallback(async () => {
+    try {
+      const data = await getWeeklyPlan();
+      setWeeklyPlan(data);
+    } catch {
+      // Sem plano semanal carregado, isTrainingDay cai pra null (nenhum ajuste de meta).
+      setWeeklyPlan(null);
     }
   }, []);
 
@@ -245,6 +272,7 @@ export default function DashboardScreen({ navigation }) {
         fetchData();
         fetchYesterdayMeals();
         fetchStreak();
+        fetchWeeklyPlan();
         try {
           const userDataString = await AsyncStorage.getItem('user_data');
           if (userDataString) {
@@ -257,7 +285,7 @@ export default function DashboardScreen({ navigation }) {
         }
       };
       loadScreenData();
-    }, [fetchData, fetchYesterdayMeals, fetchStreak])
+    }, [fetchData, fetchYesterdayMeals, fetchStreak, fetchWeeklyPlan])
   );
 
   const handleDeleteMeal = async (mealId) => {
@@ -305,7 +333,12 @@ export default function DashboardScreen({ navigation }) {
           onPress: async () => {
             try {
               const favoriteData = {
-                description: meal.description, calories: meal.calories, protein_g: meal.protein_g, carbs_g: meal.carbs_g, fat_g: meal.fat_g
+                description: meal.description, calories: meal.calories, protein_g: meal.protein_g, carbs_g: meal.carbs_g, fat_g: meal.fat_g,
+                // Preserva o detalhamento por item quando a refeição logada
+                // veio de foto/IA — sem isso, favoritar um prato de vários
+                // itens colapsava tudo pro total achatado, perdendo a
+                // composição (mesma capacidade agora usada por "pratos compostos").
+                items: meal.items && meal.items.length > 0 ? meal.items : undefined,
               };
               await addFavorite(favoriteData);
               showAlert("Sucesso", "Refeição salva nos seus favoritos!");
@@ -484,10 +517,15 @@ export default function DashboardScreen({ navigation }) {
 
             {/* Seção de Progresso */}
             <View style={styles.progressSection}>
-              <ProgressBar label="Calorias" consumed={summary?.total_calories} goal={goals?.goal_calories} unit="kcal" />
-              <ProgressBar label="Proteínas" consumed={summary?.total_protein_g} goal={goals?.goal_protein_g} />
-              <ProgressBar label="Carboidratos" consumed={summary?.total_carbs_g} goal={goals?.goal_carbs_g} />
-              <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={goals?.goal_fat_g} />
+              {isTrainingDay !== null && (
+                <Text style={styles.adjustedGoalLabel}>
+                  {isTrainingDay ? '🏋️ Meta ajustada: dia de treino (+carbo)' : '😴 Meta ajustada: dia de descanso (-carbo)'}
+                </Text>
+              )}
+              <ProgressBar label="Calorias" consumed={summary?.total_calories} goal={adjustedGoals?.goal_calories} unit="kcal" />
+              <ProgressBar label="Proteínas" consumed={summary?.total_protein_g} goal={adjustedGoals?.goal_protein_g} />
+              <ProgressBar label="Carboidratos" consumed={summary?.total_carbs_g} goal={adjustedGoals?.goal_carbs_g} />
+              <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={adjustedGoals?.goal_fat_g} />
             </View>
 
             {/* Seção de Hidratação */}
@@ -578,6 +616,7 @@ const styles = StyleSheet.create({
   streakBadge_century: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.dangerAlt, shadowColor: colors.dangerAlt, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 },
   streakText: { color: colors.white, fontSize: 14, fontWeight: '600', marginLeft: 8 },
   progressSection: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25 },
+  adjustedGoalLabel: { color: colors.textSecondary, fontSize: 12, marginBottom: 12, fontWeight: '600' },
   insightCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
   insightHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   insightIcon: { marginRight: 10 },

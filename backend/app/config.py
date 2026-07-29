@@ -98,6 +98,14 @@ class Config:
 
     MAX_CONTENT_LENGTH = 8 * 1024 * 1024  # 8MB por imagem
 
+    # Fotos de progresso são o único conteúdo de imagem que o app persiste de
+    # verdade (foto de refeição só passa pelo Gemini e é descartada) — guardadas
+    # em disco local, não num bucket externo (nenhum provedor de storage em
+    # nuvem está configurado neste projeto ainda). Fora do controle de versão
+    # (ver .gitignore) e criada no boot do app se ainda não existir (ver
+    # app/__init__.py).
+    PROGRESS_PHOTOS_FOLDER = os.path.join(BASE_DIR, "uploads", "progress_photos")
+
     # --- JWT ---
     JWT_TOKEN_LOCATION = ["headers"]
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)

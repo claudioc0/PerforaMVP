@@ -15,9 +15,10 @@ from .set_log import SetLog
 from .split_day_exercise import SplitDayExercise
 from .weekly_plan import WeeklyPlan
 from .weekly_plan_day import WeeklyPlanDay
+from .progress_photo import ProgressPhoto
 
 __all__ = [
     "User", "Meal", "UserGoals", "WaterLog", "FavoriteMeal", "WeightLog",
     "TokenBlocklist", "FoodCache", "TextAnalysisCache", "Exercise", "Workout", "SetLog",
-    "WorkoutSplit", "SplitDay", "SplitDayExercise", "WeeklyPlan", "WeeklyPlanDay",
+    "WorkoutSplit", "SplitDay", "SplitDayExercise", "WeeklyPlan", "WeeklyPlanDay", "ProgressPhoto",
 ]

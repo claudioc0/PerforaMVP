@@ -1,4 +1,7 @@
+from sqlalchemy import event
+
 from app.extensions import db
+from app.utils.meal_aggregation import compute_macro_totals_from_items
 
 class FavoriteMeal(db.Model):
     __tablename__ = 'favorite_meals'
@@ -18,6 +21,12 @@ class FavoriteMeal(db.Model):
     carbs_g = db.Column(db.Float, nullable=False)
     fat_g = db.Column(db.Float, nullable=False)
 
+    # Detalhamento por alimento (mesmo shape de Meal.items: lista de
+    # {description, calories, protein_g, carbs_g, fat_g, quantity_g}). Nulo
+    # pra favoritos antigos/simples (uma refeição achatada, sem combo) — nesse
+    # caso os campos acima já são a própria refeição, como item único implícito.
+    items = db.Column(db.JSON, nullable=True)
+
     def to_dict(self):
         return {
             "id": self.id,
@@ -25,5 +34,29 @@ class FavoriteMeal(db.Model):
             "calories": self.calories,
             "protein_g": self.protein_g,
             "carbs_g": self.carbs_g,
-            "fat_g": self.fat_g
+            "fat_g": self.fat_g,
+            "items": self.items or [],
         }
+
+
+@event.listens_for(FavoriteMeal, "before_insert")
+@event.listens_for(FavoriteMeal, "before_update")
+def _recompute_aggregate_from_items(mapper, connection, target: FavoriteMeal) -> None:
+    """Quando há detalhamento por item (prato composto), os macros
+    (calories/protein_g/...) são SEMPRE derivados da soma dos itens, nunca do
+    que o chamador passou — mesmo invariante de Meal (ver meal.py).
+
+    Diferente de Meal, a `description` NÃO é recalculada aqui: é o nome que o
+    usuário deu ao combo (ex: "Marmita de terça"), não uma lista de
+    alimentos concatenada — sobrescrever isso destruiria o propósito do
+    recurso (um nome memorável escolhido de propósito).
+    """
+    items = target.items
+    if not items:
+        return
+
+    totals = compute_macro_totals_from_items(items)
+    target.calories = totals["calories"]
+    target.protein_g = totals["protein_g"]
+    target.carbs_g = totals["carbs_g"]
+    target.fat_g = totals["fat_g"]

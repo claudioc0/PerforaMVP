@@ -194,6 +194,10 @@ export default function ManualEntryScreen({ navigation, route }) {
     try {
       const payload = {
         ...favorite,
+        // Preserva a composição (items) na refeição logada quando o
+        // favorito é um prato composto — sem isso, "adicionar a hoje"
+        // colapsaria o combo de volta pra um único item achatado.
+        items: favorite.items && favorite.items.length > 0 ? favorite.items : undefined,
         source_type: 'favorite',
         date: targetDate,
       };
@@ -232,7 +236,10 @@ export default function ManualEntryScreen({ navigation, route }) {
   const renderFavoriteItem = ({ item }) => (
     <View style={styles.favCard}>
       <View style={styles.favInfo}>
-        <Text style={styles.favDesc}>{item.description}</Text>
+        <Text style={styles.favDesc}>
+          {item.description}
+          {item.items?.length > 0 && <Text style={styles.favComboTag}>  · {item.items.length} itens</Text>}
+        </Text>
         <MacroSummaryLine
           calories={item.calories}
           proteinG={item.protein_g}
@@ -369,7 +376,16 @@ export default function ManualEntryScreen({ navigation, route }) {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
+          <View style={styles.favoritesHeaderRow}>
+            <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate(ROUTES.COMPOSE_FAVORITE)}
+              accessibilityRole="button"
+              accessibilityLabel="Criar novo prato composto"
+            >
+              <Text style={styles.newComboLink}>+ Novo prato composto</Text>
+            </TouchableOpacity>
+          </View>
           {loadingFavorites && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
         </>
       }
@@ -391,7 +407,10 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   section: { marginBottom: 30 },
-  sectionTitle: { color: colors.white, fontSize: 20, fontWeight: '600', marginBottom: 15, borderTopColor: colors.border, borderTopWidth: 1, paddingTop: 20 },
+  sectionTitle: { color: colors.white, fontSize: 20, fontWeight: '600' },
+  favoritesHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderTopColor: colors.border, borderTopWidth: 1, paddingTop: 20 },
+  newComboLink: { color: colors.primary, fontSize: 13, fontWeight: '600' },
+  favComboTag: { color: colors.textSecondary, fontSize: 12, fontWeight: '400' },
   card: { backgroundColor: colors.surface, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 16, marginBottom: 20 },
   fieldContainer: { marginVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 15 },
   fieldLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 5 },

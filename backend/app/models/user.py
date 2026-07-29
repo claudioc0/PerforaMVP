@@ -33,6 +33,10 @@ class User(db.Model):
     # weekly_plan já cascateia pra WeeklyPlanDay (weekly_plan.py define
     # cascade="all, delete-orphan" em "days"), cobrindo User -> WeeklyPlan -> WeeklyPlanDay.
     weekly_plan = db.relationship('WeeklyPlan', backref='user', uselist=False, cascade="all, delete-orphan")
+    # Mesmo raciocínio das relações acima — os arquivos em disco (não só as
+    # linhas) ficariam órfãos se um fluxo de exclusão de conta for adicionado
+    # no futuro; a cascade aqui garante ao menos a integridade referencial.
+    progress_photos = db.relationship('ProgressPhoto', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

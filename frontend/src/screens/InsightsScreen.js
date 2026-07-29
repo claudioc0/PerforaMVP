@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getWeeklySummary, getWeightHistory, logWeight } from '../services/api';
+import { getWeeklySummary, getWeightHistory, logWeight, getProgressPhotos, getAuthenticatedImageSource } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
+import { formatShortDate } from '../utils/formatDate';
 import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 // A janela de 7 dias do resumo semanal é ancorada em "hoje" no fuso LOCAL do
 // aparelho, não em toISOString() (que converte pra UTC): perto da meia-noite
@@ -59,19 +61,32 @@ export default function InsightsScreen({ navigation }) {
   const [currentWeightInput, setCurrentWeightInput] = useState('');
   const [loggingWeight, setLoggingWeight] = useState(false);
 
+  // Só a miniatura mais recente — a timeline completa/comparação vive em
+  // ProgressPhotosScreen, este card é só um atalho de entrada.
+  const [latestPhoto, setLatestPhoto] = useState(null);
+
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const [summaryData, , weightHistoryData] = await Promise.all([
+          const [summaryData, , weightHistoryData, photos] = await Promise.all([
             // Proteção adicionada caso o backend retorne erro na rota semanal
             getWeeklySummary(getLocalDateString(new Date())).catch(() => ({ days: [] })),
             refreshGoals(),
             getWeightHistory().catch(() => []),
+            getProgressPhotos().catch(() => []),
           ]);
           setWeeklyData(summaryData.days || []);
           setWeightHistory(weightHistoryData || []);
+
+          const mostRecent = photos?.[photos.length - 1];
+          if (mostRecent) {
+            const source = await getAuthenticatedImageSource(mostRecent.image_url);
+            setLatestPhoto({ ...mostRecent, source });
+          } else {
+            setLatestPhoto(null);
+          }
         } catch {
           showAlert("Erro", "Não foi possível carregar os insights. Tente novamente.");
         } finally {
@@ -223,6 +238,36 @@ export default function InsightsScreen({ navigation }) {
             <Text style={styles.emptyText}>Nenhum registro de peso ainda.</Text>
           )}
         </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Fotos de Progresso</Text>
+          {latestPhoto ? (
+            <View style={styles.photoPreviewRow}>
+              <Image source={latestPhoto.source} style={styles.photoThumb} />
+              <View style={styles.photoPreviewInfo}>
+                <Text style={styles.photoPreviewDate}>
+                  Última foto: {formatShortDate(latestPhoto.taken_at, { includeYear: true })}
+                </Text>
+                <TouchableOpacity
+                  style={styles.photoTimelineButton}
+                  onPress={() => navigation.navigate(ROUTES.PROGRESS_PHOTOS)}
+                >
+                  <Text style={styles.photoTimelineButtonText}>Ver Timeline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View>
+              <Text style={styles.emptyText}>Nenhuma foto de progresso ainda.</Text>
+              <TouchableOpacity
+                style={styles.photoTimelineButton}
+                onPress={() => navigation.navigate(ROUTES.PROGRESS_PHOTOS)}
+              >
+                <Text style={styles.photoTimelineButtonText}>Tirar Primeira Foto</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -266,4 +311,11 @@ const styles = StyleSheet.create({
   weightTagText: { color: colors.white, fontSize: 13 },
   weightTagIcon: { marginLeft: 4 },
   emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 10, fontSize: 14 },
+
+  photoPreviewRow: { flexDirection: 'row', alignItems: 'center' },
+  photoThumb: { width: 70, height: 93, borderRadius: 10, backgroundColor: colors.background, marginRight: 15 },
+  photoPreviewInfo: { flex: 1, justifyContent: 'center' },
+  photoPreviewDate: { color: colors.textSecondary, fontSize: 14, marginBottom: 10 },
+  photoTimelineButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  photoTimelineButtonText: { color: colors.background, fontWeight: 'bold', fontSize: 14 },
 });
