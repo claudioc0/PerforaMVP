@@ -1,12 +1,13 @@
 import React from 'react';
 import Svg, { Rect, Path, G } from 'react-native-svg';
+import { colors } from '../theme/colors';
 
 /**
  * Símbolo da marca Perfora — o "P" de alta performance (seta dupla |>>).
  * Vetor fiel ao identidade/logo.svg do MazyOS, sem o fundo sólido,
  * pra poder ser usado sobre qualquer superfície escura do app.
  */
-export default function LogoMark({ size = 40, color = '#00FF66' }) {
+export default function LogoMark({ size = 40, color = colors.primary }) {
   const height = size;
   const width = size * (160 / 130);
 

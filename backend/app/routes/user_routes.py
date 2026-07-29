@@ -5,7 +5,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
-from app.services import UserService
+from app.services import UserService, StreakService
 from app.models import User, WaterLog, WeightLog
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
 
@@ -22,6 +22,7 @@ user_bp = Blueprint("user_bp", __name__, url_prefix="/api/user")
 # app.config, que só existe dentro de um contexto de app/request — por isso
 # usa uma fábrica chamada por request em vez de um singleton aqui.
 user_service = UserService()
+streak_service = StreakService()
 
 @user_bp.route("/goals", methods=["GET"])
 @jwt_required()
@@ -158,3 +159,17 @@ def log_weight():
         return jsonify({"error": "Erro interno ao registrar peso."}), 500
 
     return jsonify({"message": "Peso registrado com sucesso!", "log": log.to_dict()}), 201
+
+# --- SEQUÊNCIA (STREAK) ---
+
+@user_bp.route("/streak", methods=["GET"])
+@jwt_required()
+def get_streak():
+    current_user_id = int(get_jwt_identity())
+    try:
+        data = streak_service.get_current_streak(current_user_id, request.args.get("today"))
+        return jsonify(data), 200
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao calcular a sequência do usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao calcular a sequência."}), 500

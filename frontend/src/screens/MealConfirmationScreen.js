@@ -7,6 +7,8 @@ import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 export default function MealConfirmationScreen({ navigation, route }) {
   const showAlert = useAppAlert();
@@ -81,13 +83,13 @@ export default function MealConfirmationScreen({ navigation, route }) {
             carbs_g: totals.carbs_g,
             fat_g: totals.fat_g,
           });
-        } catch (favoriteError) {
+        } catch {
           // A refeição já foi registrada com sucesso — falha ao favoritar não deve bloquear o fluxo.
         }
       }
 
       showAlert('Sucesso', 'Refeição registrada!');
-      navigation.navigate('Dashboard');
+      navigation.navigate(ROUTES.DASHBOARD);
 
     } catch (error) {
       showAlert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
@@ -132,7 +134,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
               onChangeText={(text) => updateItemQuantity(index, text)}
               keyboardType="numeric"
               placeholder="100"
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.unitText}>gramas</Text>
           </View>
@@ -174,7 +176,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
         accessibilityRole="checkbox"
         accessibilityState={{ checked: saveAsFavorite }}
       >
-        <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
+        <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? colors.primary : colors.textSecondary} />
         <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
       </TouchableOpacity>
 
@@ -184,7 +186,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#121212" />
+          <ActivityIndicator color={colors.background} />
         ) : (
           <Text style={styles.submitText}>Confirmar Refeição</Text>
         )}
@@ -199,30 +201,30 @@ export default function MealConfirmationScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
-  descriptionText: { color: '#00FF66', fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 20, textTransform: 'capitalize' },
-  sectionLabel: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  estimateHint: { color: '#888', fontSize: 12, marginBottom: 15 },
-  itemCard: { backgroundColor: '#1E1E1E', padding: 16, borderRadius: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
-  itemDesc: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 10, textTransform: 'capitalize' },
-  card: { backgroundColor: '#1E1E1E', padding: 20, borderRadius: 16, marginTop: 8, marginBottom: 20 },
-  cardTitle: { color: '#FFF', fontSize: 18, fontWeight: '600', marginBottom: 15 },
-  quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#333', borderRadius: 10 },
-  quantityInput: { color: '#FFF', fontSize: 18, padding: 12, flex: 1, fontWeight: 'bold' },
-  unitText: { color: '#888', fontSize: 14, paddingRight: 15 },
-  itemMacros: { color: '#888888', fontSize: 13, marginTop: 8 },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  descriptionText: { color: colors.primary, fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 20, textTransform: 'capitalize' },
+  sectionLabel: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  estimateHint: { color: colors.textSecondary, fontSize: 12, marginBottom: 15 },
+  itemCard: { backgroundColor: colors.surface, padding: 16, borderRadius: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: colors.primary },
+  itemDesc: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: 10, textTransform: 'capitalize' },
+  card: { backgroundColor: colors.surface, padding: 20, borderRadius: 16, marginTop: 8, marginBottom: 20 },
+  cardTitle: { color: colors.white, fontSize: 18, fontWeight: '600', marginBottom: 15 },
+  quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.border, borderRadius: 10 },
+  quantityInput: { color: colors.white, fontSize: 18, padding: 12, flex: 1, fontWeight: 'bold' },
+  unitText: { color: colors.textSecondary, fontSize: 14, paddingRight: 15 },
+  itemMacros: { color: colors.textSecondary, fontSize: 13, marginTop: 8 },
   macrosGrid: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' },
   macroBox: { alignItems: 'center', width: '48%', marginBottom: 15 },
-  macroValue: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
-  macroLabel: { color: '#888', fontSize: 14, marginTop: 4 },
+  macroValue: { color: colors.white, fontSize: 24, fontWeight: 'bold' },
+  macroLabel: { color: colors.textSecondary, fontSize: 14, marginTop: 4 },
   favoriteToggleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  favoriteToggleText: { color: '#AAA', fontSize: 13, marginLeft: 10, flex: 1 },
-  submitButton: { backgroundColor: '#00FF66', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  favoriteToggleText: { color: colors.textFaint, fontSize: 13, marginLeft: 10, flex: 1 },
+  submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
-  cancelText: { color: '#888', fontSize: 16 },
+  cancelText: { color: colors.textSecondary, fontSize: 16 },
   errorText: { color: 'red', textAlign: 'center', fontSize: 18 },
 });

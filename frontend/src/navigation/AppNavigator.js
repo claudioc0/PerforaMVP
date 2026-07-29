@@ -23,6 +23,9 @@ import ExercisePickerScreen from '../screens/ExercisePickerScreen';
 import ProgressScreen from '../screens/ProgressScreen';
 import ChooseSplitScreen from '../screens/ChooseSplitScreen';
 import WeeklyPlanSetupScreen from '../screens/WeeklyPlanSetupScreen';
+import RemindersScreen from '../screens/RemindersScreen';
+import { colors } from '../theme/colors';
+import { ROUTES } from './routes';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,9 +36,9 @@ function MainStack() {
     const checkAuth = async () => {
       try {
         const token = await getToken("jwt_token");
-        setInitialRoute(token ? "Dashboard" : "Login");
-      } catch (error) {
-        setInitialRoute("Login");
+        setInitialRoute(token ? ROUTES.DASHBOARD : ROUTES.LOGIN);
+      } catch {
+        setInitialRoute(ROUTES.LOGIN);
       }
     };
     checkAuth();
@@ -44,28 +47,29 @@ function MainStack() {
   if (initialRoute === null) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#121212' } }}>
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="Dashboard" component={DashboardScreen} />
-      <Stack.Screen name="Goals" component={GoalsScreen} />
-      <Stack.Screen name="Camera" component={CameraScreen} />
-      <Stack.Screen name="MealConfirmation" component={MealConfirmationScreen} />
-      <Stack.Screen name="Insights" component={InsightsScreen} />
-      <Stack.Screen name="AdjustQuantity" component={AdjustQuantityScreen} options={{ presentation: 'modal' }} />
-      <Stack.Screen name="ManualEntry" component={ManualEntryScreen} />
-      <Stack.Screen name="WorkoutHistory" component={WorkoutHistoryScreen} />
-      <Stack.Screen name="WorkoutSession" component={WorkoutSessionScreen} />
-      <Stack.Screen name="ExercisePicker" component={ExercisePickerScreen} options={{ presentation: 'modal' }} />
-      <Stack.Screen name="Progress" component={ProgressScreen} />
-      <Stack.Screen name="ChooseSplit" component={ChooseSplitScreen} />
-      <Stack.Screen name="WeeklyPlanSetup" component={WeeklyPlanSetupScreen} />
+    <Stack.Navigator initialRouteName={initialRoute} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+      <Stack.Screen name={ROUTES.LOGIN} component={LoginScreen} />
+      <Stack.Screen name={ROUTES.REGISTER} component={RegisterScreen} />
+      <Stack.Screen name={ROUTES.DASHBOARD} component={DashboardScreen} />
+      <Stack.Screen name={ROUTES.GOALS} component={GoalsScreen} />
+      <Stack.Screen name={ROUTES.CAMERA} component={CameraScreen} />
+      <Stack.Screen name={ROUTES.MEAL_CONFIRMATION} component={MealConfirmationScreen} />
+      <Stack.Screen name={ROUTES.INSIGHTS} component={InsightsScreen} />
+      <Stack.Screen name={ROUTES.ADJUST_QUANTITY} component={AdjustQuantityScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name={ROUTES.MANUAL_ENTRY} component={ManualEntryScreen} />
+      <Stack.Screen name={ROUTES.WORKOUT_HISTORY} component={WorkoutHistoryScreen} />
+      <Stack.Screen name={ROUTES.WORKOUT_SESSION} component={WorkoutSessionScreen} />
+      <Stack.Screen name={ROUTES.EXERCISE_PICKER} component={ExercisePickerScreen} options={{ presentation: 'modal' }} />
+      <Stack.Screen name={ROUTES.PROGRESS} component={ProgressScreen} />
+      <Stack.Screen name={ROUTES.CHOOSE_SPLIT} component={ChooseSplitScreen} />
+      <Stack.Screen name={ROUTES.WEEKLY_PLAN_SETUP} component={WeeklyPlanSetupScreen} />
+      <Stack.Screen name={ROUTES.REMINDERS} component={RemindersScreen} />
     </Stack.Navigator>
   );
 }
@@ -86,7 +90,7 @@ export default function AppNavigator() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: colors.background,
     justifyContent: "center",
     alignItems: "center",
   },

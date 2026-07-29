@@ -6,6 +6,8 @@ import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWorkout } from '../services/api';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 export default function ChooseSplitScreen({ navigation }) {
   const showAlert = useAppAlert();
@@ -22,14 +24,14 @@ export default function ChooseSplitScreen({ navigation }) {
       try {
         const data = await listSplits();
         setSplits(data);
-      } catch (error) {
+      } catch {
         showAlert('Erro', 'Não foi possível carregar as divisões de treino.');
       } finally {
         setLoading(false);
       }
     };
     fetchSplits();
-  }, []);
+  }, [showAlert]);
 
   const toggleSplit = (splitId) => {
     setExpandedSplitId((current) => (current === splitId ? null : splitId));
@@ -39,18 +41,18 @@ export default function ChooseSplitScreen({ navigation }) {
     setCreating(true);
     try {
       const workout = await createWorkout(workoutData);
-      navigation.replace('WorkoutSession', { workoutId: workout.id });
-    } catch (error) {
+      navigation.replace(ROUTES.WORKOUT_SESSION, { workoutId: workout.id });
+    } catch {
       showAlert('Erro', 'Não foi possível iniciar o treino.');
     } finally {
       setCreating(false);
     }
-  }, [navigation]);
+  }, [navigation, showAlert]);
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -67,7 +69,7 @@ export default function ChooseSplitScreen({ navigation }) {
         onPress={() => handleStart({})}
         disabled={creating}
       >
-        <Ionicons name="shuffle" size={24} color="#121212" style={{ marginRight: 12 }} />
+        <Ionicons name="shuffle" size={24} color={colors.background} style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.freestyleTitle}>Freestyle</Text>
           <Text style={styles.freestyleSubtitle}>Sem roteiro — escolha os exercícios na hora</Text>
@@ -93,7 +95,7 @@ export default function ChooseSplitScreen({ navigation }) {
                 disabled={creating}
               >
                 <Text style={styles.dayName}>{day.name}</Text>
-                <Ionicons name="chevron-forward" size={18} color="#00FF66" />
+                <Ionicons name="chevron-forward" size={18} color={colors.primary} />
               </TouchableOpacity>
             ))}
           </ExpandableSplitCard>
@@ -103,7 +105,7 @@ export default function ChooseSplitScreen({ navigation }) {
 
       {creating && (
         <View style={styles.creatingOverlay}>
-          <ActivityIndicator size="large" color="#00FF66" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       )}
     </View>
@@ -111,15 +113,15 @@ export default function ChooseSplitScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
-  freestyleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#00FF66', borderRadius: 12, padding: 16, marginBottom: 25 },
-  freestyleTitle: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
-  freestyleSubtitle: { color: '#121212', fontSize: 12, marginTop: 2, opacity: 0.8 },
-  sectionLabel: { color: '#888', fontSize: 14, marginBottom: 12 },
-  dayRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: '#2A2A2A' },
-  dayName: { color: '#FFF', fontSize: 15 },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  freestyleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, padding: 16, marginBottom: 25 },
+  freestyleTitle: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  freestyleSubtitle: { color: colors.background, fontSize: 12, marginTop: 2, opacity: 0.8 },
+  sectionLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 12 },
+  dayRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
+  dayName: { color: colors.white, fontSize: 15 },
   creatingOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center' },
 });

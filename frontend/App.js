@@ -1,15 +1,31 @@
-import "react-native-gesture-handler";
+// Precisa ser o primeiro import do arquivo — registra os handlers nativos de
+// gesto antes de qualquer outro módulo ser avaliado.
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import React from "react";
 import { StatusBar, View, ActivityIndicator, StyleSheet } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from '@react-navigation/native';
 import { useFonts, Orbitron_700Bold, Orbitron_900Black } from '@expo-google-fonts/orbitron';
+import * as Notifications from "expo-notifications";
 import { navigationRef } from "./src/navigation/RootNavigation";
 import ErrorBoundary from "./src/components/ErrorBoundary";
+import { colors } from "./src/theme/colors";
 
 // Importa o navegador centralizado
 import AppNavigator from "./src/navigation/AppNavigator";
+
+// Sem isso, os lembretes locais (refeição/água/treino) não aparecem como
+// banner/som se o app já estiver aberto quando disparam — o padrão do Expo é
+// não mostrar nada em primeiro plano. Módulo-level (roda uma vez, antes do
+// componente montar), não dentro de um useEffect.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export default function App() {
   const [fontsLoaded] = useFonts({ Orbitron_700Bold, Orbitron_900Black });
@@ -17,7 +33,7 @@ export default function App() {
   if (!fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -45,7 +61,7 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: colors.background,
     justifyContent: "center",
     alignItems: "center",
   },

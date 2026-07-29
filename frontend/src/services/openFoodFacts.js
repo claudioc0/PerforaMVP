@@ -20,14 +20,14 @@ export async function fetchProductByBarcode(barcode) {
   let response;
   try {
     response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`);
-  } catch (error) {
+  } catch {
     throw new BarcodeNetworkError('Não foi possível conectar ao banco de produtos. Verifique sua internet.');
   }
 
   let data;
   try {
     data = await response.json();
-  } catch (error) {
+  } catch {
     throw new BarcodeNetworkError('Resposta inválida do banco de produtos.');
   }
 

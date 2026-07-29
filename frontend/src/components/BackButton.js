@@ -2,6 +2,7 @@ import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors } from '../theme/colors';
 
 /**
  * Seta de "voltar" reutilizável. Por padrão usa navigation.goBack(),
@@ -18,7 +19,7 @@ export default function BackButton({ onPress, style }) {
       accessibilityRole="button"
       accessibilityLabel="Voltar"
     >
-      <Ionicons name="chevron-back" size={26} color="#00FF66" />
+      <Ionicons name="chevron-back" size={26} color={colors.primary} />
     </TouchableOpacity>
   );
 }

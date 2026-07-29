@@ -5,6 +5,8 @@ import { loginUser } from '../services/api';
 import { setToken } from '../services/secureTokenStorage';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 export default function LoginScreen({ navigation }) {
   const showAlert = useAppAlert();
@@ -33,7 +35,7 @@ export default function LoginScreen({ navigation }) {
         AsyncStorage.setItem('user_data', JSON.stringify(data.user)) // Salva o objeto do usuário
       ]);
       
-      navigation.replace('Dashboard'); // 'replace' impede que o usuário volte pro login com a seta do celular
+      navigation.replace(ROUTES.DASHBOARD); // 'replace' impede que o usuário volte pro login com a seta do celular
     } catch (error) {
       showAlert('Erro no Login', error.message);
     } finally {
@@ -60,7 +62,7 @@ export default function LoginScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="exemplo@email.com"
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textMuted}
           keyboardType="email-address"
           autoCapitalize="none"
           value={email}
@@ -71,7 +73,7 @@ export default function LoginScreen({ navigation }) {
         <TextInput
           style={styles.input}
           placeholder="••••••••"
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textMuted}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -83,7 +85,7 @@ export default function LoginScreen({ navigation }) {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#121212" />
+            <ActivityIndicator color={colors.background} />
           ) : (
             <Text style={styles.buttonText}>Entrar</Text>
           )}
@@ -91,7 +93,7 @@ export default function LoginScreen({ navigation }) {
 
         <TouchableOpacity 
           style={styles.linkButton} 
-          onPress={() => navigation.navigate('Register')}
+          onPress={() => navigation.navigate(ROUTES.REGISTER)}
         >
           <Text style={styles.linkText}>Não tem uma conta? <Text style={styles.linkTextBold}>Cadastre-se</Text></Text>
         </TouchableOpacity>
@@ -102,18 +104,18 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, backgroundColor: '#121212', justifyContent: 'center', padding: 25 },
+  container: { flexGrow: 1, backgroundColor: colors.background, justifyContent: 'center', padding: 25 },
   header: { marginBottom: 40, alignItems: 'center' },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
-  title: { color: '#FFF', fontSize: 32, fontFamily: 'Orbitron_900Black', letterSpacing: 2, marginLeft: 10 },
-  subtitle: { color: '#00FF66', fontSize: 16, marginTop: 5 },
+  title: { color: colors.white, fontSize: 32, fontFamily: 'Orbitron_900Black', letterSpacing: 2, marginLeft: 10 },
+  subtitle: { color: colors.primary, fontSize: 16, marginTop: 5 },
   form: { width: '100%' },
-  label: { color: '#FFF', fontSize: 14, marginBottom: 8, fontWeight: '500' },
-  input: { backgroundColor: '#1E1E1E', color: '#FFF', borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20, borderWidth: 1, borderColor: '#333' },
-  button: { backgroundColor: '#00FF66', borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 10 },
+  label: { color: colors.white, fontSize: 14, marginBottom: 8, fontWeight: '500' },
+  input: { backgroundColor: colors.surface, color: colors.white, borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border },
+  button: { backgroundColor: colors.primary, borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 10 },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+  buttonText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
   linkButton: { marginTop: 25, alignItems: 'center' },
-  linkText: { color: '#888', fontSize: 14 },
-  linkTextBold: { color: '#00FF66', fontWeight: 'bold' }
+  linkText: { color: colors.textSecondary, fontSize: 14 },
+  linkTextBold: { color: colors.primary, fontWeight: 'bold' }
 });

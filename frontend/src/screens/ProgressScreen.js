@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { getWorkoutProgress } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
+import { colors } from '../theme/colors';
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
@@ -23,7 +24,7 @@ export default function ProgressScreen() {
     try {
       const data = await getWorkoutProgress();
       setProgress(data);
-    } catch (err) {
+    } catch {
       setError(true);
     } finally {
       setLoading(false);
@@ -39,7 +40,7 @@ export default function ProgressScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -52,7 +53,7 @@ export default function ProgressScreen() {
           <Text style={styles.headerTitle}>Progresso</Text>
         </View>
         <View style={styles.center}>
-          <Ionicons name="cloud-offline-outline" size={40} color="#888" style={{ marginBottom: 12 }} />
+          <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: 12 }} />
           <Text style={styles.errorTitle}>Não foi possível carregar seu progresso</Text>
           <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchProgress}>
@@ -79,21 +80,21 @@ export default function ProgressScreen() {
           progress.map((workout, index) => {
             const olderWorkout = progress[index + 1];
             let trendIcon = null;
-            let trendColor = '#888';
+            let trendColor = colors.textSecondary;
             let trendLabel = null;
 
             if (olderWorkout) {
               if (workout.total_tonnage > olderWorkout.total_tonnage) {
                 trendIcon = 'trending-up';
-                trendColor = '#00FF66';
+                trendColor = colors.primary;
                 trendLabel = 'Tonelagem em alta em relação ao treino anterior';
               } else if (workout.total_tonnage < olderWorkout.total_tonnage) {
                 trendIcon = 'trending-down';
-                trendColor = '#FF6B6B';
+                trendColor = colors.danger;
                 trendLabel = 'Tonelagem em queda em relação ao treino anterior';
               } else {
                 trendIcon = 'remove';
-                trendColor = '#888';
+                trendColor = colors.textSecondary;
                 trendLabel = 'Tonelagem estável em relação ao treino anterior';
               }
             }
@@ -130,22 +131,22 @@ export default function ProgressScreen() {
 }
 
 const styles = StyleSheet.create({
-  rootContainer: { flex: 1, backgroundColor: '#121212' },
+  rootContainer: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 20 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
-  errorTitle: { color: '#FFF', fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
-  errorSubtitle: { color: '#888', fontSize: 14, textAlign: 'center', marginBottom: 20 },
-  retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
-  retryButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: '#121212' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
+  errorTitle: { color: colors.white, fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
+  errorSubtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 },
+  retryButton: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
+  retryButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: colors.background },
   backButton: { position: 'absolute', left: 20, top: 60, zIndex: 10 },
-  headerTitle: { flex: 1, textAlign: 'center', color: '#FFF', fontSize: 22, fontWeight: 'bold' },
-  card: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 15 },
+  headerTitle: { flex: 1, textAlign: 'center', color: colors.white, fontSize: 22, fontWeight: 'bold' },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 15 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  cardDate: { color: '#FFF', fontSize: 16, fontWeight: '600' },
+  cardDate: { color: colors.white, fontSize: 16, fontWeight: '600' },
   statsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   statBox: { alignItems: 'center' },
-  statValue: { color: '#00FF66', fontSize: 20, fontWeight: 'bold' },
-  statLabel: { color: '#888', fontSize: 12, marginTop: 4 },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 40, fontSize: 14, paddingHorizontal: 20 },
+  statValue: { color: colors.primary, fontSize: 20, fontWeight: 'bold' },
+  statLabel: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
+  emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 40, fontSize: 14, paddingHorizontal: 20 },
 });

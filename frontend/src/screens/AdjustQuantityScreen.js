@@ -7,6 +7,8 @@ import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
 import { deriveBaseFromSavedItem } from '../utils/mealMacros';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 export default function AdjustQuantityScreen({ navigation, route }) {
   const showAlert = useAppAlert();
@@ -75,7 +77,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
       await updateMeal(initialMeal.id, payload);
 
       showAlert('Sucesso', 'Refeição atualizada!');
-      navigation.navigate('Dashboard');
+      navigation.navigate(ROUTES.DASHBOARD);
 
     } catch (error) {
       showAlert('Erro ao Salvar', error.message || 'Não foi possível atualizar a refeição.');
@@ -116,7 +118,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
                 onChangeText={(text) => updateItemQuantity(index, text)}
                 keyboardType="numeric"
                 placeholder="100"
-                placeholderTextColor="#666"
+                placeholderTextColor={colors.textMuted}
               />
               <Text style={styles.unitText}>gramas</Text>
             </View>
@@ -139,7 +141,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
               onChangeText={(text) => updateItemQuantity(0, text)}
               keyboardType="numeric"
               placeholder="100"
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.textMuted}
             />
             <Text style={styles.unitText}>gramas</Text>
           </View>
@@ -157,7 +159,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
       </View>
 
       <TouchableOpacity style={[styles.submitButton, saving && styles.disabledButton]} onPress={handleSaveChanges} disabled={saving}>
-        {saving ? <ActivityIndicator color="#121212" /> : <Text style={styles.submitText}>Salvar Alterações</Text>}
+        {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.submitText}>Salvar Alterações</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
@@ -170,26 +172,26 @@ export default function AdjustQuantityScreen({ navigation, route }) {
 
 // Estilos baseados na MealConfirmationScreen para consistência
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   errorText: { color: 'red', textAlign: 'center', fontSize: 18, marginTop: 20 },
-  descriptionText: { color: '#00FF66', fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 20, textTransform: 'capitalize' },
-  itemCard: { backgroundColor: '#1E1E1E', padding: 16, borderRadius: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
-  itemDesc: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 10, textTransform: 'capitalize' },
-  itemMacros: { color: '#888888', fontSize: 13, marginTop: 8 },
-  card: { backgroundColor: '#1E1E1E', padding: 20, borderRadius: 16, marginTop: 8, marginBottom: 20 },
-  cardTitle: { color: '#FFF', fontSize: 18, fontWeight: '600', marginBottom: 15 },
-  quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#333', borderRadius: 10 },
-  quantityInput: { color: '#FFF', fontSize: 20, padding: 15, flex: 1, fontWeight: 'bold' },
-  unitText: { color: '#888', fontSize: 16, paddingRight: 15 },
+  descriptionText: { color: colors.primary, fontSize: 20, fontWeight: '500', textAlign: 'center', marginBottom: 20, textTransform: 'capitalize' },
+  itemCard: { backgroundColor: colors.surface, padding: 16, borderRadius: 16, marginBottom: 12, borderLeftWidth: 3, borderLeftColor: colors.primary },
+  itemDesc: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: 10, textTransform: 'capitalize' },
+  itemMacros: { color: colors.textSecondary, fontSize: 13, marginTop: 8 },
+  card: { backgroundColor: colors.surface, padding: 20, borderRadius: 16, marginTop: 8, marginBottom: 20 },
+  cardTitle: { color: colors.white, fontSize: 18, fontWeight: '600', marginBottom: 15 },
+  quantityContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.border, borderRadius: 10 },
+  quantityInput: { color: colors.white, fontSize: 20, padding: 15, flex: 1, fontWeight: 'bold' },
+  unitText: { color: colors.textSecondary, fontSize: 16, paddingRight: 15 },
   macrosGrid: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' },
   macroBox: { alignItems: 'center', width: '48%', marginBottom: 15 },
-  macroValue: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
-  macroLabel: { color: '#888', fontSize: 14, marginTop: 4 },
-  submitButton: { backgroundColor: '#00FF66', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  macroValue: { color: colors.white, fontSize: 24, fontWeight: 'bold' },
+  macroLabel: { color: colors.textSecondary, fontSize: 14, marginTop: 4 },
+  submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
-  cancelText: { color: '#888', fontSize: 16 },
+  cancelText: { color: colors.textSecondary, fontSize: 16 },
 });

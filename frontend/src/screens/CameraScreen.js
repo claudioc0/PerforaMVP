@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,6 +7,8 @@ import { analyzeMeal } from '../services/api';
 import { fetchProductByBarcode, ProductNotFoundError } from '../services/openFoodFacts';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 export default function CameraScreen({ navigation, route }) {
   const showAlert = useAppAlert();
@@ -45,7 +47,7 @@ export default function CameraScreen({ navigation, route }) {
     try {
       const draftMeal = await analyzeMeal(imageUri, null); 
 
-      navigation.navigate('MealConfirmation', {
+      navigation.navigate(ROUTES.MEAL_CONFIRMATION, {
         draftMeal,
         targetDate 
       });
@@ -64,7 +66,7 @@ export default function CameraScreen({ navigation, route }) {
             { text: "Aguardar", style: "cancel" },
             { 
               text: "Entrada Manual", 
-              onPress: () => navigation.navigate('ManualEntry', { targetDate }) 
+              onPress: () => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate }) 
             }
           ]
         );
@@ -82,7 +84,7 @@ export default function CameraScreen({ navigation, route }) {
 
     try {
       const product = await fetchProductByBarcode(data);
-      navigation.navigate('ManualEntry', {
+      navigation.navigate(ROUTES.MANUAL_ENTRY, {
         scannedProduct: product,
         targetDate: targetDate,
       });
@@ -99,7 +101,7 @@ export default function CameraScreen({ navigation, route }) {
               text: 'Cadastrar Manual',
               onPress: () => {
                 setScanned(false);
-                navigation.navigate('ManualEntry', { targetDate });
+                navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate });
               }
             }
           ]
@@ -118,7 +120,7 @@ export default function CameraScreen({ navigation, route }) {
   };
 
   if (!permission) {
-    return <View style={styles.center}><ActivityIndicator color="#00FF66" /></View>;
+    return <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>;
   }
 
   if (!permission.granted) {
@@ -164,7 +166,7 @@ export default function CameraScreen({ navigation, route }) {
       >
         {analyzing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ActivityIndicator color="#121212" style={{ marginRight: 10 }} />
+            <ActivityIndicator color={colors.background} style={{ marginRight: 10 }} />
             <Text style={styles.submitText}>Mapeando nutrientes...</Text>
           </View>
         ) : (
@@ -173,8 +175,8 @@ export default function CameraScreen({ navigation, route }) {
       </TouchableOpacity>
 
       {imageUri && !analyzing && (
-         <TouchableOpacity style={[styles.submitButton, {marginTop: 10, backgroundColor: '#FFF'}]} onPress={handleAnalyze}>
-            <Text style={[styles.submitText, {color: '#121212'}]}>Analisar Foto Atual</Text>
+         <TouchableOpacity style={[styles.submitButton, {marginTop: 10, backgroundColor: colors.white}]} onPress={handleAnalyze}>
+            <Text style={[styles.submitText, {color: colors.background}]}>Analisar Foto Atual</Text>
          </TouchableOpacity>
       )}
 
@@ -186,22 +188,22 @@ export default function CameraScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
-  cameraContainer: { width: '100%', height: 300, borderRadius: 16, overflow: 'hidden', backgroundColor: '#1E1E1E', justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  cameraContainer: { width: '100%', height: 300, borderRadius: 16, overflow: 'hidden', backgroundColor: colors.surface, justifyContent: 'center', alignItems: 'center' },
   camera: { width: '100%', height: '100%' },
   overlay: { position: 'absolute', bottom: 10, backgroundColor: 'rgba(0,0,0,0.5)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 5 },
-  overlayText: { color: '#FFF', fontSize: 14 },
+  overlayText: { color: colors.white, fontSize: 14 },
   rescanButton: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(0, 255, 102, 0.8)', padding: 10, borderRadius: 8 },
-  placeholderText: { color: '#666', textAlign: 'center' },
-  permissionText: { color: '#FFF', fontSize: 16, textAlign: 'center', marginBottom: 20 },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
-  orText: { color: '#666', textAlign: 'center', marginVertical: 20, fontWeight: 'bold' },
-  submitButton: { backgroundColor: '#00FF66', padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
+  placeholderText: { color: colors.textMuted, textAlign: 'center' },
+  permissionText: { color: colors.white, fontSize: 16, textAlign: 'center', marginBottom: 20 },
+  buttonText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  orText: { color: colors.textMuted, textAlign: 'center', marginVertical: 20, fontWeight: 'bold' },
+  submitButton: { backgroundColor: colors.primary, padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
+  submitText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center' },
-  cancelText: { color: '#888', fontSize: 16 }
+  cancelText: { color: colors.textSecondary, fontSize: 16 }
 });

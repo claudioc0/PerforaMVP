@@ -26,6 +26,7 @@ jest.mock('@react-navigation/native', () => ({
 
 const { CommonActions } = require('@react-navigation/native');
 const { navigate, resetToLogin, resetToDashboard } = require('./RootNavigation');
+const { ROUTES } = require('./routes');
 
 describe('resetToLogin', () => {
   beforeEach(() => {
@@ -39,7 +40,7 @@ describe('resetToLogin', () => {
     resetToLogin();
 
     expect(mockRef.dispatch).toHaveBeenCalledWith(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Login' }] })
+      CommonActions.reset({ index: 0, routes: [{ name: ROUTES.LOGIN }] })
     );
   });
 
@@ -67,7 +68,7 @@ describe('resetToDashboard', () => {
     resetToDashboard();
 
     expect(mockRef.dispatch).toHaveBeenCalledWith(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
+      CommonActions.reset({ index: 0, routes: [{ name: ROUTES.DASHBOARD }] })
     );
   });
 

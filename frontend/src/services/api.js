@@ -128,7 +128,6 @@ async function forceLogout() {
   // própria disparava várias navegações de reset ao mesmo tempo.
   if (!forceLogoutPromise) {
     forceLogoutPromise = (async () => {
-      console.log("API: Sessão não pôde ser renovada. Deslogando usuário.");
       await clearLocalSession();
       resetToLogin();
     })().finally(() => {
@@ -191,7 +190,7 @@ async function request(path, { method = 'GET', body, isFormData = false, headers
 
     try {
       await refreshAccessToken();
-    } catch (refreshError) {
+    } catch {
       await forceLogout();
       throw new ApiError("Sessão expirada. Por favor, faça o login novamente.", 401);
     }
@@ -259,6 +258,17 @@ export async function getTodaySummary(dateString) {
  */
 export async function getWeeklySummary(todayString) {
   const path = todayString ? `/meals/weekly_summary?today=${todayString}` : "/meals/weekly_summary";
+  return request(path);
+}
+
+/**
+ * Busca a sequência (streak) atual do usuário: dias consecutivos com refeição
+ * ou treino registrado.
+ * @param {string} [todayString] - "Hoje" no fuso do aparelho (YYYY-MM-DD).
+ * @returns {Promise<{current_streak: number, active_today: boolean}>}
+ */
+export async function getStreak(todayString) {
+  const path = todayString ? `/user/streak?today=${todayString}` : "/user/streak";
   return request(path);
 }
 

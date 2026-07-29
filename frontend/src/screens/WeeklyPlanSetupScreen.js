@@ -6,6 +6,7 @@ import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWeeklyPlan } from '../services/api';
+import { colors } from '../theme/colors';
 
 export default function WeeklyPlanSetupScreen({ navigation }) {
   const showAlert = useAppAlert();
@@ -25,14 +26,14 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
       try {
         const data = await listSplits();
         setSplits(data);
-      } catch (error) {
+      } catch {
         showAlert('Erro', 'Não foi possível carregar as divisões de treino.');
       } finally {
         setLoading(false);
       }
     };
     fetchSplits();
-  }, []);
+  }, [showAlert]);
 
   const toggleSplit = (split) => {
     if (expandedSplitId === split.id) {
@@ -76,17 +77,17 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
     try {
       await createWeeklyPlan(split.id, splitDayIds);
       navigation.goBack();
-    } catch (error) {
+    } catch {
       showAlert('Erro', 'Não foi possível definir o plano semanal.');
     } finally {
       setSaving(false);
     }
-  }, [navigation]);
+  }, [navigation, showAlert]);
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -124,7 +125,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                     accessibilityRole="button"
                     accessibilityLabel="Diminuir dias de treino por semana"
                   >
-                    <Ionicons name="remove-circle-outline" size={22} color="#888" />
+                    <Ionicons name="remove-circle-outline" size={22} color={colors.textSecondary} />
                   </TouchableOpacity>
                   <Text style={styles.stepperValue}>{trainingDaysCount}</Text>
                   <TouchableOpacity
@@ -132,7 +133,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                     accessibilityRole="button"
                     accessibilityLabel="Aumentar dias de treino por semana"
                   >
-                    <Ionicons name="add-circle-outline" size={22} color="#888" />
+                    <Ionicons name="add-circle-outline" size={22} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -150,7 +151,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                     <Text style={styles.slotLabel}>Dia {index + 1}</Text>
                     <View style={styles.slotValueRow}>
                       <Text style={styles.slotValue}>{day ? day.name : '—'}</Text>
-                      <Ionicons name="chevron-forward" size={16} color="#888" />
+                      <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
                     </View>
                   </TouchableOpacity>
                 );
@@ -161,7 +162,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                 onPress={() => handleUseSplit(item, slotAssignments)}
                 disabled={saving}
               >
-                {saving ? <ActivityIndicator color="#121212" /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
+                {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
               </TouchableOpacity>
             </ExpandableSplitCard>
           );
@@ -173,21 +174,21 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
-  sectionLabel: { color: '#888', fontSize: 13, marginBottom: 18, lineHeight: 18 },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  sectionLabel: { color: colors.textSecondary, fontSize: 13, marginBottom: 18, lineHeight: 18 },
   daysContainer: { padding: 16 },
   stepperRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  stepperLabel: { color: '#FFF', fontSize: 14, fontWeight: '600' },
+  stepperLabel: { color: colors.white, fontSize: 14, fontWeight: '600' },
   stepperControls: { flexDirection: 'row', alignItems: 'center' },
-  stepperValue: { color: '#00FF66', fontSize: 16, fontWeight: 'bold', marginHorizontal: 10, minWidth: 20, textAlign: 'center' },
-  slotsHint: { color: '#888', fontSize: 12, marginBottom: 10 },
-  slotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: '#2A2A2A' },
-  slotLabel: { color: '#888', fontSize: 13 },
+  stepperValue: { color: colors.primary, fontSize: 16, fontWeight: 'bold', marginHorizontal: 10, minWidth: 20, textAlign: 'center' },
+  slotsHint: { color: colors.textSecondary, fontSize: 12, marginBottom: 10 },
+  slotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
+  slotLabel: { color: colors.textSecondary, fontSize: 13 },
   slotValueRow: { flexDirection: 'row', alignItems: 'center' },
-  slotValue: { color: '#FFF', fontSize: 14, fontWeight: '600', marginRight: 6 },
-  useSplitButton: { backgroundColor: '#00FF66', padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 14 },
-  useSplitText: { color: '#121212', fontSize: 15, fontWeight: 'bold' },
+  slotValue: { color: colors.white, fontSize: 14, fontWeight: '600', marginRight: 6 },
+  useSplitButton: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 14 },
+  useSplitText: { color: colors.background, fontSize: 15, fontWeight: 'bold' },
 });

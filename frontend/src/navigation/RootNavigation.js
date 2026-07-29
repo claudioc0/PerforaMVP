@@ -1,4 +1,5 @@
 import { createNavigationContainerRef, CommonActions } from '@react-navigation/native';
+import { ROUTES } from './routes';
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -26,7 +27,7 @@ export function resetToLogin() {
     navigationRef.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'Login' }],
+        routes: [{ name: ROUTES.LOGIN }],
       })
     );
   }
@@ -43,7 +44,7 @@ export function resetToDashboard() {
     navigationRef.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'Dashboard' }],
+        routes: [{ name: ROUTES.DASHBOARD }],
       })
     );
   }

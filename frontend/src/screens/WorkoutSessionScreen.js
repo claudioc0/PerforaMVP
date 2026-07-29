@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 const REST_TARGET_KEY = '@perfora_rest_target_seconds';
 const DEFAULT_REST_TARGET = 90;
@@ -60,7 +62,7 @@ const SetRow = React.memo(function SetRow({
             onChangeText={setEditWeight}
             keyboardType="numeric"
             placeholder="kg"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textMuted}
           />
           <Text style={styles.editSeparator}>kg ×</Text>
           <TextInput
@@ -69,7 +71,7 @@ const SetRow = React.memo(function SetRow({
             onChangeText={setEditReps}
             keyboardType="numeric"
             placeholder="reps"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textMuted}
           />
           <Text style={styles.editSeparator}>reps</Text>
         </View>
@@ -80,7 +82,7 @@ const SetRow = React.memo(function SetRow({
             accessibilityRole="button"
             accessibilityLabel="Cancelar edição da série"
           >
-            <Ionicons name="close" size={22} color="#888" />
+            <Ionicons name="close" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => onSaveEdit(editWeight, editReps)}
@@ -89,7 +91,7 @@ const SetRow = React.memo(function SetRow({
             accessibilityRole="button"
             accessibilityLabel="Salvar série"
           >
-            {saving ? <ActivityIndicator color="#00FF66" /> : <Ionicons name="checkmark" size={22} color="#00FF66" />}
+            {saving ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="checkmark" size={22} color={colors.primary} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -110,7 +112,7 @@ const SetRow = React.memo(function SetRow({
           accessibilityRole="button"
           accessibilityLabel="Excluir série"
         >
-          <Ionicons name="trash-outline" size={17} color="#FF5555" />
+          <Ionicons name="trash-outline" size={17} color={colors.dangerStrong} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -168,7 +170,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         try {
           const suggestions = await getSplitDayExercises(data.split_day_id);
           setSuggestedExercises(suggestions);
-        } catch (error) {
+        } catch {
           // Sugestões são um atalho — sem elas, o usuário ainda pode usar o catálogo completo.
         }
       }
@@ -178,7 +180,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     } finally {
       setLoading(false);
     }
-  }, [workoutId, navigation]);
+  }, [workoutId, navigation, showAlert]);
 
   useEffect(() => {
     fetchWorkout();
@@ -219,7 +221,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     }, [restRunning])
   );
 
-  const selectExercise = async (exercise) => {
+  const selectExercise = useCallback(async (exercise) => {
     setPendingExercise(exercise);
     setWeight('');
     setReps('');
@@ -232,10 +234,10 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         const lastSet = lastSets[lastSets.length - 1];
         setLastPerformance({ weight_kg: lastSet.weight_kg, reps: lastSet.reps, date: history[0].started_at });
       }
-    } catch (error) {
+    } catch {
       // Referência de histórico é só um "nice to have" — não bloqueia o registro da série.
     }
-  };
+  }, []);
 
   const handleSelectSuggested = (suggestion) => {
     selectExercise({
@@ -246,8 +248,21 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   };
 
   const handleOpenPicker = () => {
-    navigation.navigate('ExercisePicker', { onSelect: selectExercise });
+    navigation.navigate(ROUTES.EXERCISE_PICKER);
   };
+
+  // ExercisePickerScreen devolve o exercício escolhido como parâmetro
+  // serializável (id/name/muscle_group) em vez de receber uma função de
+  // callback via params (funções não sobrevivem à serialização de estado de
+  // navegação). Consome o param uma única vez e limpa em seguida, senão
+  // reabrir esta tela (ex: voltar do background) disparava selectExercise de
+  // novo com o mesmo valor.
+  useEffect(() => {
+    if (route.params?.selectedExercise) {
+      selectExercise(route.params.selectedExercise);
+      navigation.setParams({ selectedExercise: undefined });
+    }
+  }, [route.params?.selectedExercise, selectExercise, navigation]);
 
   const handleSaveSet = async () => {
     if (!weight || !reps) {
@@ -412,7 +427,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   if (loading || !workout) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -430,7 +445,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             value={nameInput}
             onChangeText={setNameInput}
             placeholder="Nome do treino"
-            placeholderTextColor="#666"
+            placeholderTextColor={colors.textMuted}
             autoFocus
           />
         ) : (
@@ -445,7 +460,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 accessibilityRole="button"
                 accessibilityLabel="Cancelar edição do nome do treino"
               >
-                <Ionicons name="close" size={22} color="#888" />
+                <Ionicons name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={saveWorkoutName}
@@ -453,7 +468,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 accessibilityRole="button"
                 accessibilityLabel="Salvar nome do treino"
               >
-                <Ionicons name="checkmark" size={22} color="#00FF66" />
+                <Ionicons name="checkmark" size={22} color={colors.primary} />
               </TouchableOpacity>
             </>
           ) : (
@@ -464,7 +479,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 accessibilityRole="button"
                 accessibilityLabel="Editar nome do treino"
               >
-                <Ionicons name="pencil" size={19} color="#888" />
+                <Ionicons name="pencil" size={19} color={colors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleDeleteWorkout}
@@ -472,7 +487,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 accessibilityRole="button"
                 accessibilityLabel="Excluir treino"
               >
-                <Ionicons name="trash-outline" size={19} color="#FF5555" />
+                <Ionicons name="trash-outline" size={19} color={colors.dangerStrong} />
               </TouchableOpacity>
             </>
           )}
@@ -488,7 +503,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               accessibilityRole="button"
               accessibilityLabel="Diminuir meta de descanso"
             >
-              <Ionicons name="remove-circle-outline" size={22} color="#888" />
+              <Ionicons name="remove-circle-outline" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
             <Text style={styles.restTargetValue}>{restTarget}s</Text>
             <TouchableOpacity
@@ -496,7 +511,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               accessibilityRole="button"
               accessibilityLabel="Aumentar meta de descanso"
             >
-              <Ionicons name="add-circle-outline" size={22} color="#888" />
+              <Ionicons name="add-circle-outline" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         </View>
@@ -504,7 +519,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
       {restRunning && !isFinished && (
         <View style={[styles.restBanner, restElapsed >= restTarget && styles.restBannerAchieved]}>
-          <Ionicons name={restElapsed >= restTarget ? 'checkmark-circle' : 'time'} size={18} color="#00FF66" />
+          <Ionicons name={restElapsed >= restTarget ? 'checkmark-circle' : 'time'} size={18} color={colors.primary} />
           <Text style={styles.restText}>
             Descanso: {formatSeconds(restElapsed)}
             {restElapsed >= restTarget ? ' — Meta atingida!' : ` / ${formatSeconds(restTarget)}`}
@@ -556,7 +571,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                     onChangeText={setWeight}
                     keyboardType="numeric"
                     placeholder="0"
-                    placeholderTextColor="#666"
+                    placeholderTextColor={colors.textMuted}
                   />
                 </View>
                 <View style={styles.pendingInputGroup}>
@@ -567,7 +582,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                     onChangeText={setReps}
                     keyboardType="numeric"
                     placeholder="0"
-                    placeholderTextColor="#666"
+                    placeholderTextColor={colors.textMuted}
                   />
                 </View>
               </View>
@@ -576,13 +591,13 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                   <Text style={styles.cancelSetText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.saveSetButton} onPress={handleSaveSet} disabled={saving}>
-                  {saving ? <ActivityIndicator color="#121212" /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
+                  {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
                 </TouchableOpacity>
               </View>
             </View>
           ) : (
             <TouchableOpacity style={styles.addSetButton} onPress={handleOpenPicker}>
-              <Ionicons name="add-circle" size={20} color="#00FF66" style={{ marginRight: 8 }} />
+              <Ionicons name="add-circle" size={20} color={colors.primary} style={{ marginRight: 8 }} />
               <Text style={styles.addSetText}>
                 {suggestedExercises.length > 0 ? 'Outro Exercício' : 'Adicionar Série'}
               </Text>
@@ -590,7 +605,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
           )}
 
           <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout} disabled={finishing}>
-            {finishing ? <ActivityIndicator color="#121212" /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
+            {finishing ? <ActivityIndicator color={colors.background} /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -600,52 +615,52 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
-  headerTitleInput: { flex: 1, color: '#FFF', fontSize: 18, fontWeight: 'bold', textAlign: 'center', borderBottomWidth: 1, borderBottomColor: '#00FF66', paddingVertical: 2, marginHorizontal: 8 },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
+  headerTitleInput: { flex: 1, color: colors.white, fontSize: 18, fontWeight: 'bold', textAlign: 'center', borderBottomWidth: 1, borderBottomColor: colors.primary, paddingVertical: 2, marginHorizontal: 8 },
   headerActions: { flexDirection: 'row', alignItems: 'center' },
   headerIconButton: { padding: 6, marginLeft: 2 },
   restTargetRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-  restTargetLabel: { color: '#888', fontSize: 14 },
+  restTargetLabel: { color: colors.textSecondary, fontSize: 14 },
   restTargetControls: { flexDirection: 'row', alignItems: 'center' },
-  restTargetValue: { color: '#FFF', fontSize: 15, fontWeight: '600', marginHorizontal: 10, minWidth: 40, textAlign: 'center' },
-  restBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,255,102,0.1)', borderWidth: 1, borderColor: '#00FF66', borderRadius: 10, padding: 10, marginBottom: 15 },
+  restTargetValue: { color: colors.white, fontSize: 15, fontWeight: '600', marginHorizontal: 10, minWidth: 40, textAlign: 'center' },
+  restBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,255,102,0.1)', borderWidth: 1, borderColor: colors.primary, borderRadius: 10, padding: 10, marginBottom: 15 },
   restBannerAchieved: { backgroundColor: 'rgba(0,255,102,0.25)', borderWidth: 2 },
-  restText: { color: '#00FF66', fontSize: 15, fontWeight: '600', marginLeft: 8 },
-  setCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 10, padding: 15, marginBottom: 10 },
-  setExercise: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-  setMeta: { color: '#888', fontSize: 12, marginTop: 2 },
+  restText: { color: colors.primary, fontSize: 15, fontWeight: '600', marginLeft: 8 },
+  setCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 10, padding: 15, marginBottom: 10 },
+  setExercise: { color: colors.white, fontSize: 16, fontWeight: '500' },
+  setMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   setCardRight: { flexDirection: 'row', alignItems: 'center' },
-  setValues: { color: '#00FF66', fontSize: 16, fontWeight: '600' },
+  setValues: { color: colors.primary, fontSize: 16, fontWeight: '600' },
   setDeleteButton: { padding: 6, marginLeft: 10 },
-  setCardEditing: { backgroundColor: '#1E1E1E', borderRadius: 10, padding: 15, marginBottom: 10, borderWidth: 1, borderColor: '#00FF66' },
+  setCardEditing: { backgroundColor: colors.surface, borderRadius: 10, padding: 15, marginBottom: 10, borderWidth: 1, borderColor: colors.primary },
   editInputsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 12 },
-  editInput: { backgroundColor: '#121212', color: '#FFF', borderRadius: 8, padding: 10, fontSize: 15, borderWidth: 1, borderColor: '#333', width: 70, textAlign: 'center' },
-  editSeparator: { color: '#888', fontSize: 13, marginHorizontal: 8 },
+  editInput: { backgroundColor: colors.background, color: colors.white, borderRadius: 8, padding: 10, fontSize: 15, borderWidth: 1, borderColor: colors.border, width: 70, textAlign: 'center' },
+  editSeparator: { color: colors.textSecondary, fontSize: 13, marginHorizontal: 8 },
   editActionsRow: { flexDirection: 'row', justifyContent: 'flex-end' },
   editActionButton: { padding: 6, marginLeft: 12 },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 30, fontSize: 14 },
+  emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 30, fontSize: 14 },
   suggestedContainer: { marginTop: 10, marginBottom: 5 },
-  suggestedLabel: { color: '#888', fontSize: 13, marginBottom: 8 },
+  suggestedLabel: { color: colors.textSecondary, fontSize: 13, marginBottom: 8 },
   suggestedChipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  suggestedChip: { backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#333', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, marginRight: 8, marginBottom: 8 },
-  suggestedChipText: { color: '#00FF66', fontSize: 13, fontWeight: '600' },
-  addSetButton: { flexDirection: 'row', backgroundColor: '#1E1E1E', borderWidth: 1, borderColor: '#00FF66', padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  addSetText: { color: '#00FF66', fontSize: 16, fontWeight: 'bold' },
-  pendingCard: { backgroundColor: '#1E1E1E', borderRadius: 12, padding: 16, marginTop: 10 },
-  pendingTitle: { color: '#FFF', fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  lastPerformanceText: { color: '#888', fontSize: 13, marginBottom: 12 },
+  suggestedChip: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, marginRight: 8, marginBottom: 8 },
+  suggestedChipText: { color: colors.primary, fontSize: 13, fontWeight: '600' },
+  addSetButton: { flexDirection: 'row', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  addSetText: { color: colors.primary, fontSize: 16, fontWeight: 'bold' },
+  pendingCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginTop: 10 },
+  pendingTitle: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: 4 },
+  lastPerformanceText: { color: colors.textSecondary, fontSize: 13, marginBottom: 12 },
   pendingInputsRow: { flexDirection: 'row', marginBottom: 15 },
   pendingInputGroup: { flex: 1, marginRight: 10 },
-  pendingLabel: { color: '#888', fontSize: 13, marginBottom: 6 },
-  pendingInput: { backgroundColor: '#121212', color: '#FFF', borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1, borderColor: '#333' },
+  pendingLabel: { color: colors.textSecondary, fontSize: 13, marginBottom: 6 },
+  pendingInput: { backgroundColor: colors.background, color: colors.white, borderRadius: 8, padding: 12, fontSize: 16, borderWidth: 1, borderColor: colors.border },
   pendingActionsRow: { flexDirection: 'row', justifyContent: 'space-between' },
   cancelSetButton: { flex: 1, padding: 14, alignItems: 'center', marginRight: 10 },
-  cancelSetText: { color: '#888', fontSize: 15 },
-  saveSetButton: { flex: 1, backgroundColor: '#00FF66', padding: 14, borderRadius: 10, alignItems: 'center' },
-  saveSetText: { color: '#121212', fontSize: 15, fontWeight: 'bold' },
-  finishButton: { backgroundColor: '#333', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 15 },
-  finishText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' },
+  cancelSetText: { color: colors.textSecondary, fontSize: 15 },
+  saveSetButton: { flex: 1, backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center' },
+  saveSetText: { color: colors.background, fontSize: 15, fontWeight: 'bold' },
+  finishButton: { backgroundColor: colors.border, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 15 },
+  finishText: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
 });

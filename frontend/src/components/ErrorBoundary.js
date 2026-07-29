@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { resetToDashboard } from '../navigation/RootNavigation';
+import { colors } from '../theme/colors';
 
 /**
  * Sem isso, um crash de render em QUALQUER tela (ex: route.params ausente
@@ -36,7 +37,7 @@ export default class ErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return (
         <View style={styles.container}>
-          <Ionicons name="warning-outline" size={48} color="#FF6B6B" style={{ marginBottom: 16 }} />
+          <Ionicons name="warning-outline" size={48} color={colors.danger} style={{ marginBottom: 16 }} />
           <Text style={styles.title}>Algo deu errado</Text>
           <Text style={styles.subtitle}>
             Encontramos um problema inesperado nesta tela. Você pode voltar ao início e tentar de novo.
@@ -52,9 +53,9 @@ export default class ErrorBoundary extends React.Component {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 30 },
-  title: { color: '#FFF', fontSize: 20, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
-  subtitle: { color: '#888', fontSize: 14, textAlign: 'center', marginBottom: 25, lineHeight: 20 },
-  button: { backgroundColor: '#00FF66', paddingVertical: 14, paddingHorizontal: 35, borderRadius: 12 },
-  buttonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 30 },
+  title: { color: colors.white, fontSize: 20, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  subtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 25, lineHeight: 20 },
+  button: { backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 35, borderRadius: 12 },
+  buttonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
 });
