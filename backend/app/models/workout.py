@@ -25,6 +25,13 @@ class Workout(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # A streak (StreakService) filtra por user_id E started_at juntos, igual
+    # meals filtra por user_id E created_at — sem esse índice composto, cada
+    # cálculo de sequência varre a tabela inteira de treinos do usuário.
+    __table_args__ = (
+        db.Index("ix_workouts_user_id_started_at", "user_id", "started_at"),
+    )
+
     sets = db.relationship("SetLog", backref="workout", lazy=True, cascade="all, delete-orphan")
     split_day = db.relationship("SplitDay", lazy=True)
 

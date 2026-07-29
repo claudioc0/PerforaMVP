@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList } from 'react-native';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
-import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder }) => (
   <View style={styles.fieldContainer}>
@@ -17,7 +19,7 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
         onChangeText={onChangeText}
         keyboardType={keyboardType}
         placeholder={placeholder}
-        placeholderTextColor="#666"
+        placeholderTextColor={colors.textMuted}
       />
       {unit && <Text style={styles.unitText}>{unit}</Text>}
     </View>
@@ -26,8 +28,12 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
 
 export default function ManualEntryScreen({ navigation, route }) {
   const showAlert = useAppAlert();
-  // Usa route.params diretamente, que já é fornecido pelo React Navigation
-  const { targetDate, scannedProduct } = route.params;
+  const insets = useSafeAreaInsets();
+  // route.params pode vir ausente (navegação sem os parâmetros esperados,
+  // ex: um deep link ou uma rota antiga) — sem o `|| {}`, o destructuring
+  // quebra na hora, derrubando a tela inteira (só o ErrorBoundary global
+  // evitaria a tela branca; melhor nem chegar lá).
+  const { targetDate, scannedProduct } = route.params || {};
 
   const [favorites, setFavorites] = useState([]);
   const [loadingFavorites, setLoadingFavorites] = useState(true);
@@ -71,7 +77,7 @@ export default function ManualEntryScreen({ navigation, route }) {
       try {
         const results = await searchFoods(query);
         setSearchResults(results);
-      } catch (error) {
+      } catch {
         // Busca no catálogo é um atalho a mais — falha aqui não afeta a estimativa por IA nem o preenchimento manual.
       } finally {
         setSearching(false);
@@ -86,14 +92,14 @@ export default function ManualEntryScreen({ navigation, route }) {
       try {
         const favs = await getFavorites();
         setFavorites(favs);
-      } catch (error) {
+      } catch {
         showAlert("Erro", "Não foi possível carregar seus pratos favoritos.");
       } finally {
         setLoadingFavorites(false);
       }
     };
     fetchFavorites();
-  }, []);
+  }, [showAlert]);
 
   const handleFieldChange = (field, text) => {
     setMeal(prev => ({ ...prev, [field]: text }));
@@ -113,7 +119,7 @@ export default function ManualEntryScreen({ navigation, route }) {
       source_type: 'catalog',
     };
     setSearchResults([]);
-    navigation.navigate('MealConfirmation', { draftMeal, targetDate });
+    navigation.navigate(ROUTES.MEAL_CONFIRMATION, { draftMeal, targetDate });
   };
 
   const handleEstimate = async () => {
@@ -125,7 +131,7 @@ export default function ManualEntryScreen({ navigation, route }) {
     setEstimating(true);
     try {
       const draftMeal = await analyzeMeal(null, meal.description);
-      navigation.navigate('MealConfirmation', { draftMeal, targetDate });
+      navigation.navigate(ROUTES.MEAL_CONFIRMATION, { draftMeal, targetDate });
     } catch (error) {
       // Checa o status HTTP de verdade (o backend devolve 429 nesse caso) em
       // vez de adivinhar pelo texto da mensagem de erro.
@@ -169,7 +175,7 @@ export default function ManualEntryScreen({ navigation, route }) {
             carbs_g: payload.carbs_g,
             fat_g: payload.fat_g,
           });
-        } catch (favoriteError) {
+        } catch {
           // A refeição já foi registrada com sucesso — falha ao favoritar não deve bloquear o fluxo.
         }
       }
@@ -236,11 +242,21 @@ export default function ManualEntryScreen({ navigation, route }) {
         />
       </View>
       <View style={styles.favActions}>
-        <TouchableOpacity style={styles.favButton} onPress={() => handleAddFavoriteToToday(item)}>
-          <Ionicons name="add-circle" size={26} color="#00FF66" />
+        <TouchableOpacity
+          style={styles.favButton}
+          onPress={() => handleAddFavoriteToToday(item)}
+          accessibilityRole="button"
+          accessibilityLabel={`Adicionar "${item.description}" aos registros de hoje`}
+        >
+          <Ionicons name="add-circle" size={26} color={colors.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.favButton} onPress={() => handleRemoveFavorite(item.id)}>
-          <Ionicons name="trash" size={22} color="#FF6B6B" />
+        <TouchableOpacity
+          style={styles.favButton}
+          onPress={() => handleRemoveFavorite(item.id)}
+          accessibilityRole="button"
+          accessibilityLabel={`Remover "${item.description}" dos favoritos`}
+        >
+          <Ionicons name="trash" size={22} color={colors.danger} />
         </TouchableOpacity>
       </View>
     </View>
@@ -253,11 +269,13 @@ export default function ManualEntryScreen({ navigation, route }) {
     // visível na tela. Com um histórico grande de favoritos, a tela travava
     // por um instante ao abrir. O formulário inteiro vira o
     // ListHeaderComponent.
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <FlatList
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top + 20 }]}
       data={favorites}
       renderItem={renderFavoriteItem}
       keyExtractor={(item) => item.id.toString()}
+      keyboardShouldPersistTaps="handled"
       ListHeaderComponent={
         <>
           <View style={styles.headerRow}>
@@ -278,7 +296,7 @@ export default function ManualEntryScreen({ navigation, route }) {
               {meal.description.trim().length >= 2 && (searching || searchResults.length > 0) && (
                 <View style={styles.searchResultsContainer}>
                   {searching ? (
-                    <ActivityIndicator color="#00FF66" style={{ marginVertical: 12 }} />
+                    <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
                   ) : (
                     searchResults.map((item) => (
                       <TouchableOpacity key={item.id} style={styles.searchResultRow} onPress={() => handleSelectCatalogItem(item)}>
@@ -292,10 +310,10 @@ export default function ManualEntryScreen({ navigation, route }) {
 
               <TouchableOpacity style={styles.estimateButton} onPress={handleEstimate} disabled={estimating}>
                 {estimating ? (
-                  <ActivityIndicator color="#00FF66" />
+                  <ActivityIndicator color={colors.primary} />
                 ) : (
                   <>
-                    <Ionicons name="sparkles" size={18} color="#00FF66" style={{ marginRight: 8 }} />
+                    <Ionicons name="sparkles" size={18} color={colors.primary} style={{ marginRight: 8 }} />
                     <Text style={styles.estimateText}>Estimar valores com IA</Text>
                   </>
                 )}
@@ -336,18 +354,23 @@ export default function ManualEntryScreen({ navigation, route }) {
               />
             </View>
 
-            <TouchableOpacity style={styles.favoriteToggleRow} onPress={() => setSaveAsFavorite((prev) => !prev)}>
-              <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? '#00FF66' : '#888'} />
+            <TouchableOpacity
+              style={styles.favoriteToggleRow}
+              onPress={() => setSaveAsFavorite((prev) => !prev)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: saveAsFavorite }}
+            >
+              <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? colors.primary : colors.textSecondary} />
               <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
-              {loading ? <ActivityIndicator color="#121212" /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
+              {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
             </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
-          {loadingFavorites && <ActivityIndicator color="#00FF66" style={{ marginTop: 20 }} />}
+          {loadingFavorites && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
         </>
       }
       ListEmptyComponent={
@@ -359,41 +382,42 @@ export default function ManualEntryScreen({ navigation, route }) {
         </TouchableOpacity>
       }
     />
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   section: { marginBottom: 30 },
-  sectionTitle: { color: '#FFF', fontSize: 20, fontWeight: '600', marginBottom: 15, borderTopColor: '#333', borderTopWidth: 1, paddingTop: 20 },
-  card: { backgroundColor: '#1E1E1E', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 16, marginBottom: 20 },
-  fieldContainer: { marginVertical: 10, borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 15 },
-  fieldLabel: { color: '#888', fontSize: 14, marginBottom: 5 },
+  sectionTitle: { color: colors.white, fontSize: 20, fontWeight: '600', marginBottom: 15, borderTopColor: colors.border, borderTopWidth: 1, paddingTop: 20 },
+  card: { backgroundColor: colors.surface, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 16, marginBottom: 20 },
+  fieldContainer: { marginVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 15 },
+  fieldLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 5 },
   inputContainer: { flexDirection: 'row', alignItems: 'center' },
-  input: { color: '#FFF', fontSize: 18, flex: 1, fontWeight: '500', paddingVertical: 5 },
-  unitText: { color: '#888', fontSize: 16, marginLeft: 10 },
-  searchResultsContainer: { backgroundColor: '#121212', borderRadius: 10, marginTop: -5, marginBottom: 10, borderWidth: 1, borderColor: '#333', overflow: 'hidden' },
-  searchResultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#2A2A2A' },
-  searchResultName: { color: '#FFF', fontSize: 14, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },
-  searchResultMacros: { color: '#888', fontSize: 12 },
-  estimateButton: { flexDirection: 'row', backgroundColor: 'transparent', borderWidth: 1, borderColor: '#00FF66', padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  estimateText: { color: '#00FF66', fontSize: 15, fontWeight: 'bold' },
-  estimateHint: { color: '#666', fontSize: 12, textAlign: 'center', marginTop: 8, marginBottom: 4 },
+  input: { color: colors.white, fontSize: 18, flex: 1, fontWeight: '500', paddingVertical: 5 },
+  unitText: { color: colors.textSecondary, fontSize: 16, marginLeft: 10 },
+  searchResultsContainer: { backgroundColor: colors.background, borderRadius: 10, marginTop: -5, marginBottom: 10, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  searchResultRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.surfaceAlt },
+  searchResultName: { color: colors.white, fontSize: 14, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },
+  searchResultMacros: { color: colors.textSecondary, fontSize: 12 },
+  estimateButton: { flexDirection: 'row', backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  estimateText: { color: colors.primary, fontSize: 15, fontWeight: 'bold' },
+  estimateHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center', marginTop: 8, marginBottom: 4 },
   favoriteToggleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 4 },
-  favoriteToggleText: { color: '#AAA', fontSize: 13, marginLeft: 10, flex: 1 },
-  submitButton: { backgroundColor: '#00FF66', padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
+  favoriteToggleText: { color: colors.textFaint, fontSize: 13, marginLeft: 10, flex: 1 },
+  submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: '#121212', fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
-  cancelText: { color: '#888', fontSize: 16, paddingBottom: 40 },
+  cancelText: { color: colors.textSecondary, fontSize: 16, paddingBottom: 40 },
   // Estilos dos Favoritos
-  favCard: { backgroundColor: '#1E1E1E', borderRadius: 12, padding: 15, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  favCard: { backgroundColor: colors.surface, borderRadius: 12, padding: 15, marginBottom: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   favInfo: { flex: 1, marginRight: 10 },
-  favDesc: { color: '#FFF', fontSize: 16, fontWeight: '500', textTransform: 'capitalize' },
-  favMacros: { color: '#888', fontSize: 12, marginTop: 4 },
+  favDesc: { color: colors.white, fontSize: 16, fontWeight: '500', textTransform: 'capitalize' },
+  favMacros: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   favActions: { flexDirection: 'row' },
   favButton: { paddingHorizontal: 10 },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
+  emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 10, fontSize: 14 },
 });

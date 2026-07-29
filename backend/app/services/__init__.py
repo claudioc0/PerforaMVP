@@ -5,8 +5,9 @@ from app.services.exercise_service import ExerciseService
 from app.services.workout_service import WorkoutService
 from app.services.split_service import SplitService
 from app.services.weekly_plan_service import WeeklyPlanService
+from app.services.streak_service import StreakService
 
 __all__ = [
     "GeminiService", "GeminiAnalysisError", "MealAnalysisResult", "MealService", "UserService",
-    "ExerciseService", "WorkoutService", "SplitService", "WeeklyPlanService",
+    "ExerciseService", "WorkoutService", "SplitService", "WeeklyPlanService", "StreakService",
 ]

@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { registerUser } from '../services/api'; // Importa a função da API
 import BackButton from '../components/BackButton';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 // Componente para exibir um requisito da senha
 const PasswordRequirement = ({ met, text }) => (
@@ -40,7 +42,7 @@ export default function RegisterScreen({ navigation }) {
       showAlert(
         "Sucesso!",
         "Sua conta foi criada. Faça o login para continuar.",
-        [{ text: "OK", onPress: () => navigation.navigate('Login') }]
+        [{ text: "OK", onPress: () => navigation.navigate(ROUTES.LOGIN) }]
       );
     } catch (error) {
       // A API já retorna os detalhes, podemos usá-los aqui também
@@ -52,7 +54,8 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.backRow}>
         <BackButton />
       </View>
@@ -68,14 +71,14 @@ export default function RegisterScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Nome Completo"
-        placeholderTextColor="#888"
+        placeholderTextColor={colors.textSecondary}
         value={name}
         onChangeText={setName}
       />
       <TextInput
         style={styles.input}
         placeholder="E-mail"
-        placeholderTextColor="#888"
+        placeholderTextColor={colors.textSecondary}
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -84,7 +87,7 @@ export default function RegisterScreen({ navigation }) {
       <TextInput
         style={styles.input}
         placeholder="Senha"
-        placeholderTextColor="#888"
+        placeholderTextColor={colors.textSecondary}
         value={password}
         onChangeText={setPassword}
         secureTextEntry
@@ -103,18 +106,19 @@ export default function RegisterScreen({ navigation }) {
         onPress={handleRegister} 
         disabled={loading || !passwordValidation.allMet}
       >
-        {loading ? <ActivityIndicator color="#121212" /> : <Text style={styles.buttonText}>Cadastrar</Text>}
+        {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.buttonText}>Cadastrar</Text>}
       </TouchableOpacity>
-    </View>
+    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#121212',
+    backgroundColor: colors.background,
   },
   backRow: {
     marginBottom: 10,
@@ -128,40 +132,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    color: '#FFF',
+    color: colors.white,
     fontSize: 26,
     fontFamily: 'Orbitron_900Black',
     letterSpacing: 2,
     marginLeft: 10,
   },
   subtitle: {
-    color: '#00FF66',
+    color: colors.primary,
     fontSize: 16,
     marginTop: 5,
   },
   input: {
-    backgroundColor: '#1E1E1E',
-    color: '#FFF',
+    backgroundColor: colors.surface,
+    color: colors.white,
     paddingHorizontal: 15,
     paddingVertical: 12,
     borderRadius: 10,
     fontSize: 16,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
+    borderColor: colors.border,
   },
   button: {
-    backgroundColor: '#00FF66',
+    backgroundColor: colors.primary,
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 20,
   },
   buttonDisabled: {
-    backgroundColor: '#555',
+    backgroundColor: colors.textDark,
   },
   buttonText: {
-    color: '#121212',
+    color: colors.background,
     fontSize: 16,
     fontWeight: 'bold',
   },
@@ -169,7 +173,7 @@ const styles = StyleSheet.create({
     marginTop: 5,
     marginBottom: 15,
     padding: 15,
-    backgroundColor: '#1E1E1E',
+    backgroundColor: colors.surface,
     borderRadius: 10,
   },
   requirementText: {
@@ -177,9 +181,9 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   requirementPending: {
-    color: '#888',
+    color: colors.textSecondary,
   },
   requirementMet: {
-    color: '#00FF66',
+    color: colors.primary,
   },
 });

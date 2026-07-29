@@ -35,6 +35,40 @@ class ApiError extends Error {
   }
 }
 
+// Nenhuma chamada tinha timeout — numa rede instável, um fetch que nunca
+// resolve (nem sucesso nem erro) deixava a tela travada num spinner infinito
+// pra sempre (ex: "Mapeando nutrientes..." no upload de foto). E toda falha
+// de rede batia no mesmo `catch` genérico das telas, indistinguível de "o
+// servidor respondeu com erro" — sem isso, uma tela não consegue
+// diferenciar "sem internet, tente de novo" de "não há dados". `status: 0`
+// (nenhum código HTTP real usa isso) é o sinal que as telas podem checar pra
+// saber que é queda de conexão/timeout, não erro de negócio.
+const DEFAULT_TIMEOUT_MS = 30000;
+// Upload de foto + análise por IA no backend genuinamente demora mais que uma
+// chamada comum (inclui as tentativas de retry do próprio Gemini).
+const ANALYZE_MEAL_TIMEOUT_MS = 60000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new ApiError('A conexão demorou demais para responder. Verifique sua internet e tente novamente.', 0);
+    }
+    // React Native lança um TypeError genérico ("Network request failed") quando
+    // não há conexão nenhuma — é o único sinal confiável disponível sem adicionar
+    // uma dependência nativa nova (netinfo) só pra isso.
+    if (error instanceof TypeError) {
+      throw new ApiError('Sem conexão com a internet. Verifique sua rede e tente novamente.', 0);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function handleResponse(response) {
   const contentType = response.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
@@ -68,7 +102,7 @@ async function refreshAccessToken() {
         throw new Error('Sem refresh token salvo.');
       }
 
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      const response = await fetchWithTimeout(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${refreshToken}`, Accept: 'application/json' },
       });
@@ -94,7 +128,6 @@ async function forceLogout() {
   // própria disparava várias navegações de reset ao mesmo tempo.
   if (!forceLogoutPromise) {
     forceLogoutPromise = (async () => {
-      console.log("API: Sessão não pôde ser renovada. Deslogando usuário.");
       await clearLocalSession();
       resetToLogin();
     })().finally(() => {
@@ -134,18 +167,18 @@ async function getAuthHeaders(additionalHeaders = {}) {
  * @param {boolean} [options.isFormData] - true para upload de arquivo (não define Content-Type).
  * @param {object} [options.headers] - Cabeçalhos extras/sobrescritos.
  */
-async function request(path, { method = 'GET', body, isFormData = false, headers: extraHeaders = {}, _isRetry = false } = {}) {
+async function request(path, { method = 'GET', body, isFormData = false, headers: extraHeaders = {}, timeoutMs = DEFAULT_TIMEOUT_MS, _isRetry = false } = {}) {
   const hasJsonBody = body !== undefined && !isFormData;
   const headers = await getAuthHeaders({
     ...(hasJsonBody ? { 'Content-Type': 'application/json' } : {}),
     ...extraHeaders,
   });
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     method,
     headers,
     body: isFormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
-  });
+  }, timeoutMs);
 
   if (response.status === 401) {
     if (_isRetry) {
@@ -157,7 +190,7 @@ async function request(path, { method = 'GET', body, isFormData = false, headers
 
     try {
       await refreshAccessToken();
-    } catch (refreshError) {
+    } catch {
       await forceLogout();
       throw new ApiError("Sessão expirada. Por favor, faça o login novamente.", 401);
     }
@@ -165,7 +198,7 @@ async function request(path, { method = 'GET', body, isFormData = false, headers
     // Refaz a MESMA chamada uma vez, de forma transparente pro código que
     // chamou — quem estava salvando uma série de treino nem percebe que o
     // token foi renovado no meio do caminho.
-    return request(path, { method, body, isFormData, headers: extraHeaders, _isRetry: true });
+    return request(path, { method, body, isFormData, headers: extraHeaders, timeoutMs, _isRetry: true });
   }
 
   return handleResponse(response);
@@ -189,9 +222,9 @@ export async function analyzeMeal(imageUri, description) {
       type: fileType,
     });
 
-    return request("/meals/analyze", { method: "POST", body: formData, isFormData: true });
+    return request("/meals/analyze", { method: "POST", body: formData, isFormData: true, timeoutMs: ANALYZE_MEAL_TIMEOUT_MS });
   } else if (description) {
-    return request("/meals/analyze", { method: "POST", body: { description } });
+    return request("/meals/analyze", { method: "POST", body: { description }, timeoutMs: ANALYZE_MEAL_TIMEOUT_MS });
   } else {
     throw new Error("Nenhuma imagem ou texto fornecido.");
   }
@@ -229,6 +262,17 @@ export async function getWeeklySummary(todayString) {
 }
 
 /**
+ * Busca a sequência (streak) atual do usuário: dias consecutivos com refeição
+ * ou treino registrado.
+ * @param {string} [todayString] - "Hoje" no fuso do aparelho (YYYY-MM-DD).
+ * @returns {Promise<{current_streak: number, active_today: boolean}>}
+ */
+export async function getStreak(todayString) {
+  const path = todayString ? `/user/streak?today=${todayString}` : "/user/streak";
+  return request(path);
+}
+
+/**
  * Rota de Login: Valida o usuário e retorna o Token JWT.
  *
  * Não passa por `request()` de propósito: não há token ainda, então não faz
@@ -236,7 +280,7 @@ export async function getWeeklySummary(todayString) {
  * armazenamento local nunca deve ser enviado numa tentativa de login nova).
  */
 export async function loginUser(email, password) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ email, password })
@@ -261,7 +305,7 @@ export async function logoutUser(refreshToken) {
  * Rota de Cadastro: Cria um novo usuário no banco de dados.
  */
 export async function registerUser(name, email, password) {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ name, email, password })

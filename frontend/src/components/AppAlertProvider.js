@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import { colors } from '../theme/colors';
 
 const AppAlertContext = createContext(null);
 
@@ -105,24 +106,24 @@ export function useAppAlert() {
 
 const styles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 24 },
-  card: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 22, width: '100%', maxWidth: 340, borderWidth: 1, borderColor: '#333' },
-  title: { color: '#FFF', fontSize: 17, fontWeight: 'bold', marginBottom: 8 },
-  message: { color: '#AAA', fontSize: 14, lineHeight: 20, marginBottom: 20 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 22, width: '100%', maxWidth: 340, borderWidth: 1, borderColor: colors.border },
+  title: { color: colors.white, fontSize: 17, fontWeight: 'bold', marginBottom: 8 },
+  message: { color: colors.textFaint, fontSize: 14, lineHeight: 20, marginBottom: 20 },
 
   actionsRow: { flexDirection: 'row' },
   actionButton: { flex: 1, paddingVertical: 13, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionButtonText: { fontSize: 15, fontWeight: 'bold' },
   cancelButton: { backgroundColor: 'transparent', marginRight: 8 },
-  cancelButtonText: { color: '#888', fontWeight: '600' },
-  confirmButton: { backgroundColor: '#00FF66' },
-  confirmButtonText: { color: '#121212' },
-  destructiveButton: { backgroundColor: '#E5484D' },
-  destructiveButtonText: { color: '#FFF' },
+  cancelButtonText: { color: colors.textSecondary, fontWeight: '600' },
+  confirmButton: { backgroundColor: colors.primary },
+  confirmButtonText: { color: colors.background },
+  destructiveButton: { backgroundColor: colors.dangerAlt },
+  destructiveButtonText: { color: colors.white },
 
   sheetList: { marginTop: 4 },
-  sheetItem: { paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#2A2A2A' },
-  sheetItemCancel: { marginTop: 6, borderTopWidth: 1, borderTopColor: '#333' },
-  sheetItemText: { color: '#FFF', fontSize: 15, fontWeight: '600' },
-  textDestructive: { color: '#E5484D' },
-  textCancel: { color: '#888', fontWeight: '600' },
+  sheetItem: { paddingVertical: 14, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
+  sheetItemCancel: { marginTop: 6, borderTopWidth: 1, borderTopColor: colors.border },
+  sheetItemText: { color: colors.white, fontSize: 15, fontWeight: '600' },
+  textDestructive: { color: colors.dangerAlt },
+  textCancel: { color: colors.textSecondary, fontWeight: '600' },
 });

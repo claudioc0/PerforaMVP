@@ -1,15 +1,19 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
-import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite } from '../services/api';
+import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite, saveMeal, getStreak } from '../services/api';
+import { getStreakTier } from '../utils/streak';
 import { DAILY_INSIGHT_CACHE_KEY } from '../services/session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
 import MacroSummaryLine from '../components/MacroSummaryLine';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
 // --- Funções utilitárias para manipulação de datas ---
 // A data enviada pra API é sempre montada a partir dos componentes LOCAIS do aparelho.
@@ -42,7 +46,7 @@ const getDisplayDate = (date) => {
 };
 
 // --- Componente de Barra de Progresso Customizada ---
-const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF66' }) => {
+const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = colors.primary }) => {
   const safeGoal = goal > 0 ? goal : 1; 
   const percentage = (consumed / safeGoal) * 100;
   const visualPercentage = Math.min(percentage, 100); 
@@ -71,9 +75,24 @@ const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF
   );
 };
 
+// --- Badge de Sequência (Streak) ---
+const StreakBadge = ({ currentStreak }) => {
+  if (!currentStreak) return null;
+  const tier = getStreakTier(currentStreak);
+  return (
+    <View style={[styles.streakBadge, styles[`streakBadge_${tier}`]]}>
+      <Ionicons name="flame" size={18} color={colors.primary} />
+      <Text style={styles.streakText}>
+        {currentStreak} {currentStreak === 1 ? 'dia seguido' : 'dias seguidos'}
+      </Text>
+    </View>
+  );
+};
+
 export default function DashboardScreen({ navigation }) {
   const { open: openDrawerMenu } = useDrawerMenu();
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const { goals, refreshGoals } = useUserGoals();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +103,8 @@ export default function DashboardScreen({ navigation }) {
   const [waterIntake, setWaterIntake] = useState(0);
   const [aiInsight, setAiInsight] = useState(null);
   const [loadingInsight, setLoadingInsight] = useState(false);
+  const [yesterdayMeals, setYesterdayMeals] = useState([]);
+  const [streak, setStreak] = useState(null);
 
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
   // Compara só o dia: currentDate carrega o horário em que foi criada, então comparar
@@ -110,7 +131,6 @@ export default function DashboardScreen({ navigation }) {
       setSummary(summaryData);
       setWaterIntake(summaryData?.total_water_ml || 0);
     } catch (err) {
-      console.error("Erro ao buscar resumo:", err);
       if (err.status !== 401) {
         setError("Não foi possível carregar os dados. Verifique sua conexão.");
       }
@@ -124,6 +144,33 @@ export default function DashboardScreen({ navigation }) {
     await fetchData();
     setRefreshing(false);
   }, [fetchData]);
+
+  // Sempre sobre o ONTEM real do aparelho — não sobre `currentDate - 1`, senão
+  // navegar pelas setas de data faria o atalho "repetir de ontem" mudar de
+  // significado (ex: em "Ontem", isso buscaria "anteontem", confuso).
+  const fetchYesterdayMeals = useCallback(async () => {
+    const realYesterday = new Date();
+    realYesterday.setDate(realYesterday.getDate() - 1);
+    try {
+      const data = await getTodaySummary(getFormattedDate(realYesterday));
+      setYesterdayMeals(data?.meals || []);
+    } catch {
+      // Atalho best-effort — sem isso, o usuário ainda registra manualmente.
+      setYesterdayMeals([]);
+    }
+  }, []);
+
+  // Sempre sobre o "hoje" real do aparelho, não sobre `currentDate` — a
+  // streak não deveria mudar enquanto o usuário navega pelas setas de data.
+  const fetchStreak = useCallback(async () => {
+    try {
+      const data = await getStreak(getFormattedDate(new Date()));
+      setStreak(data);
+    } catch {
+      // Badge de streak não é funcionalidade core — falha aqui não bloqueia o resto do Dashboard.
+      setStreak(null);
+    }
+  }, []);
 
   // --- LÓGICA DE CACHE DA IA OTIMIZADA ---
   useEffect(() => {
@@ -149,14 +196,12 @@ export default function DashboardScreen({ navigation }) {
           if (cachedInsightJSON) {
             const cachedInsight = JSON.parse(cachedInsightJSON);
             if (cachedInsight.date === formattedCurrentDate && cachedInsight.nutrients_hash === nutrientsHash) {
-              console.log("⚡ Insight carregado do Cache Local");
-              setAiInsight(cachedInsight.insight_text); 
+              setAiInsight(cachedInsight.insight_text);
               setLoadingInsight(false);
-              return; 
+              return;
             }
           }
 
-          console.log("🧠 Buscando Insight na API do Gemini...");
           const insightData = await getDailyInsight(goals, consumed);
           setAiInsight(insightData.insight);
 
@@ -167,9 +212,7 @@ export default function DashboardScreen({ navigation }) {
           };
           await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(newCacheObject));
 
-        } catch (error) {
-          console.error("Erro ao buscar insight da IA:", error);
-          // FALLBACK ADICIONADO AQUI:
+        } catch {
           setAiInsight("Mantenha o foco na alta performance! Seu treinador virtual está analisando sua evolução.");
         } finally {
           setLoadingInsight(false);
@@ -200,18 +243,21 @@ export default function DashboardScreen({ navigation }) {
     useCallback(() => {
       const loadScreenData = async () => {
         fetchData();
+        fetchYesterdayMeals();
+        fetchStreak();
         try {
           const userDataString = await AsyncStorage.getItem('user_data');
           if (userDataString) {
             const userData = JSON.parse(userDataString);
             setUserName(userData.name || '');
           }
-        } catch (e) {
-          console.error("Erro ao carregar dados do usuário:", e);
+        } catch {
+          // Nome do usuário é só um "nice to have" no cabeçalho — sem cache local
+          // legível, a tela continua funcional com a saudação genérica.
         }
       };
       loadScreenData();
-    }, [fetchData]) 
+    }, [fetchData, fetchYesterdayMeals, fetchStreak])
   );
 
   const handleDeleteMeal = async (mealId) => {
@@ -242,7 +288,7 @@ export default function DashboardScreen({ navigation }) {
     try {
       const response = await addWater(amount, formattedCurrentDate);
       setWaterIntake(response.total);
-    } catch (error) {
+    } catch {
       setWaterIntake(previousIntake);
       showAlert("Erro", "Não foi possível registrar a água. Tente novamente.");
     }
@@ -272,9 +318,44 @@ export default function DashboardScreen({ navigation }) {
     );
   };
 
+  const handleRepeatMeal = (meal) => {
+    showAlert(
+      "Repetir Refeição",
+      `Adicionar "${meal.description}" de ontem ao dia de hoje?`,
+      [
+        { text: "Não", style: "cancel" },
+        {
+          text: "Sim",
+          onPress: async () => {
+            try {
+              // Payload no shape completo de Meal (não o de FavoriteMeal, mais
+              // pobre) — preserva items/quantity_g quando a refeição de ontem
+              // veio de foto/IA, em vez de só clonar a descrição e os totais.
+              const payload = {
+                description: meal.description,
+                calories: meal.calories,
+                protein_g: meal.protein_g,
+                carbs_g: meal.carbs_g,
+                fat_g: meal.fat_g,
+                quantity_g: meal.quantity_g,
+                items: meal.items,
+                source_type: 'repeat_yesterday',
+                date: formattedCurrentDate,
+              };
+              await saveMeal(payload);
+              fetchData();
+            } catch (error) {
+              showAlert("Erro", error.message || "Não foi possível repetir a refeição.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const renderMealItem = ({ item }) => (
     <View style={styles.mealItemContainer}>
-      <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate('AdjustQuantity', { meal: item })}>
+      <TouchableOpacity style={{ flex: 1 }} onPress={() => navigation.navigate(ROUTES.ADJUST_QUANTITY, { meal: item })}>
         <View style={styles.mealItem}>
           <View style={styles.mealHeader}>
             <Text style={styles.mealDesc}>{item.description}</Text>
@@ -293,8 +374,13 @@ export default function DashboardScreen({ navigation }) {
           />
         </View>
       </TouchableOpacity>
-      <TouchableOpacity onPress={() => handleFavorite(item)} style={styles.actionButton}>
-        <Ionicons name="star" size={20} color="#00FF66" />
+      <TouchableOpacity
+        onPress={() => handleFavorite(item)}
+        style={styles.actionButton}
+        accessibilityRole="button"
+        accessibilityLabel="Salvar como favorito"
+      >
+        <Ionicons name="star" size={20} color={colors.primary} />
       </TouchableOpacity>
       <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
         <Text style={styles.deleteButtonText}>Excluir</Text>
@@ -305,7 +391,7 @@ export default function DashboardScreen({ navigation }) {
   if (loading && !refreshing) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -330,11 +416,11 @@ export default function DashboardScreen({ navigation }) {
           abertura da tela travava por um instante. Tudo que antes ficava
           "acima" da lista de refeições agora é o ListHeaderComponent. */}
       <FlatList
-        style={styles.container}
+        style={[styles.container, { paddingTop: insets.top + 20 }]}
         data={summary?.meals || []}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#00FF66" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
         renderItem={renderMealItem}
         ListHeaderComponent={
           <>
@@ -347,32 +433,47 @@ export default function DashboardScreen({ navigation }) {
                 <TouchableOpacity
                   style={styles.menuButton}
                   onPress={openDrawerMenu}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir menu"
                 >
-                  <Ionicons name="menu" size={28} color="#FFF" />
+                  <Ionicons name="menu" size={28} color={colors.white} />
                 </TouchableOpacity>
               </View>
               <View style={styles.dateSelector}>
-                <TouchableOpacity onPress={() => changeDay(-1)} style={styles.arrowButton}>
-                  <Ionicons name="chevron-back" size={24} color="#FFF" />
+                <TouchableOpacity
+                  onPress={() => changeDay(-1)}
+                  style={styles.arrowButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Dia anterior"
+                >
+                  <Ionicons name="chevron-back" size={24} color={colors.white} />
                 </TouchableOpacity>
                 <Text style={styles.title}>{displayDate}</Text>
-                <TouchableOpacity onPress={() => changeDay(1)} style={[styles.arrowButton, isFutureDate && styles.disabledArrow] } disabled={isFutureDate}>
-                  <Ionicons name="chevron-forward" size={24} color="#FFF" />
+                <TouchableOpacity
+                  onPress={() => changeDay(1)}
+                  style={[styles.arrowButton, isFutureDate && styles.disabledArrow] }
+                  disabled={isFutureDate}
+                  accessibilityRole="button"
+                  accessibilityLabel="Próximo dia"
+                >
+                  <Ionicons name="chevron-forward" size={24} color={colors.white} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.subtitle}>Seu desempenho hoje</Text>
             </View>
 
+            <StreakBadge currentStreak={streak?.current_streak} />
+
             {/* Card de Insight da IA */}
             {(loadingInsight || aiInsight) && (
               <View style={styles.insightCard}>
                 <View style={styles.insightHeader}>
-                  <Ionicons name="flash" size={20} color="#00FF66" style={styles.insightIcon} />
+                  <Ionicons name="flash" size={20} color={colors.primary} style={styles.insightIcon} />
                   <Text style={styles.insightTitle}>Insight do Treinador</Text>
                 </View>
                 {loadingInsight ? (
                   <View style={styles.insightLoadingContainer}>
-                    <ActivityIndicator size="small" color="#00FF66" />
+                    <ActivityIndicator size="small" color={colors.primary} />
                     <Text style={styles.insightLoadingText}>Analisando seu desempenho...</Text>
                   </View>
                 ) : (
@@ -391,7 +492,7 @@ export default function DashboardScreen({ navigation }) {
 
             {/* Seção de Hidratação */}
             <View style={styles.progressSection}>
-              <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color="#00BFFF" />
+              <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color={colors.info} />
               <View style={styles.waterButtonsContainer}>
                 <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(250)}>
                   <Text style={styles.waterButtonText}>+250 ml</Text>
@@ -402,6 +503,29 @@ export default function DashboardScreen({ navigation }) {
               </View>
             </View>
 
+            {/* Repetir refeição de ontem — só faz sentido olhando pro "Hoje" de
+                verdade, não pra qualquer dia passado que o usuário esteja navegando. */}
+            {displayDate === 'Hoje' && yesterdayMeals.length > 0 && (
+              <View style={styles.repeatSection}>
+                <Text style={styles.repeatSectionTitle}>Repetir de ontem</Text>
+                <View style={styles.repeatChipsRow}>
+                  {yesterdayMeals.map((meal) => (
+                    <TouchableOpacity
+                      key={meal.id}
+                      style={styles.repeatChip}
+                      onPress={() => handleRepeatMeal(meal)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Repetir "${meal.description}" de ontem`}
+                    >
+                      <Ionicons name="refresh" size={14} color={colors.primary} style={{ marginRight: 6 }} />
+                      <Text style={styles.repeatChipText} numberOfLines={1}>{meal.description}</Text>
+                      <Text style={styles.repeatChipCalories}>{meal.calories.toFixed(0)} kcal</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
             <Text style={styles.listTitle}>Refeições de {displayDate}</Text>
           </>
         }
@@ -411,11 +535,21 @@ export default function DashboardScreen({ navigation }) {
 
       {/* FABs */}
       <View style={styles.fabContainer}>
-        <TouchableOpacity style={styles.fabSecondary} onPress={() => navigation.navigate('ManualEntry', { targetDate: formattedCurrentDate })}>
-          <Ionicons name="create" size={22} color="#00FF66" />
+        <TouchableOpacity
+          style={styles.fabSecondary}
+          onPress={() => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate: formattedCurrentDate })}
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar refeição manualmente"
+        >
+          <Ionicons name="create" size={22} color={colors.primary} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('Camera', { targetDate: formattedCurrentDate })}>
-          <Ionicons name="camera" size={28} color="#121212" />
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => navigation.navigate(ROUTES.CAMERA, { targetDate: formattedCurrentDate })}
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar refeição com foto"
+        >
+          <Ionicons name="camera" size={28} color={colors.background} />
         </TouchableOpacity>
       </View>
     </View>
@@ -423,55 +557,67 @@ export default function DashboardScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  rootContainer: { flex: 1, backgroundColor: '#121212' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212', padding: 20 },
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  rootContainer: { flex: 1, backgroundColor: colors.background },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   header: { marginBottom: 20 },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brandRow: { flexDirection: 'row', alignItems: 'center' },
   menuButton: { padding: 4 },
-  greeting: { color: '#FFFFFF', fontSize: 24, fontWeight: 'bold', marginLeft: 8 },
+  greeting: { color: colors.white, fontSize: 24, fontWeight: 'bold', marginLeft: 8 },
   dateSelector: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginVertical: 10 },
   arrowButton: { padding: 10 },
-  arrowText: { color: '#FFF', fontSize: 24, fontWeight: 'bold' },
+  arrowText: { color: colors.white, fontSize: 24, fontWeight: 'bold' },
   disabledArrow: { opacity: 0.3 },
-  title: { color: '#FFF', fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
-  subtitle: { color: '#888888', fontSize: 16, marginTop: 4 },
-  progressSection: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25 },
-  insightCard: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
+  title: { color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  subtitle: { color: colors.textSecondary, fontSize: 16, marginTop: 4 },
+  streakBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: colors.surfaceAlt, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 16, marginBottom: 20 },
+  streakBadge_base: {},
+  streakBadge_week: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.primary },
+  streakBadge_month: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.primary, shadowColor: colors.primary, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 },
+  streakBadge_century: { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.dangerAlt, shadowColor: colors.dangerAlt, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 6, elevation: 4 },
+  streakText: { color: colors.white, fontSize: 14, fontWeight: '600', marginLeft: 8 },
+  progressSection: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25 },
+  insightCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
   insightHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   insightIcon: { marginRight: 10 },
-  insightTitle: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  insightText: { color: '#DDDDDD', fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
+  insightTitle: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
+  insightText: { color: colors.textFaintAlt2, fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
   insightLoadingContainer: { flexDirection: 'row', alignItems: 'center' },
-  insightLoadingText: { color: '#888888', marginLeft: 10, fontSize: 14 },
+  insightLoadingText: { color: colors.textSecondary, marginLeft: 10, fontSize: 14 },
   progressContainer: { marginBottom: 15 },
   progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  progressLabel: { color: '#FFFFFF', fontSize: 16, fontWeight: '500' },
-  progressPercentage: { color: '#FFFFFF', fontSize: 15, fontFamily: 'Orbitron_700Bold' },
-  progressBarTrack: { height: 10, backgroundColor: '#333333', borderRadius: 5, overflow: 'hidden' },
+  progressLabel: { color: colors.white, fontSize: 16, fontWeight: '500' },
+  progressPercentage: { color: colors.white, fontSize: 15, fontFamily: 'Orbitron_700Bold' },
+  progressBarTrack: { height: 10, backgroundColor: colors.border, borderRadius: 5, overflow: 'hidden' },
   progressBarFill: { height: '100%', borderRadius: 5 },
   progressMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressMetaText: { color: '#888888', fontSize: 12 },
+  progressMetaText: { color: colors.textSecondary, fontSize: 12 },
   waterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15 },
-  waterButton: { borderColor: '#00BFFF', borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 25 },
-  waterButtonText: { color: '#00BFFF', fontSize: 14, fontWeight: '600' },
-  listTitle: { color: '#FFF', fontSize: 18, marginBottom: 15, fontWeight: '600' },
+  waterButton: { borderColor: colors.info, borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 25 },
+  waterButtonText: { color: colors.info, fontSize: 14, fontWeight: '600' },
+  listTitle: { color: colors.white, fontSize: 18, marginBottom: 15, fontWeight: '600' },
+  repeatSection: { marginBottom: 20 },
+  repeatSectionTitle: { color: colors.textSecondary, fontSize: 14, marginBottom: 10, fontWeight: '500' },
+  repeatChipsRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  repeatChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 20, borderWidth: 1, borderColor: colors.primary, paddingVertical: 8, paddingHorizontal: 14, marginRight: 10, marginBottom: 10, maxWidth: '100%' },
+  repeatChipText: { color: colors.white, fontSize: 13, fontWeight: '500', textTransform: 'capitalize', maxWidth: 140 },
+  repeatChipCalories: { color: colors.textSecondary, fontSize: 12, marginLeft: 8 },
   mealItemContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  mealItem: { flex: 1, backgroundColor: '#1E1E1E', padding: 15, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: '#00FF66' },
+  mealItem: { flex: 1, backgroundColor: colors.surface, padding: 15, borderRadius: 12, borderLeftWidth: 3, borderLeftColor: colors.primary },
   actionButton: { padding: 10, marginLeft: 10 },
   deleteButton: { padding: 10, marginLeft: 5 },
-  deleteButtonText: { color: '#FF6B6B', fontSize: 14, fontWeight: '500' },
+  deleteButtonText: { color: colors.danger, fontSize: 14, fontWeight: '500' },
   mealHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  mealDesc: { color: '#FFF', fontSize: 16, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },
-  confidenceBadge: { backgroundColor: 'rgba(0, 255, 102, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: '#00FF66' },
-  confidenceText: { color: '#00FF66', fontSize: 10, fontWeight: 'bold' },
-  mealMacros: { color: '#888888', fontSize: 13 },
-  emptyText: { color: '#888888', textAlign: 'center', marginTop: 30, fontSize: 14 },
+  mealDesc: { color: colors.white, fontSize: 16, fontWeight: '500', flex: 1, marginRight: 10, textTransform: 'capitalize' },
+  confidenceBadge: { backgroundColor: 'rgba(0, 255, 102, 0.1)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, borderWidth: 1, borderColor: colors.primary },
+  confidenceText: { color: colors.primary, fontSize: 10, fontWeight: 'bold' },
+  mealMacros: { color: colors.textSecondary, fontSize: 13 },
+  emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 30, fontSize: 14 },
   fabContainer: { position: 'absolute', bottom: 30, right: 20, alignItems: 'center' },
-  fab: { backgroundColor: '#00FF66', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: "#00FF66", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
-  fabSecondary: { backgroundColor: '#333', width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 6 },
-  errorText: { color: '#FF6B6B', fontSize: 16, textAlign: 'center', marginBottom: 20 },
-  retryButton: { backgroundColor: '#00FF66', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10, },
-  retryButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' }
+  fab: { backgroundColor: colors.primary, width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
+  fabSecondary: { backgroundColor: colors.border, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 6 },
+  errorText: { color: colors.danger, fontSize: 16, textAlign: 'center', marginBottom: 20 },
+  retryButton: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10, },
+  retryButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' }
 });

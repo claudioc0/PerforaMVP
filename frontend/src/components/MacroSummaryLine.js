@@ -7,7 +7,7 @@ import { Text } from 'react-native';
 // ajuste fosse feito numa cópia e esquecido nas outras.
 export default function MacroSummaryLine({ calories, proteinG, carbsG, fatG, style }) {
   return (
-    <Text style={style}>
+    <Text style={style} maxFontSizeMultiplier={1.3}>
       {calories.toFixed(0)} kcal • P: {proteinG.toFixed(1)}g • C: {carbsG.toFixed(1)}g • G: {fatG.toFixed(1)}g
     </Text>
   );

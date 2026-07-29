@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listExercises, createExercise } from '../services/api';
+import { colors } from '../theme/colors';
+import { ROUTES } from '../navigation/routes';
 
-export default function ExercisePickerScreen({ navigation, route }) {
+export default function ExercisePickerScreen({ navigation }) {
   const showAlert = useAppAlert();
-  const { onSelect } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [query, setQuery] = useState('');
   const [exercises, setExercises] = useState([]);
@@ -20,12 +23,12 @@ export default function ExercisePickerScreen({ navigation, route }) {
     try {
       const data = await listExercises(search);
       setExercises(data);
-    } catch (error) {
+    } catch {
       showAlert('Erro', 'Não foi possível buscar o catálogo de exercícios.');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [showAlert]);
 
   // Um só efeito cuida da busca inicial E da busca com debounce — antes, um
   // useEffect rodava fetchExercises() de imediato na montagem e ESTE efeito
@@ -47,18 +50,28 @@ export default function ExercisePickerScreen({ navigation, route }) {
     return () => clearTimeout(debounceRef.current);
   }, [query, fetchExercises]);
 
+  // Devolve o exercício escolhido como parâmetro de navegação serializável
+  // (id/name/muscle_group), em vez de uma função `onSelect` — funções não
+  // sobrevivem à serialização de estado de navegação (persistência entre
+  // sessões, deep linking): se o picker fosse restaurado depois de o app
+  // ficar em background, o callback original simplesmente não existiria mais.
+  // `navigate` para uma rota já existente na pilha (WorkoutSession, abaixo
+  // deste picker) volta pra ela mesclando os novos params, sem precisar de
+  // goBack() separado.
   const handleSelect = (exercise) => {
-    onSelect(exercise);
-    navigation.goBack();
+    navigation.navigate(ROUTES.WORKOUT_SESSION, {
+      selectedExercise: { id: exercise.id, name: exercise.name, muscle_group: exercise.muscle_group },
+    });
   };
 
   const handleCreateCustom = async () => {
     setCreating(true);
     try {
       const exercise = await createExercise({ name: query.trim() });
-      onSelect(exercise);
-      navigation.goBack();
-    } catch (error) {
+      navigation.navigate(ROUTES.WORKOUT_SESSION, {
+        selectedExercise: { id: exercise.id, name: exercise.name, muscle_group: exercise.muscle_group },
+      });
+    } catch {
       showAlert('Erro', 'Não foi possível criar o exercício.');
     } finally {
       setCreating(false);
@@ -70,25 +83,26 @@ export default function ExercisePickerScreen({ navigation, route }) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Escolher Exercício</Text>
       </View>
 
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={18} color="#888" style={{ marginRight: 8 }} />
+        <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar exercício..."
-          placeholderTextColor="#666"
+          placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
+          accessibilityLabel="Buscar exercício"
         />
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#00FF66" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={exercises}
@@ -99,7 +113,7 @@ export default function ExercisePickerScreen({ navigation, route }) {
                 <Text style={styles.rowName}>{item.name}</Text>
                 <Text style={styles.rowMeta}>{item.muscle_group}{item.equipment ? ` • ${item.equipment}` : ''}</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#888" />
+              <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
           ListEmptyComponent={<Text style={styles.emptyText}>Nenhum exercício encontrado.</Text>}
@@ -110,11 +124,11 @@ export default function ExercisePickerScreen({ navigation, route }) {
       {showCreateOption && (
         <TouchableOpacity style={styles.createButton} onPress={handleCreateCustom} disabled={creating}>
           {creating ? (
-            <ActivityIndicator color="#121212" />
+            <ActivityIndicator color={colors.background} />
           ) : (
             <>
-              <Ionicons name="add-circle" size={20} color="#121212" style={{ marginRight: 8 }} />
-              <Text style={styles.createButtonText}>Criar "{query.trim()}"</Text>
+              <Ionicons name="add-circle" size={20} color={colors.background} style={{ marginRight: 8 }} />
+              <Text style={styles.createButtonText}>Criar &quot;{query.trim()}&quot;</Text>
             </>
           )}
         </TouchableOpacity>
@@ -124,15 +138,15 @@ export default function ExercisePickerScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#121212', padding: 20, paddingTop: 60 },
+  container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
-  headerTitle: { flex: 1, color: '#FFF', fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
-  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 10, paddingHorizontal: 15, paddingVertical: 12, marginBottom: 20, borderWidth: 1, borderColor: '#333' },
-  searchInput: { flex: 1, color: '#FFF', fontSize: 16 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 10, padding: 15, marginBottom: 10 },
-  rowName: { color: '#FFF', fontSize: 16, fontWeight: '500' },
-  rowMeta: { color: '#888', fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 30, fontSize: 14 },
-  createButton: { flexDirection: 'row', backgroundColor: '#00FF66', padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  createButtonText: { color: '#121212', fontSize: 16, fontWeight: 'bold' },
+  headerTitle: { flex: 1, color: colors.white, fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 10, paddingHorizontal: 15, paddingVertical: 12, marginBottom: 20, borderWidth: 1, borderColor: colors.border },
+  searchInput: { flex: 1, color: colors.white, fontSize: 16 },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 10, padding: 15, marginBottom: 10 },
+  rowName: { color: colors.white, fontSize: 16, fontWeight: '500' },
+  rowMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
+  emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 30, fontSize: 14 },
+  createButton: { flexDirection: 'row', backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+  createButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
 });

@@ -1,4 +1,5 @@
 import { createNavigationContainerRef, CommonActions } from '@react-navigation/native';
+import { ROUTES } from './routes';
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -26,7 +27,24 @@ export function resetToLogin() {
     navigationRef.dispatch(
       CommonActions.reset({
         index: 0,
-        routes: [{ name: 'Login' }],
+        routes: [{ name: ROUTES.LOGIN }],
+      })
+    );
+  }
+}
+
+/**
+ * Usado pelo ErrorBoundary global: depois de um crash de render, `goBack()`
+ * não é confiável (a tela que crashou pode ter deixado a pilha de navegação
+ * num estado inconsistente) — resetar pra uma tela conhecida e estável é a
+ * única saída garantida sem fechar o app inteiro.
+ */
+export function resetToDashboard() {
+  if (navigationRef.isReady()) {
+    navigationRef.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: ROUTES.DASHBOARD }],
       })
     );
   }

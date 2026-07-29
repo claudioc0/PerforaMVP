@@ -37,6 +37,20 @@ class TestIndiceDeWorkouts:
             plan = _explain(query)
             assert "ix_workouts_user_id" in plan
 
+    def test_filtro_por_usuario_e_started_at_usa_o_indice_composto(self, app):
+        # Mesma consulta que StreakService emite (range de started_at + user_id).
+        with app.app_context():
+            import datetime
+            start = datetime.datetime(2026, 6, 1)
+            end = datetime.datetime(2026, 7, 29)
+            query = Workout.query.filter(
+                Workout.user_id == 1,
+                Workout.started_at >= start,
+                Workout.started_at <= end,
+            )
+            plan = _explain(query)
+            assert "ix_workouts_user_id_started_at" in plan
+
 
 class TestIndiceDeSetLogs:
     def test_filtro_por_workout_usa_o_indice(self, app):

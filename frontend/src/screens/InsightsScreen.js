@@ -1,11 +1,13 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWeeklySummary, getWeightHistory, logWeight } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
+import { colors } from '../theme/colors';
 
 // A janela de 7 dias do resumo semanal é ancorada em "hoje" no fuso LOCAL do
 // aparelho, não em toISOString() (que converte pra UTC): perto da meia-noite
@@ -35,7 +37,7 @@ const WeeklyBarChart = ({ data, goal, label }) => {
 
           return (
             <View key={index} style={styles.barWrapper}>
-              <View style={[styles.bar, { height: `${barHeight}%`, backgroundColor: hasExceeded ? '#FF6B6B' : '#00FF66' }]} />
+              <View style={[styles.bar, { height: `${barHeight}%`, backgroundColor: hasExceeded ? colors.danger : colors.primary }]} />
               <Text style={styles.dayLabel}>{day.day_name ? day.day_name.charAt(0) : ''}</Text>
             </View>
           );
@@ -47,6 +49,7 @@ const WeeklyBarChart = ({ data, goal, label }) => {
 
 export default function InsightsScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const { goals, refreshGoals } = useUserGoals();
   const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,14 +72,14 @@ export default function InsightsScreen({ navigation }) {
           ]);
           setWeeklyData(summaryData.days || []);
           setWeightHistory(weightHistoryData || []);
-        } catch (error) {
+        } catch {
           showAlert("Erro", "Não foi possível carregar os insights. Tente novamente.");
         } finally {
           setLoading(false);
         }
       };
       fetchData();
-    }, [refreshGoals])
+    }, [refreshGoals, showAlert])
   );
 
   const weeklyAverages = useMemo(() => {
@@ -120,15 +123,15 @@ export default function InsightsScreen({ navigation }) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#00FF66" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
     <View style={styles.rootContainer}>
-      <View style={styles.header}>
-        <BackButton style={styles.backButton} />
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <BackButton style={[styles.backButton, { top: insets.top + 20 }]} />
         <Text style={styles.headerTitle}>Seus Insights</Text>
       </View>
 
@@ -141,12 +144,12 @@ export default function InsightsScreen({ navigation }) {
           <Text style={styles.cardTitle}>Média da Semana</Text>
           <View style={styles.avgContainer}>
             <View style={styles.avgBox}>
-              <Text style={styles.avgValue}>{weeklyAverages.avgCalories.toFixed(0)}</Text>
-              <Text style={styles.avgLabel}>Média de Kcal / dia</Text>
+              <Text style={styles.avgValue} maxFontSizeMultiplier={1.3}>{weeklyAverages.avgCalories.toFixed(0)}</Text>
+              <Text style={styles.avgLabel} maxFontSizeMultiplier={1.3}>Média de Kcal / dia</Text>
             </View>
             <View style={styles.avgBox}>
-              <Text style={styles.avgValue}>{weeklyAverages.avgProtein.toFixed(1)}g</Text>
-              <Text style={styles.avgLabel}>Média de Proteína / dia</Text>
+              <Text style={styles.avgValue} maxFontSizeMultiplier={1.3}>{weeklyAverages.avgProtein.toFixed(1)}g</Text>
+              <Text style={styles.avgLabel} maxFontSizeMultiplier={1.3}>Média de Proteína / dia</Text>
             </View>
           </View>
         </View>
@@ -158,7 +161,7 @@ export default function InsightsScreen({ navigation }) {
             <TextInput
               style={styles.weightInput}
               placeholder="Peso de hoje (kg)"
-              placeholderTextColor="#666"
+              placeholderTextColor={colors.textMuted}
               keyboardType="numeric"
               value={currentWeightInput}
               onChangeText={setCurrentWeightInput}
@@ -169,7 +172,7 @@ export default function InsightsScreen({ navigation }) {
               disabled={loggingWeight}
             >
               {loggingWeight ? (
-                <ActivityIndicator color="#121212" />
+                <ActivityIndicator color={colors.background} />
               ) : (
                 <Text style={styles.logWeightButtonText}>Registrar</Text>
               )}
@@ -184,18 +187,22 @@ export default function InsightsScreen({ navigation }) {
                   // CORREÇÃO 2: Pega o log cronologicamente anterior (index + 1)
                   const olderLog = arr[index + 1];
                   let trendIcon = null;
-                  let indicatorColor = '#333';
+                  let indicatorColor = colors.border;
+                  let trendLabel = null;
 
                   if (olderLog) {
                     if (log.weight < olderLog.weight) {
                       trendIcon = 'trending-down';
-                      indicatorColor = '#00FF66'; // Perdeu peso (Verde)
+                      indicatorColor = colors.primary; // Perdeu peso (Verde)
+                      trendLabel = 'Peso caiu em relação ao registro anterior';
                     } else if (log.weight > olderLog.weight) {
                       trendIcon = 'trending-up';
-                      indicatorColor = '#FF6B6B'; // Ganhou peso (Vermelho)
+                      indicatorColor = colors.danger; // Ganhou peso (Vermelho)
+                      trendLabel = 'Peso subiu em relação ao registro anterior';
                     } else {
                       trendIcon = 'remove'; // Manteve
-                      indicatorColor = '#888';
+                      indicatorColor = colors.textSecondary;
+                      trendLabel = 'Peso estável em relação ao registro anterior';
                     }
                   }
 
@@ -205,7 +212,7 @@ export default function InsightsScreen({ navigation }) {
                         {new Date(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg
                       </Text>
                       {trendIcon && (
-                        <Ionicons name={trendIcon} size={14} color={indicatorColor} style={styles.weightTagIcon} />
+                        <Ionicons name={trendIcon} size={14} color={indicatorColor} style={styles.weightTagIcon} accessibilityLabel={trendLabel} />
                       )}
                     </View>
                   );
@@ -222,41 +229,41 @@ export default function InsightsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  rootContainer: { flex: 1, backgroundColor: '#121212' },
+  rootContainer: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 20 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#121212' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   
-  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: '#121212' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: colors.background },
   backButton: { position: 'absolute', left: 20, top: 60, zIndex: 10 },
-  headerTitle: { flex: 1, textAlign: 'center', color: '#FFF', fontSize: 22, fontWeight: 'bold' },
+  headerTitle: { flex: 1, textAlign: 'center', color: colors.white, fontSize: 22, fontWeight: 'bold' },
   
-  card: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 20, marginBottom: 20 },
-  cardTitle: { color: '#FFF', fontSize: 18, fontWeight: '600', marginBottom: 20 },
+  card: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 20 },
+  cardTitle: { color: colors.white, fontSize: 18, fontWeight: '600', marginBottom: 20 },
   
-  chartLabel: { color: '#888', fontSize: 14, marginBottom: 15, textAlign: 'center' },
-  chartContainer: { height: 200, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', borderBottomWidth: 1, borderBottomColor: '#333', paddingBottom: 5 },
+  chartLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 15, textAlign: 'center' },
+  chartContainer: { height: 200, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 5 },
   chartPlaceholder: { justifyContent: 'center', alignItems: 'center' },
-  placeholderText: { color: '#666' },
+  placeholderText: { color: colors.textMuted },
   barWrapper: { flex: 1, alignItems: 'center' },
   bar: { width: '60%', borderRadius: 4 },
-  dayLabel: { color: '#888', fontSize: 12, marginTop: 8 },
+  dayLabel: { color: colors.textSecondary, fontSize: 12, marginTop: 8 },
 
   avgContainer: { flexDirection: 'row', justifyContent: 'space-around' },
   avgBox: { alignItems: 'center' },
-  avgValue: { color: '#FFF', fontSize: 26, fontWeight: 'bold' },
-  avgLabel: { color: '#888', fontSize: 14, marginTop: 5 },
+  avgValue: { color: colors.white, fontSize: 26, fontWeight: 'bold' },
+  avgLabel: { color: colors.textSecondary, fontSize: 14, marginTop: 5 },
   
   weightInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: 10 },
-  weightInput: { flex: 1, backgroundColor: '#333', color: '#FFF', padding: 15, borderRadius: 8, fontSize: 16, marginRight: 10 },
-  logWeightButton: { backgroundColor: '#00FF66', padding: 15, borderRadius: 10, justifyContent: 'center' },
-  logWeightButtonText: { color: '#121212', fontWeight: 'bold', fontSize: 16 },
+  weightInput: { flex: 1, backgroundColor: colors.border, color: colors.white, padding: 15, borderRadius: 8, fontSize: 16, marginRight: 10 },
+  logWeightButton: { backgroundColor: colors.primary, padding: 15, borderRadius: 10, justifyContent: 'center' },
+  logWeightButtonText: { color: colors.background, fontWeight: 'bold', fontSize: 16 },
   disabledButton: { opacity: 0.7 },
   
   weightHistoryContainer: { marginTop: 10 },
-  weightHistoryLabel: { color: '#AAA', fontSize: 14, marginBottom: 10 },
+  weightHistoryLabel: { color: colors.textFaint, fontSize: 14, marginBottom: 10 },
   weightTagsContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
-  weightTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderWidth: 1, borderRadius: 15, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, marginBottom: 8 },
-  weightTagText: { color: '#FFF', fontSize: 13 },
+  weightTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderWidth: 1, borderRadius: 15, paddingVertical: 8, paddingHorizontal: 12, marginRight: 8, marginBottom: 8 },
+  weightTagText: { color: colors.white, fontSize: 13 },
   weightTagIcon: { marginLeft: 4 },
-  emptyText: { color: '#888', textAlign: 'center', marginTop: 10, fontSize: 14 },
+  emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 10, fontSize: 14 },
 });
