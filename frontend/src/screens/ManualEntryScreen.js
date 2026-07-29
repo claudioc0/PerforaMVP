@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
 import { useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,6 +27,7 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
 
 export default function ManualEntryScreen({ navigation, route }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   // route.params pode vir ausente (navegação sem os parâmetros esperados,
   // ex: um deep link ou uma rota antiga) — sem o `|| {}`, o destructuring
   // quebra na hora, derrubando a tela inteira (só o ErrorBoundary global
@@ -258,7 +260,7 @@ export default function ManualEntryScreen({ navigation, route }) {
     // ListHeaderComponent.
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <FlatList
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top + 20 }]}
       data={favorites}
       renderItem={renderFavoriteItem}
       keyExtractor={(item) => item.id.toString()}

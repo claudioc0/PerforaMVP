@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
@@ -74,6 +75,7 @@ const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = '#00FF
 export default function DashboardScreen({ navigation }) {
   const { open: openDrawerMenu } = useDrawerMenu();
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const { goals, refreshGoals } = useUserGoals();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -330,7 +332,7 @@ export default function DashboardScreen({ navigation }) {
           abertura da tela travava por um instante. Tudo que antes ficava
           "acima" da lista de refeições agora é o ListHeaderComponent. */}
       <FlatList
-        style={styles.container}
+        style={[styles.container, { paddingTop: insets.top + 20 }]}
         data={summary?.meals || []}
         keyExtractor={(item) => item.id.toString()}
         showsVerticalScrollIndicator={false}

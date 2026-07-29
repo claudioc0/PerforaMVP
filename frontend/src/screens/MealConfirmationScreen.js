@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { saveMeal, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
@@ -9,6 +10,7 @@ import { useScaledMealItems } from '../hooks/useScaledMealItems';
 
 export default function MealConfirmationScreen({ navigation, route }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da
   // tela anterior. `|| {}` evita quebrar o destructuring se a tela for aberta
   // sem params (deep link, rota antiga) — o `!draftMeal` logo abaixo já cobre
@@ -96,7 +98,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
 
   if (!draftMeal || scaledItems.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
         {/* Sem isso, essa tela de erro não tinha NENHUM jeito de sair no iOS
             (sem gesto de voltar do Android, e sem botão nenhum na tela) —
             o usuário ficava preso aqui. */}
@@ -110,7 +112,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Confirmar Refeição</Text>

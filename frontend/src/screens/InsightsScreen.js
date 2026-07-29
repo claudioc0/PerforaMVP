@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { getWeeklySummary, getWeightHistory, logWeight } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +48,7 @@ const WeeklyBarChart = ({ data, goal, label }) => {
 
 export default function InsightsScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const { goals, refreshGoals } = useUserGoals();
   const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -127,8 +129,8 @@ export default function InsightsScreen({ navigation }) {
 
   return (
     <View style={styles.rootContainer}>
-      <View style={styles.header}>
-        <BackButton style={styles.backButton} />
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <BackButton style={[styles.backButton, { top: insets.top + 20 }]} />
         <Text style={styles.headerTitle}>Seus Insights</Text>
       </View>
 

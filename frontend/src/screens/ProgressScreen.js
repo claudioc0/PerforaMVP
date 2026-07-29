@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
@@ -7,6 +8,7 @@ import { getWorkoutProgress } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
 
 export default function ProgressScreen() {
+  const insets = useSafeAreaInsets();
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   // Antes, falha de rede só mostrava um Alert genérico e a tela ficava presa
@@ -45,8 +47,8 @@ export default function ProgressScreen() {
   if (error) {
     return (
       <View style={styles.rootContainer}>
-        <View style={styles.header}>
-          <BackButton style={styles.backButton} />
+        <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+          <BackButton style={[styles.backButton, { top: insets.top + 20 }]} />
           <Text style={styles.headerTitle}>Progresso</Text>
         </View>
         <View style={styles.center}>
@@ -63,8 +65,8 @@ export default function ProgressScreen() {
 
   return (
     <View style={styles.rootContainer}>
-      <View style={styles.header}>
-        <BackButton style={styles.backButton} />
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
+        <BackButton style={[styles.backButton, { top: insets.top + 20 }]} />
         <Text style={styles.headerTitle}>Progresso</Text>
       </View>
 

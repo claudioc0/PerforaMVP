@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
@@ -8,6 +9,9 @@ import { listSplits, createWorkout } from '../services/api';
 
 export default function ChooseSplitScreen({ navigation }) {
   const showAlert = useAppAlert();
+  // paddingTop: 60 fixo não respeitava notch/gesture nav — insets.top é 0 em
+  // aparelhos sem notch (mantém o valor de hoje) e cresce sozinho nos que têm.
+  const insets = useSafeAreaInsets();
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSplitId, setExpandedSplitId] = useState(null);
@@ -52,7 +56,7 @@ export default function ChooseSplitScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Iniciar Treino</Text>

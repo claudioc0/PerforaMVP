@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { updateMeal } from '../services/api';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
@@ -9,6 +10,7 @@ import { deriveBaseFromSavedItem } from '../utils/mealMacros';
 
 export default function AdjustQuantityScreen({ navigation, route }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   // `|| {}` evita quebrar o destructuring se a tela for aberta sem params
   // (deep link, rota antiga) — o `!initialMeal` logo abaixo mostra uma tela
   // de erro em vez de crashar tentando ler `.items` de undefined.
@@ -84,7 +86,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
 
   if (!initialMeal) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerRow}>
           <BackButton />
           <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
@@ -96,7 +98,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+    <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Ajustar Quantidade</Text>

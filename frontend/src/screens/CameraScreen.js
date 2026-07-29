@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { analyzeMeal } from '../services/api';
@@ -9,6 +10,7 @@ import { useAppAlert } from '../components/AppAlertProvider';
 
 export default function CameraScreen({ navigation, route }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const [imageUri, setImageUri] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const { targetDate } = route.params || {}; 
@@ -131,7 +133,7 @@ export default function CameraScreen({ navigation, route }) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Nova Refeição</Text>

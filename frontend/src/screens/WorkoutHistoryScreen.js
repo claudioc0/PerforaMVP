@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
@@ -21,6 +22,7 @@ function todayPlanIndex() {
 
 export default function WorkoutHistoryScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -280,7 +282,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Treinos</Text>

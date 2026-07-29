@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { updateUserGoals, calculateSmartGoals } from '../services/api';
@@ -45,6 +46,7 @@ const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
 
 export default function GoalsScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const { refreshGoals, setGoalsLocally } = useUserGoals();
   // Estado para metas manuais
   const [calories, setCalories] = useState('');
@@ -161,7 +163,7 @@ export default function GoalsScreen({ navigation }) {
   if (loadError) {
     return (
       <View style={styles.center}>
-        <View style={styles.errorHeaderRow}>
+        <View style={[styles.errorHeaderRow, { top: insets.top + 20 }]}>
           <BackButton />
         </View>
         <Ionicons name="cloud-offline-outline" size={40} color="#888" style={{ marginBottom: 12 }} />
@@ -179,7 +181,7 @@ export default function GoalsScreen({ navigation }) {
       style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Definir Metas</Text>

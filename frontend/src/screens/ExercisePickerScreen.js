@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
@@ -7,6 +8,7 @@ import { listExercises, createExercise } from '../services/api';
 
 export default function ExercisePickerScreen({ navigation, route }) {
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
   const { onSelect } = route.params;
 
   const [query, setQuery] = useState('');
@@ -70,7 +72,7 @@ export default function ExercisePickerScreen({ navigation, route }) {
   );
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
         <Text style={styles.headerTitle}>Escolher Exercício</Text>

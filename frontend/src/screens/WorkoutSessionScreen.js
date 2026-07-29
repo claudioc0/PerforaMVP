@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
@@ -107,6 +108,7 @@ const SetRow = React.memo(function SetRow({
 export default function WorkoutSessionScreen({ navigation, route }) {
   const { workoutId } = route.params;
   const showAlert = useAppAlert();
+  const insets = useSafeAreaInsets();
 
   const [workout, setWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -407,7 +409,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
         {editingName ? (
