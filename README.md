@@ -1,5 +1,10 @@
 # Perfora — App de Nutrição com IA
 
+![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
+![Flask](https://img.shields.io/badge/Flask-3.0-000000?logo=flask&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-Expo-61DAFB?logo=react&logoColor=white)
+![pytest](https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white)
+
 Rastreamento nutricional com estimativa automática de calorias e macros por foto, usando
 Google Gemini para identificar alimentos e estimar porções. Backend Flask (API REST) +
 app mobile em React Native/Expo.
@@ -88,8 +93,10 @@ nutrition-app/
   estiverem definidos no `.env` (fail fast em produção).
 - CORS restrito por variável de ambiente (`CORS_ORIGINS`).
 - Utilitário de criptografia (Fernet) preparado para dados de saúde sensíveis.
-- Suite de testes (`backend/tests/`) cobrindo hashing de senha, rate limiting e rejeição de
-  tokens ausentes/inválidos/expirados/revogados.
+- Suite de testes (`backend/tests/`, pytest) cobrindo autenticação (hash, rate limiting,
+  revogação de tokens), invariantes de negócio (refeições, favoritos, metas), performance
+  de consultas (N+1, índices, paginação) e integração com o Gemini (parsing de resposta,
+  tratamento de erro, cache de custo/quota).
 
 ## Rodando o backend
 
