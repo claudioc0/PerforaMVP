@@ -2,12 +2,13 @@ import logging
 import os
 from datetime import date
 
-from flask import Blueprint, request, jsonify, current_app, send_from_directory
+from flask import Blueprint, request, jsonify, current_app, send_from_directory, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
 from app.services import UserService, StreakService
+from app.services.report_service import build_report_data, render_csv, render_pdf
 from app.models import User, WaterLog, WeightLog, ProgressPhoto
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
 from app.utils.file_uploads import is_allowed_image_file
@@ -285,3 +286,40 @@ def delete_progress_photo(photo_id):
         os.remove(file_path)
 
     return jsonify({"message": "Foto removida com sucesso."}), 200
+
+
+@user_bp.route("/report", methods=["GET"])
+# Aceita o JWT também via query string (?jwt=...), só nesta rota — não muda
+# a config global do app (as demais rotas continuam exigindo o header
+# Authorization). Necessário porque o download é aberto pelo navegador do
+# sistema via Linking.openURL no app, que não tem como mandar um header
+# customizado; o token já existente do usuário logado vai na própria URL.
+@jwt_required(locations=["headers", "query_string"])
+def export_report():
+    current_user_id = int(get_jwt_identity())
+    report_format = request.args.get("format", "pdf").lower()
+
+    if report_format not in ("pdf", "csv"):
+        return jsonify({"error": "Formato inválido. Use 'pdf' ou 'csv'."}), 400
+
+    try:
+        user = User.query.get(current_user_id)
+        data = build_report_data(current_user_id)
+
+        if report_format == "csv":
+            body = render_csv(data)
+            mimetype = "text/csv"
+            filename = "relatorio_perfora.csv"
+        else:
+            body = render_pdf(data, user.name)
+            mimetype = "application/pdf"
+            filename = "relatorio_perfora.pdf"
+    except Exception:
+        logger.exception("Erro inesperado ao gerar relatório do usuário ID %s.", current_user_id)
+        return jsonify({"error": "Erro interno ao gerar o relatório."}), 500
+
+    return Response(
+        body,
+        mimetype=mimetype,
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
