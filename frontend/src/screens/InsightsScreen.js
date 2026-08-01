@@ -1,13 +1,15 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TextInput, TouchableOpacity, Image, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { getWeeklySummary, getWeightHistory, logWeight } from '../services/api';
+import { getWeeklySummary, getWeightHistory, logWeight, getProgressPhotos, getAuthenticatedImageSource, getReportDownloadUrl } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
-import { colors } from '../theme/colors';
+import { formatShortDate } from '../utils/formatDate';
+import { useTheme } from '../theme/ThemeContext';
+import { ROUTES } from '../navigation/routes';
 
 // A janela de 7 dias do resumo semanal é ancorada em "hoje" no fuso LOCAL do
 // aparelho, não em toISOString() (que converte pra UTC): perto da meia-noite
@@ -20,7 +22,8 @@ function getLocalDateString(date) {
 }
 
 // --- Componente de Gráfico de Barras Customizado ---
-const WeeklyBarChart = ({ data, goal, label }) => {
+// `styles`/`colors` vêm do componente pai (useTheme() já resolvido lá).
+const WeeklyBarChart = ({ data, goal, label, styles, colors }) => {
   if (!data || data.length === 0 || !goal) {
     return <View style={[styles.chartContainer, styles.chartPlaceholder]}><Text style={styles.placeholderText}>Dados insuficientes para exibir o gráfico.</Text></View>;
   }
@@ -50,6 +53,8 @@ const WeeklyBarChart = ({ data, goal, label }) => {
 export default function InsightsScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { goals, refreshGoals } = useUserGoals();
   const [weeklyData, setWeeklyData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -59,19 +64,49 @@ export default function InsightsScreen({ navigation }) {
   const [currentWeightInput, setCurrentWeightInput] = useState('');
   const [loggingWeight, setLoggingWeight] = useState(false);
 
+  const [exportingFormat, setExportingFormat] = useState(null);
+
+  // O download em si é feito pelo navegador do sistema (Linking.openURL) —
+  // não dá pra saber quando ele termina, só que abriu. O estado de loading
+  // aqui cobre só o tempo de montar a URL (ler o token salvo).
+  const handleExportReport = async (format) => {
+    setExportingFormat(format);
+    try {
+      const url = await getReportDownloadUrl(format);
+      await Linking.openURL(url);
+    } catch {
+      showAlert('Erro', 'Não foi possível abrir o download do relatório.');
+    } finally {
+      setExportingFormat(null);
+    }
+  };
+
+  // Só a miniatura mais recente — a timeline completa/comparação vive em
+  // ProgressPhotosScreen, este card é só um atalho de entrada.
+  const [latestPhoto, setLatestPhoto] = useState(null);
+
   useFocusEffect(
     useCallback(() => {
       const fetchData = async () => {
         setLoading(true);
         try {
-          const [summaryData, , weightHistoryData] = await Promise.all([
+          const [summaryData, , weightHistoryData, photos] = await Promise.all([
             // Proteção adicionada caso o backend retorne erro na rota semanal
             getWeeklySummary(getLocalDateString(new Date())).catch(() => ({ days: [] })),
             refreshGoals(),
             getWeightHistory().catch(() => []),
+            getProgressPhotos().catch(() => []),
           ]);
           setWeeklyData(summaryData.days || []);
           setWeightHistory(weightHistoryData || []);
+
+          const mostRecent = photos?.[photos.length - 1];
+          if (mostRecent) {
+            const source = await getAuthenticatedImageSource(mostRecent.image_url);
+            setLatestPhoto({ ...mostRecent, source });
+          } else {
+            setLatestPhoto(null);
+          }
         } catch {
           showAlert("Erro", "Não foi possível carregar os insights. Tente novamente.");
         } finally {
@@ -137,7 +172,7 @@ export default function InsightsScreen({ navigation }) {
 
       <ScrollView style={styles.container}>
         <View style={styles.card}>
-          <WeeklyBarChart data={weeklyData} goal={goals?.goal_calories} label="Consumo de Calorias (vs. Meta)" />
+          <WeeklyBarChart data={weeklyData} goal={goals?.goal_calories} label="Consumo de Calorias (vs. Meta)" styles={styles} colors={colors} />
         </View>
 
         <View style={styles.card}>
@@ -172,7 +207,7 @@ export default function InsightsScreen({ navigation }) {
               disabled={loggingWeight}
             >
               {loggingWeight ? (
-                <ActivityIndicator color={colors.background} />
+                <ActivityIndicator color={colors.onPrimary} />
               ) : (
                 <Text style={styles.logWeightButtonText}>Registrar</Text>
               )}
@@ -223,12 +258,73 @@ export default function InsightsScreen({ navigation }) {
             <Text style={styles.emptyText}>Nenhum registro de peso ainda.</Text>
           )}
         </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Fotos de Progresso</Text>
+          {latestPhoto ? (
+            <View style={styles.photoPreviewRow}>
+              <Image source={latestPhoto.source} style={styles.photoThumb} />
+              <View style={styles.photoPreviewInfo}>
+                <Text style={styles.photoPreviewDate}>
+                  Última foto: {formatShortDate(latestPhoto.taken_at, { includeYear: true })}
+                </Text>
+                <TouchableOpacity
+                  style={styles.photoTimelineButton}
+                  onPress={() => navigation.navigate(ROUTES.PROGRESS_PHOTOS)}
+                >
+                  <Text style={styles.photoTimelineButtonText}>Ver Timeline</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <View>
+              <Text style={styles.emptyText}>Nenhuma foto de progresso ainda.</Text>
+              <TouchableOpacity
+                style={styles.photoTimelineButton}
+                onPress={() => navigation.navigate(ROUTES.PROGRESS_PHOTOS)}
+              >
+                <Text style={styles.photoTimelineButtonText}>Tirar Primeira Foto</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Exportar Relatório</Text>
+          <Text style={styles.exportDescription}>
+            Baixe um resumo do seu progresso (calorias, peso e treinos) pra levar ao seu nutricionista ou personal.
+          </Text>
+          <View style={styles.exportButtonsRow}>
+            <TouchableOpacity
+              style={[styles.exportButton, exportingFormat === 'pdf' && styles.disabledButton]}
+              onPress={() => handleExportReport('pdf')}
+              disabled={exportingFormat !== null}
+            >
+              {exportingFormat === 'pdf' ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={styles.exportButtonText}>PDF</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.exportButton, exportingFormat === 'csv' && styles.disabledButton]}
+              onPress={() => handleExportReport('csv')}
+              disabled={exportingFormat !== null}
+            >
+              {exportingFormat === 'csv' ? (
+                <ActivityIndicator color={colors.onPrimary} />
+              ) : (
+                <Text style={styles.exportButtonText}>CSV</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   rootContainer: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
@@ -239,7 +335,7 @@ const styles = StyleSheet.create({
   
   card: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 20 },
   cardTitle: { color: colors.white, fontSize: 18, fontWeight: '600', marginBottom: 20 },
-  
+
   chartLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 15, textAlign: 'center' },
   chartContainer: { height: 200, flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 5 },
   chartPlaceholder: { justifyContent: 'center', alignItems: 'center' },
@@ -256,7 +352,7 @@ const styles = StyleSheet.create({
   weightInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, marginTop: 10 },
   weightInput: { flex: 1, backgroundColor: colors.border, color: colors.white, padding: 15, borderRadius: 8, fontSize: 16, marginRight: 10 },
   logWeightButton: { backgroundColor: colors.primary, padding: 15, borderRadius: 10, justifyContent: 'center' },
-  logWeightButtonText: { color: colors.background, fontWeight: 'bold', fontSize: 16 },
+  logWeightButtonText: { color: colors.onPrimary, fontWeight: 'bold', fontSize: 16 },
   disabledButton: { opacity: 0.7 },
   
   weightHistoryContainer: { marginTop: 10 },
@@ -266,4 +362,16 @@ const styles = StyleSheet.create({
   weightTagText: { color: colors.white, fontSize: 13 },
   weightTagIcon: { marginLeft: 4 },
   emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 10, fontSize: 14 },
+
+  photoPreviewRow: { flexDirection: 'row', alignItems: 'center' },
+  photoThumb: { width: 70, height: 93, borderRadius: 10, backgroundColor: colors.background, marginRight: 15 },
+  photoPreviewInfo: { flex: 1, justifyContent: 'center' },
+  photoPreviewDate: { color: colors.textSecondary, fontSize: 14, marginBottom: 10 },
+  photoTimelineButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
+  photoTimelineButtonText: { color: colors.onPrimary, fontWeight: 'bold', fontSize: 14 },
+
+  exportDescription: { color: colors.textSecondary, fontSize: 14, marginBottom: 15 },
+  exportButtonsRow: { flexDirection: 'row', gap: 10 },
+  exportButton: { flex: 1, backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
+  exportButtonText: { color: colors.onPrimary, fontWeight: 'bold', fontSize: 15 },
 });

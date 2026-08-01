@@ -12,11 +12,14 @@ User é a operação real do ORM (db.session.delete + commit) — se o cascade
 não estiver configurado, este teste falha com um IntegrityError de verdade,
 não com uma asserção manual.
 """
+from datetime import date
+
 from app.extensions import db
 from app.models import (
     Exercise,
     FavoriteMeal,
     Meal,
+    ProgressPhoto,
     SetLog,
     User,
     UserGoals,
@@ -54,6 +57,7 @@ class TestExclusaoDeUsuarioCascateiaParaTodosOsDependentes:
                 user_id=user_id, description="Favorito", calories=1,
                 protein_g=1, carbs_g=1, fat_g=1,
             ))
+            db.session.add(ProgressPhoto(user_id=user_id, filename="cascade-teste.jpg", taken_at=date(2026, 1, 1)))
 
             split = WorkoutSplit(name="Push/Pull/Legs")
             db.session.add(split)
@@ -86,6 +90,7 @@ class TestExclusaoDeUsuarioCascateiaParaTodosOsDependentes:
             assert WaterLog.query.filter_by(user_id=user_id).count() == 1
             assert WeightLog.query.filter_by(user_id=user_id).count() == 1
             assert FavoriteMeal.query.filter_by(user_id=user_id).count() == 1
+            assert ProgressPhoto.query.filter_by(user_id=user_id).count() == 1
             assert Workout.query.filter_by(user_id=user_id).count() == 1
             assert SetLog.query.filter_by(workout_id=workout_id).count() == 1
             assert WeeklyPlan.query.filter_by(user_id=user_id).count() == 1
@@ -102,6 +107,7 @@ class TestExclusaoDeUsuarioCascateiaParaTodosOsDependentes:
             assert WaterLog.query.filter_by(user_id=user_id).count() == 0
             assert WeightLog.query.filter_by(user_id=user_id).count() == 0
             assert FavoriteMeal.query.filter_by(user_id=user_id).count() == 0
+            assert ProgressPhoto.query.filter_by(user_id=user_id).count() == 0
             assert Workout.query.filter_by(user_id=user_id).count() == 0
             assert SetLog.query.filter_by(workout_id=workout_id).count() == 0
             assert WeeklyPlan.query.filter_by(user_id=user_id).count() == 0

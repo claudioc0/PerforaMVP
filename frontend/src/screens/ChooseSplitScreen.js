@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,7 @@ import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWorkout } from '../services/api';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 export default function ChooseSplitScreen({ navigation }) {
@@ -14,6 +14,8 @@ export default function ChooseSplitScreen({ navigation }) {
   // paddingTop: 60 fixo não respeitava notch/gesture nav — insets.top é 0 em
   // aparelhos sem notch (mantém o valor de hoje) e cresce sozinho nos que têm.
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSplitId, setExpandedSplitId] = useState(null);
@@ -69,7 +71,7 @@ export default function ChooseSplitScreen({ navigation }) {
         onPress={() => handleStart({})}
         disabled={creating}
       >
-        <Ionicons name="shuffle" size={24} color={colors.background} style={{ marginRight: 12 }} />
+        <Ionicons name="shuffle" size={24} color={colors.onPrimary} style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
           <Text style={styles.freestyleTitle}>Freestyle</Text>
           <Text style={styles.freestyleSubtitle}>Sem roteiro — escolha os exercícios na hora</Text>
@@ -112,14 +114,14 @@ export default function ChooseSplitScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
   freestyleCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, padding: 16, marginBottom: 25 },
-  freestyleTitle: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
-  freestyleSubtitle: { color: colors.background, fontSize: 12, marginTop: 2, opacity: 0.8 },
+  freestyleTitle: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' },
+  freestyleSubtitle: { color: colors.onPrimary, fontSize: 12, marginTop: 2, opacity: 0.8 },
   sectionLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 12 },
   dayRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: colors.surfaceAlt },
   dayName: { color: colors.white, fontSize: 15 },

@@ -76,6 +76,22 @@ class MealService:
             "source_type": "image"
         }
 
+    def analyze_label(self, image_bytes: bytes) -> dict:
+        """Lê uma foto de rótulo/tabela nutricional — devolve um produto único
+        (shape achatado), não uma lista de itens: é o mesmo caminho de um
+        produto escaneado por código de barras, só que via foto do rótulo em
+        vez de consulta ao OpenFoodFacts."""
+        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        result = self._gemini_service.analyze_label(image)
+
+        return {
+            "description": result.description,
+            "calories": result.calories,
+            "protein_g": result.protein_g,
+            "carbs_g": result.carbs_g,
+            "fat_g": result.fat_g,
+        }
+
     def analyze_text(self, description: str) -> dict:
         # Antes, o único cache existente (FoodCache) só entrava em ação
         # DEPOIS de o Gemini já ter respondido — só estabilizava os macros,

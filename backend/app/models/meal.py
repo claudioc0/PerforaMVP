@@ -4,6 +4,7 @@ from sqlalchemy import event
 
 from app.extensions import db
 from app.utils.dates import day_bounds
+from app.utils.meal_aggregation import compute_macro_totals_from_items
 
 
 class Meal(db.Model):
@@ -102,8 +103,9 @@ def _recompute_aggregate_from_items(mapper, connection, target: Meal) -> None:
         return
 
     target.description = ", ".join(str(item.get("description", "Item")) for item in items)
-    target.calories = sum(float(item.get("calories", 0)) for item in items)
-    target.protein_g = sum(float(item.get("protein_g", 0)) for item in items)
-    target.carbs_g = sum(float(item.get("carbs_g", 0)) for item in items)
-    target.fat_g = sum(float(item.get("fat_g", 0)) for item in items)
-    target.quantity_g = sum(float(item.get("quantity_g", 0)) for item in items)
+    totals = compute_macro_totals_from_items(items)
+    target.calories = totals["calories"]
+    target.protein_g = totals["protein_g"]
+    target.carbs_g = totals["carbs_g"]
+    target.fat_g = totals["fat_g"]
+    target.quantity_g = totals["quantity_g"]

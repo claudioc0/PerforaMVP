@@ -1,13 +1,15 @@
 import React from 'react';
 import Svg, { Rect, Path, G } from 'react-native-svg';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 /**
  * Símbolo da marca Perfora — o "P" de alta performance (seta dupla |>>).
  * Vetor fiel ao identidade/logo.svg do MazyOS, sem o fundo sólido,
  * pra poder ser usado sobre qualquer superfície escura do app.
  */
-export default function LogoMark({ size = 40, color = colors.primary }) {
+export default function LogoMark({ size = 40, color }) {
+  const { colors } = useTheme();
+  const resolvedColor = color || colors.primary;
   const height = size;
   const width = size * (160 / 130);
 
@@ -15,11 +17,11 @@ export default function LogoMark({ size = 40, color = colors.primary }) {
     <Svg width={width} height={height} viewBox="0 0 160 130">
       <G transform="translate(30, 20) skewX(-15)">
         {/* Haste do P */}
-        <Rect x="0" y="0" width="22" height="85" rx="6" fill={color} />
+        <Rect x="0" y="0" width="22" height="85" rx="6" fill={resolvedColor} />
         {/* Seta 1: topo do P, aponta pra evolução */}
         <Path
           d="M 11 10 L 50 32 L 11 55"
-          stroke={color}
+          stroke={resolvedColor}
           strokeWidth="20"
           strokeLinejoin="round"
           strokeLinecap="round"
@@ -28,7 +30,7 @@ export default function LogoMark({ size = 40, color = colors.primary }) {
         {/* Seta 2: rastro de movimento (fast-forward) */}
         <Path
           d="M 45 10 L 84 32 L 45 55"
-          stroke={color}
+          stroke={resolvedColor}
           strokeWidth="20"
           strokeLinejoin="round"
           strokeLinecap="round"

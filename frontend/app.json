@@ -10,7 +10,12 @@
       "package": "com.perfora.app",
       "adaptiveIcon": {
         "backgroundColor": "#0D0D0D"
-      }
+      },
+      "permissions": [
+        "android.permission.health.READ_STEPS",
+        "android.permission.health.READ_ACTIVE_CALORIES_BURNED",
+        "android.permission.health.READ_HEART_RATE"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.perfora.app",
@@ -19,7 +24,16 @@
     "plugins": [
       "expo-font",
       "expo-secure-store",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-health-connect",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 26
+          }
+        }
+      ]
     ]
   }
 }

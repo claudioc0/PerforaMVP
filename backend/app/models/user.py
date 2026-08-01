@@ -13,6 +13,16 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Assinatura premium remove o limite diário de análises de IA (ver
+    # AiQuotaService). Ativação é manual por enquanto (sem processador de
+    # pagamento integrado ainda) — ver plano/achado de freemium.
+    is_premium = db.Column(db.Boolean, nullable=False, default=False)
+    # Contador do dia corrente (UTC) de chamadas gratuitas de IA consumidas;
+    # daily_ai_calls_date guarda a que dia esse contador se refere, pra
+    # AiQuotaService saber quando resetar em vez de acumular pra sempre.
+    daily_ai_calls_count = db.Column(db.Integer, nullable=False, default=0)
+    daily_ai_calls_date = db.Column(db.Date, nullable=True)
+
     # O relacionamento 1:N (Um usuário tem várias refeições)
     meals = db.relationship('Meal', backref='user', lazy=True, cascade="all, delete-orphan")
     # Relação um-para-um com as metas do usuário.
@@ -33,6 +43,10 @@ class User(db.Model):
     # weekly_plan já cascateia pra WeeklyPlanDay (weekly_plan.py define
     # cascade="all, delete-orphan" em "days"), cobrindo User -> WeeklyPlan -> WeeklyPlanDay.
     weekly_plan = db.relationship('WeeklyPlan', backref='user', uselist=False, cascade="all, delete-orphan")
+    # Mesmo raciocínio das relações acima — os arquivos em disco (não só as
+    # linhas) ficariam órfãos se um fluxo de exclusão de conta for adicionado
+    # no futuro; a cascade aqui garante ao menos a integridade referencial.
+    progress_photos = db.relationship('ProgressPhoto', backref='user', lazy=True, cascade="all, delete-orphan")
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

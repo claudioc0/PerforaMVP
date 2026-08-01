@@ -16,16 +16,17 @@ from app.services.gemini_service import (
 )
 from app.services.meal_service import MealService
 from app.services.food_cache_service import search_foods
+from app.services.ai_quota_service import AiQuotaService
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
+from app.utils.file_uploads import is_allowed_image_file as _allowed_file
 
 logger = logging.getLogger(__name__)
 
 meals_bp = Blueprint("meals", __name__, url_prefix="/api/meals")
 
-ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
-
-def _allowed_file(filename: str) -> bool:
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+# Singleton por módulo — não guarda estado próprio nem depende de app.config
+# no __init__ (mesmo critério de user_service/streak_service em user_routes.py).
+ai_quota_service = AiQuotaService()
 
 def _get_meal_service() -> MealService:
     # Diferente de user_routes.py/workouts_routes.py (singleton por módulo,
@@ -61,6 +62,15 @@ def _get_meal_service() -> MealService:
 @limiter.limit("10 per minute;60 per hour", key_func=rate_limit_key_by_user)
 def analyze_meal():
     try:
+        current_user_id = int(get_jwt_identity())
+        quota = ai_quota_service.check_and_consume(current_user_id)
+        if not quota["allowed"]:
+            return jsonify({
+                "error": "Você atingiu o limite de análises gratuitas hoje. Assine o Premium para análises ilimitadas.",
+                "reason": "daily_quota_exceeded",
+                "remaining": 0,
+            }), 429
+
         meal_service = _get_meal_service()
 
         if "image" in request.files:
@@ -73,6 +83,7 @@ def analyze_meal():
             image_bytes = file.read()
             # Retorna a estimativa sem o current_user_id, pois não vai pro banco agora
             draft_meal = meal_service.analyze_image(image_bytes)
+            draft_meal["ai_quota"] = {"remaining": quota["remaining"], "is_premium": quota["is_premium"]}
             return jsonify(draft_meal), 200 # Mudamos para 200 (OK) em vez de 201 (Created)
 
         json_data = request.get_json(silent=True) or {}
@@ -81,6 +92,7 @@ def analyze_meal():
 
         if description:
             draft_meal = meal_service.analyze_text(description)
+            draft_meal["ai_quota"] = {"remaining": quota["remaining"], "is_premium": quota["is_premium"]}
             return jsonify(draft_meal), 200
 
         return jsonify({"error": "Envie um campo 'image' ou 'description'."}), 400
@@ -102,6 +114,50 @@ def analyze_meal():
         db.session.rollback()
         logger.exception("Erro inesperado ao analisar refeição")
         return jsonify({"error": "Erro interno ao processar a refeição."}), 500
+
+
+# --- ROTA: LÊ UMA FOTO DE RÓTULO/TABELA NUTRICIONAL (produto fora do OpenFoodFacts) ---
+@meals_bp.route("/analyze-label", methods=["POST"])
+@jwt_required()
+@limiter.limit("10 per minute;60 per hour", key_func=rate_limit_key_by_user)
+def analyze_label():
+    try:
+        current_user_id = int(get_jwt_identity())
+        quota = ai_quota_service.check_and_consume(current_user_id)
+        if not quota["allowed"]:
+            return jsonify({
+                "error": "Você atingiu o limite de análises gratuitas hoje. Assine o Premium para análises ilimitadas.",
+                "reason": "daily_quota_exceeded",
+                "remaining": 0,
+            }), 429
+
+        meal_service = _get_meal_service()
+
+        if "image" not in request.files:
+            return jsonify({"error": "Envie um campo 'image'."}), 400
+
+        file = request.files["image"]
+        if file.filename == "":
+            return jsonify({"error": "Nenhum arquivo selecionado."}), 400
+        if not _allowed_file(file.filename):
+            return jsonify({"error": "Formato de arquivo não suportado."}), 400
+
+        image_bytes = file.read()
+        product = meal_service.analyze_label(image_bytes)
+        product["ai_quota"] = {"remaining": quota["remaining"], "is_premium": quota["is_premium"]}
+        return jsonify(product), 200
+
+    except GeminiRateLimitError as exc:
+        return jsonify({"error": str(exc)}), 429
+    except GeminiTimeoutError as exc:
+        return jsonify({"error": str(exc)}), 504
+    except GeminiAnalysisError as exc:
+        logger.warning("Erro de leitura do rótulo: %s", exc)
+        return jsonify({"error": str(exc)}), 422
+    except Exception:
+        db.session.rollback()
+        logger.exception("Erro inesperado ao ler rótulo nutricional")
+        return jsonify({"error": "Erro interno ao processar o rótulo."}), 500
 
 
 # --- ROTA 2: NOVA ROTA PARA SALVAR APÓS CONFIRMAÇÃO ---
@@ -176,6 +232,11 @@ def add_favorite():
     current_user_id = int(get_jwt_identity())
     data = request.get_json(silent=True) or {}
 
+    # Quando `items` vem preenchido (prato composto), os macros abaixo são só
+    # um placeholder — o listener before_insert de FavoriteMeal (ver
+    # favorite_meal.py) recalcula calories/protein_g/carbs_g/fat_g a partir da
+    # soma dos itens antes de gravar, mesmo invariante já aplicado a Meal.
+    items = data.get("items")
     try:
         new_favorite = FavoriteMeal(
             user_id=current_user_id,
@@ -183,7 +244,8 @@ def add_favorite():
             calories=float(data.get("calories", 0)),
             protein_g=float(data.get("protein_g", 0)),
             carbs_g=float(data.get("carbs_g", 0)),
-            fat_g=float(data.get("fat_g", 0))
+            fat_g=float(data.get("fat_g", 0)),
+            items=items if items else None,
         )
     except (TypeError, ValueError):
         return jsonify({"error": "Valores nutricionais inválidos."}), 400

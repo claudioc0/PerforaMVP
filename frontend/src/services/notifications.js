@@ -11,6 +11,8 @@ const REMINDER_IDENTIFIERS = {
 
 const REMINDER_TYPES = Object.keys(REMINDER_IDENTIFIERS);
 
+const REST_TIMER_IDENTIFIER = 'perfora-rest-timer';
+
 /** Nunca lança — degrada pra `false` em qualquer falha (permissão é um "nice
  * to have", uma falha aqui não deveria derrubar a tela de lembretes. */
 export async function requestNotificationPermission() {
@@ -54,4 +56,36 @@ export async function cancelReminder(type) {
 
 export async function cancelAllReminders() {
   await Promise.all(REMINDER_TYPES.map(cancelReminder));
+}
+
+/** Agenda um disparo único pro fim do descanso, usado quando o app vai pro
+ * background com o timer rodando (o setInterval em JS é suspenso pelo SO
+ * nesse estado, então sem isso o usuário nunca saberia que a meta bateu). */
+export async function scheduleRestTimerNotification(remainingSeconds) {
+  try {
+    const granted = await requestNotificationPermission();
+    if (!granted) return false;
+
+    await Notifications.cancelScheduledNotificationAsync(REST_TIMER_IDENTIFIER);
+    await Notifications.scheduleNotificationAsync({
+      identifier: REST_TIMER_IDENTIFIER,
+      content: { title: 'Descanso finalizado! 💪', body: 'Hora da próxima série.' },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: remainingSeconds,
+        repeats: false,
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function cancelRestTimerNotification() {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(REST_TIMER_IDENTIFIER);
+  } catch {
+    // Best-effort — se já não existia agendado, não há nada a desfazer.
+  }
 }

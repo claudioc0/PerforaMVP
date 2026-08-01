@@ -60,7 +60,17 @@ def _register_and_login(client, email):
 
 
 class TestRateLimitPorUsuarioNoAnalyze:
-    def test_bloqueia_apos_o_limite_por_minuto(self, client, auth_headers):
+    def test_bloqueia_apos_o_limite_por_minuto(self, client, auth_headers, app):
+        # Marca premium pra isolar só o rate limit por minuto (Flask-Limiter)
+        # — sem isso, a cota diária de IA (FREE_DAILY_LIMIT=5, ver
+        # AiQuotaService) bloquearia antes da 10ª chamada, confundindo o que
+        # este teste quer provar.
+        with app.app_context():
+            from app.models import User
+            from app.extensions import db
+            User.query.filter_by(email="teste@example.com").update({"is_premium": True})
+            db.session.commit()
+
         statuses = [
             client.post(
                 "/api/meals/analyze", json={"description": "arroz e feijão"}, headers=auth_headers

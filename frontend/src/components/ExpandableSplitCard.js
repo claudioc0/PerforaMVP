@@ -1,13 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 // ChooseSplitScreen e WeeklyPlanSetupScreen renderizavam o mesmo card
 // expansível (nome, descrição, chevron, mesma paleta) cada um com sua própria
 // cópia do componente — só o conteúdo de dentro (lista de dias pra iniciar
 // direto, ou o stepper de dias por semana) muda de fato entre as duas telas.
 export default function ExpandableSplitCard({ split, expanded, onToggle, contentStyle, children }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.splitCard}>
       <TouchableOpacity
@@ -29,7 +31,7 @@ export default function ExpandableSplitCard({ split, expanded, onToggle, content
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   splitCard: { backgroundColor: colors.surface, borderRadius: 12, marginBottom: 12, overflow: 'hidden' },
   splitHeader: { flexDirection: 'row', alignItems: 'center', padding: 16 },
   splitName: { color: colors.white, fontSize: 16, fontWeight: '600' },

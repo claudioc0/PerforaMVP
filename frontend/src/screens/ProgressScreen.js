@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,10 +6,12 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { getWorkoutProgress } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
   // Antes, falha de rede só mostrava um Alert genérico e a tela ficava presa
@@ -130,14 +132,14 @@ export default function ProgressScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   rootContainer: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, padding: 20 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
   errorTitle: { color: colors.white, fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
   errorSubtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 },
   retryButton: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
-  retryButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  retryButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' },
   header: { flexDirection: 'row', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, paddingBottom: 15, backgroundColor: colors.background },
   backButton: { position: 'absolute', left: 20, top: 60, zIndex: 10 },
   headerTitle: { flex: 1, textAlign: 'center', color: colors.white, fontSize: 22, fontWeight: 'bold' },

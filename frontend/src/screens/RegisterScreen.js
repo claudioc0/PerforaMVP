@@ -4,11 +4,11 @@ import { registerUser } from '../services/api'; // Importa a função da API
 import BackButton from '../components/BackButton';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 // Componente para exibir um requisito da senha
-const PasswordRequirement = ({ met, text }) => (
+const PasswordRequirement = ({ met, text, styles }) => (
   <Text style={[styles.requirementText, met ? styles.requirementMet : styles.requirementPending]}>
     {met ? '✓' : '○'} {text}
   </Text>
@@ -16,6 +16,8 @@ const PasswordRequirement = ({ met, text }) => (
 
 export default function RegisterScreen({ navigation }) {
   const showAlert = useAppAlert();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,7 +44,7 @@ export default function RegisterScreen({ navigation }) {
       showAlert(
         "Sucesso!",
         "Sua conta foi criada. Faça o login para continuar.",
-        [{ text: "OK", onPress: () => navigation.navigate(ROUTES.LOGIN) }]
+        [{ text: "OK", onPress: () => navigation.navigate(ROUTES.LOGIN, { justRegistered: true, prefillEmail: email }) }]
       );
     } catch (error) {
       // A API já retorna os detalhes, podemos usá-los aqui também
@@ -95,10 +97,10 @@ export default function RegisterScreen({ navigation }) {
 
       {/* Requisitos da Senha - Feedback em Tempo Real */}
       <View style={styles.requirementsContainer}>
-        <PasswordRequirement met={passwordValidation.hasMinLength} text="Pelo menos 8 caracteres" />
-        <PasswordRequirement met={passwordValidation.hasUpperCase} text="Uma letra maiúscula" />
-        <PasswordRequirement met={passwordValidation.hasLowerCase} text="Uma letra minúscula" />
-        <PasswordRequirement met={passwordValidation.hasNumber} text="Pelo menos um número" />
+        <PasswordRequirement met={passwordValidation.hasMinLength} text="Pelo menos 8 caracteres" styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasUpperCase} text="Uma letra maiúscula" styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasLowerCase} text="Uma letra minúscula" styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasNumber} text="Pelo menos um número" styles={styles} />
       </View>
 
       <TouchableOpacity 
@@ -106,14 +108,14 @@ export default function RegisterScreen({ navigation }) {
         onPress={handleRegister} 
         disabled={loading || !passwordValidation.allMet}
       >
-        {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.buttonText}>Cadastrar</Text>}
+        {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>Cadastrar</Text>}
       </TouchableOpacity>
     </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: {
     flexGrow: 1,
     justifyContent: 'center',
@@ -165,7 +167,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.textDark,
   },
   buttonText: {
-    color: colors.background,
+    color: colors.onPrimary,
     fontSize: 16,
     fontWeight: 'bold',
   },

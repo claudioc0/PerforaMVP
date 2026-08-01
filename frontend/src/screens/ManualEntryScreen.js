@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
@@ -6,10 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
-const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder }) => (
+const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder, styles, colors }) => (
   <View style={styles.fieldContainer}>
     <Text style={styles.fieldLabel}>{label}</Text>
     <View style={styles.inputContainer}>
@@ -29,6 +29,8 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
 export default function ManualEntryScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // route.params pode vir ausente (navegação sem os parâmetros esperados,
   // ex: um deep link ou uma rota antiga) — sem o `|| {}`, o destructuring
   // quebra na hora, derrubando a tela inteira (só o ErrorBoundary global
@@ -194,6 +196,10 @@ export default function ManualEntryScreen({ navigation, route }) {
     try {
       const payload = {
         ...favorite,
+        // Preserva a composição (items) na refeição logada quando o
+        // favorito é um prato composto — sem isso, "adicionar a hoje"
+        // colapsaria o combo de volta pra um único item achatado.
+        items: favorite.items && favorite.items.length > 0 ? favorite.items : undefined,
         source_type: 'favorite',
         date: targetDate,
       };
@@ -232,7 +238,10 @@ export default function ManualEntryScreen({ navigation, route }) {
   const renderFavoriteItem = ({ item }) => (
     <View style={styles.favCard}>
       <View style={styles.favInfo}>
-        <Text style={styles.favDesc}>{item.description}</Text>
+        <Text style={styles.favDesc}>
+          {item.description}
+          {item.items?.length > 0 && <Text style={styles.favComboTag}>  · {item.items.length} itens</Text>}
+        </Text>
         <MacroSummaryLine
           calories={item.calories}
           proteinG={item.protein_g}
@@ -291,6 +300,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 onChangeText={(text) => handleFieldChange('description', text)}
                 keyboardType="default"
                 placeholder="Ex: Arroz, feijão e bife"
+                styles={styles}
+                colors={colors}
               />
 
               {meal.description.trim().length >= 2 && (searching || searchResults.length > 0) && (
@@ -327,6 +338,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="kcal"
                 keyboardType="numeric"
                 placeholder="550"
+                styles={styles}
+                colors={colors}
               />
               <EditableField
                 label="Proteínas"
@@ -335,6 +348,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="g"
                 keyboardType="numeric"
                 placeholder="45"
+                styles={styles}
+                colors={colors}
               />
               <EditableField
                 label="Carboidratos"
@@ -343,6 +358,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="g"
                 keyboardType="numeric"
                 placeholder="50"
+                styles={styles}
+                colors={colors}
               />
               <EditableField
                 label="Gorduras"
@@ -351,6 +368,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="g"
                 keyboardType="numeric"
                 placeholder="18"
+                styles={styles}
+                colors={colors}
               />
             </View>
 
@@ -365,11 +384,20 @@ export default function ManualEntryScreen({ navigation, route }) {
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
-              {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
+              {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
+          <View style={styles.favoritesHeaderRow}>
+            <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate(ROUTES.COMPOSE_FAVORITE)}
+              accessibilityRole="button"
+              accessibilityLabel="Criar novo prato composto"
+            >
+              <Text style={styles.newComboLink}>+ Novo prato composto</Text>
+            </TouchableOpacity>
+          </View>
           {loadingFavorites && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
         </>
       }
@@ -386,12 +414,15 @@ export default function ManualEntryScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
   section: { marginBottom: 30 },
-  sectionTitle: { color: colors.white, fontSize: 20, fontWeight: '600', marginBottom: 15, borderTopColor: colors.border, borderTopWidth: 1, paddingTop: 20 },
+  sectionTitle: { color: colors.white, fontSize: 20, fontWeight: '600' },
+  favoritesHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderTopColor: colors.border, borderTopWidth: 1, paddingTop: 20 },
+  newComboLink: { color: colors.primary, fontSize: 13, fontWeight: '600' },
+  favComboTag: { color: colors.textSecondary, fontSize: 12, fontWeight: '400' },
   card: { backgroundColor: colors.surface, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 16, marginBottom: 20 },
   fieldContainer: { marginVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingBottom: 15 },
   fieldLabel: { color: colors.textSecondary, fontSize: 14, marginBottom: 5 },
@@ -409,7 +440,7 @@ const styles = StyleSheet.create({
   favoriteToggleText: { color: colors.textFaint, fontSize: 13, marginLeft: 10, flex: 1 },
   submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.onPrimary, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
   cancelText: { color: colors.textSecondary, fontSize: 16, paddingBottom: 40 },
   // Estilos dos Favoritos

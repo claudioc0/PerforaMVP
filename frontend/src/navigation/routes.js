@@ -22,6 +22,8 @@ export const ROUTES = {
   CHOOSE_SPLIT: 'ChooseSplit',
   WEEKLY_PLAN_SETUP: 'WeeklyPlanSetup',
   REMINDERS: 'Reminders',
+  COMPOSE_FAVORITE: 'ComposeFavorite',
+  PROGRESS_PHOTOS: 'ProgressPhotos',
 };
 
 export default ROUTES;

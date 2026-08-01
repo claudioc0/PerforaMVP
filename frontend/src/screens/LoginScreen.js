@@ -1,18 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { loginUser } from '../services/api';
 import { setToken } from '../services/secureTokenStorage';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
-export default function LoginScreen({ navigation }) {
+export default function LoginScreen({ navigation, route }) {
   const showAlert = useAppAlert();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // O Login normalmente já está montado na pilha (ex: acabou de deslogar) —
+  // navigate() de volta pra ele só atualiza route.params, sem remontar o
+  // componente. Um useState(initialValue) só rodaria uma vez e nunca pegaria
+  // esse prefill; useEffect reage à mudança do param mesmo sem remount.
+  useEffect(() => {
+    if (route.params?.prefillEmail) {
+      setEmail(route.params.prefillEmail);
+    }
+  }, [route.params?.prefillEmail]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -35,7 +47,14 @@ export default function LoginScreen({ navigation }) {
         AsyncStorage.setItem('user_data', JSON.stringify(data.user)) // Salva o objeto do usuário
       ]);
       
-      navigation.replace(ROUTES.DASHBOARD); // 'replace' impede que o usuário volte pro login com a seta do celular
+      // Primeiro login logo após o cadastro: manda pra calculadora de meta em
+      // vez do Dashboard direto, pra não deixar o usuário com metas em
+      // branco até ele achar a tela de Metas por conta própria.
+      if (route.params?.justRegistered) {
+        navigation.replace(ROUTES.GOALS, { openCalculator: true });
+      } else {
+        navigation.replace(ROUTES.DASHBOARD); // 'replace' impede que o usuário volte pro login com a seta do celular
+      }
     } catch (error) {
       showAlert('Erro no Login', error.message);
     } finally {
@@ -85,7 +104,7 @@ export default function LoginScreen({ navigation }) {
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color={colors.background} />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>Entrar</Text>
           )}
@@ -103,7 +122,7 @@ export default function LoginScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flexGrow: 1, backgroundColor: colors.background, justifyContent: 'center', padding: 25 },
   header: { marginBottom: 40, alignItems: 'center' },
   logoRow: { flexDirection: 'row', alignItems: 'center' },
@@ -114,7 +133,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface, color: colors.white, borderRadius: 10, padding: 15, fontSize: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border },
   button: { backgroundColor: colors.primary, borderRadius: 10, padding: 15, alignItems: 'center', marginTop: 10 },
   buttonDisabled: { opacity: 0.7 },
-  buttonText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
+  buttonText: { color: colors.onPrimary, fontSize: 18, fontWeight: 'bold' },
   linkButton: { marginTop: 25, alignItems: 'center' },
   linkText: { color: colors.textSecondary, fontSize: 14 },
   linkTextBold: { color: colors.primary, fontWeight: 'bold' }

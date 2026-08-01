@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,7 +7,9 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
-import { colors } from '../theme/colors';
+import { getSuggestedWeight } from '../utils/loadProgression';
+import { scheduleRestTimerNotification, cancelRestTimerNotification } from '../services/notifications';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 const REST_TARGET_KEY = '@perfora_rest_target_seconds';
@@ -36,6 +38,8 @@ const SetRow = React.memo(function SetRow({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  styles,
+  colors,
 }) {
   const [editWeight, setEditWeight] = useState(String(item.weight_kg));
   const [editReps, setEditReps] = useState(String(item.reps));
@@ -123,6 +127,8 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const { workoutId } = route.params;
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [workout, setWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -133,6 +139,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const [weight, setWeight] = useState('');
   const [reps, setReps] = useState('');
   const [lastPerformance, setLastPerformance] = useState(null);
+  const [suggestedWeight, setSuggestedWeight] = useState(null);
   const [suggestedExercises, setSuggestedExercises] = useState([]);
 
   const [restElapsed, setRestElapsed] = useState(0);
@@ -203,6 +210,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const stopRestTimer = () => {
     restStartRef.current = null;
     setRestRunning(false);
+    // Cobre finalizar o treino direto do background, sem passar pelo
+    // listener de volta-ao-foreground abaixo.
+    cancelRestTimerNotification();
   };
 
   useFocusEffect(
@@ -221,18 +231,50 @@ export default function WorkoutSessionScreen({ navigation, route }) {
     }, [restRunning])
   );
 
+  // O setInterval acima é suspenso pelo SO quando o app é minimizado — sem
+  // isso, o usuário nunca saberia que o descanso terminou fora do app. Ao
+  // voltar pro foreground, cancela a notificação (mesmo que já tenha
+  // disparado) porque o banner in-app já mostra "Meta atingida!" na tela.
+  useEffect(() => {
+    const handleAppStateChange = (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        if (restRunning && restStartRef.current) {
+          const remaining = restTarget - Math.floor((Date.now() - restStartRef.current) / 1000);
+          if (remaining > 0) {
+            scheduleRestTimerNotification(remaining);
+          }
+        }
+      } else if (nextState === 'active') {
+        cancelRestTimerNotification();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [restRunning, restTarget]);
+
   const selectExercise = useCallback(async (exercise) => {
     setPendingExercise(exercise);
     setWeight('');
     setReps('');
     setLastPerformance(null);
+    setSuggestedWeight(null);
 
     try {
       const history = await getExerciseHistory(exercise.id, 1);
       const lastSets = history[0]?.sets;
       if (lastSets && lastSets.length > 0) {
         const lastSet = lastSets[lastSets.length - 1];
-        setLastPerformance({ weight_kg: lastSet.weight_kg, reps: lastSet.reps, date: history[0].started_at });
+        const performance = { weight_kg: lastSet.weight_kg, reps: lastSet.reps, date: history[0].started_at };
+        setLastPerformance(performance);
+
+        // Pré-preenche com a sugestão pra economizar o toque de redigitar o
+        // mesmo peso na maioria das séries — o campo continua editável.
+        const suggestion = getSuggestedWeight(performance);
+        if (suggestion !== null) {
+          setSuggestedWeight(suggestion);
+          setWeight(String(suggestion));
+        }
       }
     } catch {
       // Referência de histórico é só um "nice to have" — não bloqueia o registro da série.
@@ -292,6 +334,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setWeight('');
       setReps('');
       setLastPerformance(null);
+      setSuggestedWeight(null);
       startRestTimer();
     } catch (error) {
       // error.message já vem específico ("Sem conexão...", "A conexão demorou
@@ -421,8 +464,10 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       onCancelEdit={cancelEditSet}
       onSaveEdit={saveEditSet}
       onDelete={() => confirmDeleteSet(item.id)}
+      styles={styles}
+      colors={colors}
     />
-  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet]);
+  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet, styles, colors]);
 
   if (loading || !workout) {
     return (
@@ -560,6 +605,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               {lastPerformance && (
                 <Text style={styles.lastPerformanceText}>
                   Última vez: {lastPerformance.weight_kg}kg × {lastPerformance.reps}
+                  {suggestedWeight !== null && suggestedWeight !== lastPerformance.weight_kg
+                    ? ` — hoje, tente ${suggestedWeight}kg.`
+                    : ''}
                 </Text>
               )}
               <View style={styles.pendingInputsRow}>
@@ -587,11 +635,11 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 </View>
               </View>
               <View style={styles.pendingActionsRow}>
-                <TouchableOpacity style={styles.cancelSetButton} onPress={() => { setPendingExercise(null); setLastPerformance(null); }}>
+                <TouchableOpacity style={styles.cancelSetButton} onPress={() => { setPendingExercise(null); setLastPerformance(null); setSuggestedWeight(null); }}>
                   <Text style={styles.cancelSetText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.saveSetButton} onPress={handleSaveSet} disabled={saving}>
-                  {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
+                  {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -605,7 +653,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
           )}
 
           <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout} disabled={finishing}>
-            {finishing ? <ActivityIndicator color={colors.background} /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
+            {finishing ? <ActivityIndicator color={colors.white} /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -614,7 +662,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
@@ -660,7 +708,7 @@ const styles = StyleSheet.create({
   cancelSetButton: { flex: 1, padding: 14, alignItems: 'center', marginRight: 10 },
   cancelSetText: { color: colors.textSecondary, fontSize: 15 },
   saveSetButton: { flex: 1, backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center' },
-  saveSetText: { color: colors.background, fontSize: 15, fontWeight: 'bold' },
+  saveSetText: { color: colors.onPrimary, fontSize: 15, fontWeight: 'bold' },
   finishButton: { backgroundColor: colors.border, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   finishText: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
 });

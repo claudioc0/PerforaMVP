@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,11 +6,13 @@ import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWeeklyPlan } from '../services/api';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 export default function WeeklyPlanSetupScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedSplitId, setExpandedSplitId] = useState(null);
@@ -162,7 +164,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                 onPress={() => handleUseSplit(item, slotAssignments)}
                 disabled={saving}
               >
-                {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
+                {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
               </TouchableOpacity>
             </ExpandableSplitCard>
           );
@@ -173,7 +175,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
@@ -190,5 +192,5 @@ const styles = StyleSheet.create({
   slotValueRow: { flexDirection: 'row', alignItems: 'center' },
   slotValue: { color: colors.white, fontSize: 14, fontWeight: '600', marginRight: 6 },
   useSplitButton: { backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center', marginTop: 14 },
-  useSplitText: { color: colors.background, fontSize: 15, fontWeight: 'bold' },
+  useSplitText: { color: colors.onPrimary, fontSize: 15, fontWeight: 'bold' },
 });

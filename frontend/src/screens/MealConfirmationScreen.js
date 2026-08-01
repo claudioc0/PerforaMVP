@@ -7,12 +7,14 @@ import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 export default function MealConfirmationScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da
   // tela anterior. `|| {}` evita quebrar o destructuring se a tela for aberta
   // sem params (deep link, rota antiga) — o `!draftMeal` logo abaixo já cobre
@@ -186,7 +188,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color={colors.background} />
+          <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <Text style={styles.submitText}>Confirmar Refeição</Text>
         )}
@@ -200,7 +202,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
@@ -223,7 +225,7 @@ const styles = StyleSheet.create({
   favoriteToggleText: { color: colors.textFaint, fontSize: 13, marginLeft: 10, flex: 1 },
   submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.onPrimary, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
   cancelText: { color: colors.textSecondary, fontSize: 16 },
   errorText: { color: 'red', textAlign: 'center', fontSize: 18 },

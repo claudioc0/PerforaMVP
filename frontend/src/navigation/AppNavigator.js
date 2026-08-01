@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { getToken } from "../services/secureTokenStorage";
@@ -24,12 +24,16 @@ import ProgressScreen from '../screens/ProgressScreen';
 import ChooseSplitScreen from '../screens/ChooseSplitScreen';
 import WeeklyPlanSetupScreen from '../screens/WeeklyPlanSetupScreen';
 import RemindersScreen from '../screens/RemindersScreen';
-import { colors } from '../theme/colors';
+import ComposeFavoriteScreen from '../screens/ComposeFavoriteScreen';
+import ProgressPhotosScreen from '../screens/ProgressPhotosScreen';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from './routes';
 
 const Stack = createNativeStackNavigator();
 
 function MainStack() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [initialRoute, setInitialRoute] = useState(null);
 
   useEffect(() => {
@@ -70,6 +74,8 @@ function MainStack() {
       <Stack.Screen name={ROUTES.CHOOSE_SPLIT} component={ChooseSplitScreen} />
       <Stack.Screen name={ROUTES.WEEKLY_PLAN_SETUP} component={WeeklyPlanSetupScreen} />
       <Stack.Screen name={ROUTES.REMINDERS} component={RemindersScreen} />
+      <Stack.Screen name={ROUTES.COMPOSE_FAVORITE} component={ComposeFavoriteScreen} />
+      <Stack.Screen name={ROUTES.PROGRESS_PHOTOS} component={ProgressPhotosScreen} />
     </Stack.Navigator>
   );
 }
@@ -87,7 +93,7 @@ export default function AppNavigator() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,

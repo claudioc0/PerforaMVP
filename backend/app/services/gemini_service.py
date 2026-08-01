@@ -53,6 +53,18 @@ class MealAnalysisResult:
     items: List[MealItemResult]
     confidence: Optional[float] = None
 
+@dataclass
+class LabelAnalysisResult:
+    """Um único produto lido de uma foto de rótulo/tabela nutricional — shape
+    achatado (sem lista de itens), igual ao que fetchProductByBarcode já
+    devolve pra um produto do OpenFoodFacts, já que a leitura de rótulo serve
+    exatamente pro mesmo caminho (produtos fora do OpenFoodFacts)."""
+    description: str
+    calories: float
+    protein_g: float
+    carbs_g: float
+    fat_g: float
+
 # Prompt blindado com One-Shot Learning para garantir saída determinística
 _SYSTEM_PROMPT = """
 Você é um nutricionista esportivo especialista em visão computacional, baseando-se estritamente na Tabela TACO (Tabela Brasileira de Composição de Alimentos) e USDA.
@@ -129,6 +141,42 @@ REGRAS DE CONTORNO:
 - "items" deve ter SEMPRE pelo menos 1 elemento, mesmo que a refeição seja um alimento só.
 - Se a imagem ou texto NÃO for uma comida reconhecível, retorne "items" com um único elemento de
   valores zerados e "description" como "Não identificado".
+"""
+
+# Prompt separado do de análise de refeição: aqui a tarefa é LER números já
+# impressos numa embalagem, não estimar macros de um prato — instruções e
+# formato de saída (objeto único, não lista de itens) são propositalmente
+# diferentes do _SYSTEM_PROMPT acima.
+_LABEL_SYSTEM_PROMPT = """
+Você é um leitor de tabelas nutricionais. Vai receber uma FOTO de um rótulo/embalagem de produto
+industrializado, contendo a Tabela de Informação Nutricional impressa.
+
+SUA TAREFA É LER OS NÚMEROS JÁ IMPRESSOS NA TABELA, NÃO ESTIMAR. São dados exatos que já estão
+escritos na embalagem — não faça suposições nem arredondamentos próprios além dos que já estão
+impressos.
+
+PRIORIDADE DE COLUNA (quando a tabela tiver mais de uma coluna de valores):
+1. Prefira a coluna "por porção" (ex: "por 30g", "por unidade", "porção de 200ml") se existir.
+2. Se só houver "por 100g" ou "por 100ml", use essa.
+3. Nunca some ou converta unidades — use exatamente os números da coluna escolhida.
+
+NOME DO PRODUTO:
+- Se o nome do produto estiver legível na embalagem (fora da própria tabela), use-o.
+- Se não for possível ler o nome com confiança, responda "description" como "Produto (rótulo)".
+
+REGRA ABSOLUTA DE SAÍDA:
+Responda EXCLUSIVAMENTE com um objeto JSON válido, sem markdown, sem ```json, sem saudações,
+contendo EXATAMENTE esta estrutura (um objeto único, NÃO uma lista):
+{
+    "description": "Nome do produto ou 'Produto (rótulo)'",
+    "calories": numero_float,
+    "protein_g": numero_float,
+    "carbs_g": numero_float,
+    "fat_g": numero_float
+}
+
+Se a imagem não mostrar uma tabela nutricional legível, responda com todos os valores numéricos
+zerados e "description" como "Rótulo não identificado".
 """
 
 class GeminiService:
@@ -228,6 +276,17 @@ class GeminiService:
         )
         return self._parse_response(response.text)
 
+    def analyze_label(self, image: Image.Image) -> LabelAnalysisResult:
+        response = self._generate_content(
+            contents=[image, "Leia esta tabela nutricional e retorne o JSON conforme instruído."],
+            config=types.GenerateContentConfig(
+                system_instruction=_LABEL_SYSTEM_PROMPT,
+                response_mime_type="application/json"
+            ),
+            log_context=" (rótulo)",
+        )
+        return self._parse_label_response(response.text)
+
     def generate_daily_insight(self, goals: dict, consumed: dict) -> str:
         """Gera uma frase de feedback baseada no consumo atual vs metas."""
 
@@ -322,4 +381,22 @@ class GeminiService:
             return MealAnalysisResult(items=items, confidence=confidence)
         except (json.JSONDecodeError, TypeError, ValueError, AttributeError) as exc:
             logger.error("Resposta da IA fora do formato esperado: %s", raw_text)
+            raise GeminiAnalysisError("Erro ao formatar os dados retornados pela IA.") from exc
+
+    @classmethod
+    def _parse_label_response(cls, raw_text: str) -> LabelAnalysisResult:
+        try:
+            data = json.loads(raw_text)
+            if not isinstance(data, dict):
+                raise ValueError("Resposta da IA não é um objeto JSON.")
+
+            return LabelAnalysisResult(
+                description=str(data.get("description", "Produto (rótulo)")),
+                calories=round(float(data.get("calories", 0)), 1),
+                protein_g=round(float(data.get("protein_g", 0)), 1),
+                carbs_g=round(float(data.get("carbs_g", 0)), 1),
+                fat_g=round(float(data.get("fat_g", 0)), 1),
+            )
+        except (json.JSONDecodeError, TypeError, ValueError, AttributeError) as exc:
+            logger.error("Resposta da IA (rótulo) fora do formato esperado: %s", raw_text)
             raise GeminiAnalysisError("Erro ao formatar os dados retornados pela IA.") from exc

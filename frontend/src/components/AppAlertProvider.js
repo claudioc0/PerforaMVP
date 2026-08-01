@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 const AppAlertContext = createContext(null);
 
@@ -15,6 +15,8 @@ const AppAlertContext = createContext(null);
  * (ex: escolher entre vários dias/treinos).
  */
 export function AppAlertProvider({ children }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const [content, setContent] = useState(null);
 
@@ -104,7 +106,7 @@ export function useAppAlert() {
   return context;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', padding: 24 },
   card: { backgroundColor: colors.surface, borderRadius: 16, padding: 22, width: '100%', maxWidth: 340, borderWidth: 1, borderColor: colors.border },
   title: { color: colors.white, fontSize: 17, fontWeight: 'bold', marginBottom: 8 },
@@ -116,7 +118,7 @@ const styles = StyleSheet.create({
   cancelButton: { backgroundColor: 'transparent', marginRight: 8 },
   cancelButtonText: { color: colors.textSecondary, fontWeight: '600' },
   confirmButton: { backgroundColor: colors.primary },
-  confirmButtonText: { color: colors.background },
+  confirmButtonText: { color: colors.onPrimary },
   destructiveButton: { backgroundColor: colors.dangerAlt },
   destructiveButtonText: { color: colors.white },
 
