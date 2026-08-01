@@ -1,0 +1,20 @@
+{
+  "subtitle": "Crie sua conta para começar",
+  "namePlaceholder": "Nome Completo",
+  "emailPlaceholder": "E-mail",
+  "passwordPlaceholder": "Senha",
+  "requirements": {
+    "minLength": "Pelo menos 8 caracteres",
+    "upperCase": "Uma letra maiúscula",
+    "lowerCase": "Uma letra minúscula",
+    "number": "Pelo menos um número"
+  },
+  "registerButton": "Cadastrar",
+  "alerts": {
+    "weakPasswordTitle": "Senha Fraca",
+    "weakPasswordMessage": "Por favor, certifique-se de que sua senha atende a todos os requisitos.",
+    "successTitle": "Sucesso!",
+    "successMessage": "Sua conta foi criada. Faça o login para continuar.",
+    "registerErrorTitle": "Erro no Cadastro"
+  }
+}

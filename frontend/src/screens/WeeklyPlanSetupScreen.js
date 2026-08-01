@@ -2,16 +2,25 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWeeklyPlan } from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
+
+import pt from '../i18n/locales/pt/weeklyPlanSetup.json';
+import en from '../i18n/locales/en/weeklyPlanSetup.json';
+import es from '../i18n/locales/es/weeklyPlanSetup.json';
+
+registerNamespace('weeklyPlanSetup', { pt, en, es });
 
 export default function WeeklyPlanSetupScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['weeklyPlanSetup', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,13 +38,13 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
         const data = await listSplits();
         setSplits(data);
       } catch {
-        showAlert('Erro', 'Não foi possível carregar as divisões de treino.');
+        showAlert(t('alerts.loadErrorTitle'), t('alerts.loadErrorMessage'));
       } finally {
         setLoading(false);
       }
     };
     fetchSplits();
-  }, [showAlert]);
+  }, [showAlert, t]);
 
   const toggleSplit = (split) => {
     if (expandedSplitId === split.id) {
@@ -70,8 +79,8 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
         });
       },
     }));
-    options.push({ text: 'Cancelar', style: 'cancel' });
-    showAlert(`Dia ${index + 1}`, 'Qual treino cai nesse dia?', options);
+    options.push({ text: t('common:actions.cancel'), style: 'cancel' });
+    showAlert(t('dayNumber', { number: index + 1 }), t('slotPickerQuestion'), options);
   };
 
   const handleUseSplit = useCallback(async (split, splitDayIds) => {
@@ -80,11 +89,11 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
       await createWeeklyPlan(split.id, splitDayIds);
       navigation.goBack();
     } catch {
-      showAlert('Erro', 'Não foi possível definir o plano semanal.');
+      showAlert(t('alerts.saveErrorTitle'), t('alerts.saveErrorMessage'));
     } finally {
       setSaving(false);
     }
-  }, [navigation, showAlert]);
+  }, [navigation, showAlert, t]);
 
   if (loading) {
     return (
@@ -98,12 +107,9 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
     <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Plano Semanal</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
-      <Text style={styles.sectionLabel}>
-        Escolha uma divisão. Por padrão, cada treino ocupa um dia a partir de Segunda e o resto vira
-        descanso — mas você pode ajustar quantos dias treina por semana e repetir os treinos que quiser.
-      </Text>
+      <Text style={styles.sectionLabel}>{t('sectionLabel')}</Text>
 
       <FlatList
         data={splits}
@@ -120,12 +126,12 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
               contentStyle={styles.daysContainer}
             >
               <View style={styles.stepperRow}>
-                <Text style={styles.stepperLabel}>Dias de treino por semana</Text>
+                <Text style={styles.stepperLabel}>{t('stepperLabel')}</Text>
                 <View style={styles.stepperControls}>
                   <TouchableOpacity
                     onPress={() => adjustTrainingDays(item, -1)}
                     accessibilityRole="button"
-                    accessibilityLabel="Diminuir dias de treino por semana"
+                    accessibilityLabel={t('decreaseDaysHint')}
                   >
                     <Ionicons name="remove-circle-outline" size={22} color={colors.textSecondary} />
                   </TouchableOpacity>
@@ -133,7 +139,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                   <TouchableOpacity
                     onPress={() => adjustTrainingDays(item, 1)}
                     accessibilityRole="button"
-                    accessibilityLabel="Aumentar dias de treino por semana"
+                    accessibilityLabel={t('increaseDaysHint')}
                   >
                     <Ionicons name="add-circle-outline" size={22} color={colors.textSecondary} />
                   </TouchableOpacity>
@@ -142,15 +148,15 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
 
               <Text style={styles.slotsHint}>
                 {isDefault
-                  ? 'Padrão: um treino de cada, na ordem da divisão.'
-                  : 'Toque num dia pra escolher qual treino repetir nele.'}
+                  ? t('slotsHintDefault')
+                  : t('slotsHintCustom')}
               </Text>
 
               {slotAssignments.map((splitDayId, index) => {
                 const day = item.days.find((d) => d.id === splitDayId);
                 return (
                   <TouchableOpacity key={index} style={styles.slotRow} onPress={() => openSlotPicker(item, index)}>
-                    <Text style={styles.slotLabel}>Dia {index + 1}</Text>
+                    <Text style={styles.slotLabel}>{t('dayNumber', { number: index + 1 })}</Text>
                     <View style={styles.slotValueRow}>
                       <Text style={styles.slotValue}>{day ? day.name : '—'}</Text>
                       <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
@@ -164,7 +170,7 @@ export default function WeeklyPlanSetupScreen({ navigation }) {
                 onPress={() => handleUseSplit(item, slotAssignments)}
                 disabled={saving}
               >
-                {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.useSplitText}>Usar esta divisão</Text>}
+                {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.useSplitText}>{t('useSplitButton')}</Text>}
               </TouchableOpacity>
             </ExpandableSplitCard>
           );

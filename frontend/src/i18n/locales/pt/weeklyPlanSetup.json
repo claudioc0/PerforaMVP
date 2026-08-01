@@ -1,0 +1,18 @@
+{
+  "headerTitle": "Plano Semanal",
+  "sectionLabel": "Escolha uma divisão. Por padrão, cada treino ocupa um dia a partir de Segunda e o resto vira descanso — mas você pode ajustar quantos dias treina por semana e repetir os treinos que quiser.",
+  "stepperLabel": "Dias de treino por semana",
+  "decreaseDaysHint": "Diminuir dias de treino por semana",
+  "increaseDaysHint": "Aumentar dias de treino por semana",
+  "slotsHintDefault": "Padrão: um treino de cada, na ordem da divisão.",
+  "slotsHintCustom": "Toque num dia pra escolher qual treino repetir nele.",
+  "dayNumber": "Dia {{number}}",
+  "slotPickerQuestion": "Qual treino cai nesse dia?",
+  "useSplitButton": "Usar esta divisão",
+  "alerts": {
+    "loadErrorTitle": "Erro",
+    "loadErrorMessage": "Não foi possível carregar as divisões de treino.",
+    "saveErrorTitle": "Erro",
+    "saveErrorMessage": "Não foi possível definir o plano semanal."
+  }
+}

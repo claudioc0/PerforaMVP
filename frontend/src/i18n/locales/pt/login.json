@@ -1,0 +1,15 @@
+{
+  "subtitle": "Acesse sua conta para continuar",
+  "emailLabel": "E-mail",
+  "emailPlaceholder": "exemplo@email.com",
+  "passwordLabel": "Senha",
+  "passwordPlaceholder": "••••••••",
+  "loginButton": "Entrar",
+  "noAccount": "Não tem uma conta?",
+  "signUp": "Cadastre-se",
+  "alerts": {
+    "missingFieldsTitle": "Erro",
+    "missingFieldsMessage": "Preencha email e senha.",
+    "loginErrorTitle": "Erro no Login"
+  }
+}

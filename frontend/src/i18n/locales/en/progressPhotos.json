@@ -1,0 +1,21 @@
+{
+  "headerTitle": "Progress Photos",
+  "captureButton": "Take Today's Photo",
+  "emptyText": "No progress photos yet. Take your first one above.",
+  "compareHint": "Tap up to 2 photos to compare",
+  "selectedCount": "{{count}}/2 selected",
+  "photoAccessibilityLabel": "Progress photo from {{date}}",
+  "comparisonTitle": "Comparison",
+  "alerts": {
+    "loadErrorTitle": "Error",
+    "loadErrorMessage": "Unable to load your progress photos.",
+    "permissionRequiredTitle": "Permission Required",
+    "permissionRequiredMessage": "We need camera permission to record your progress photo!",
+    "successTitle": "Success",
+    "successMessage": "Progress photo saved!",
+    "alreadyTakenTitle": "Attention",
+    "alreadyTakenMessage": "You've already taken a progress photo today.",
+    "saveErrorTitle": "Error",
+    "saveErrorFallback": "Unable to save the photo."
+  }
+}

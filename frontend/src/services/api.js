@@ -438,8 +438,8 @@ export async function addWater(amount, date) {
  * @param {object} consumed - O total consumido pelo usuário.
  * @returns {Promise<{insight: string}>} A resposta com a frase de insight.
  */
-export async function getDailyInsight(goals, consumed) {
-  return request("/meals/daily-insight", { method: "POST", body: { goals, consumed } });
+export async function getDailyInsight(goals, consumed, language) {
+  return request("/meals/daily-insight", { method: "POST", body: { goals, consumed, language } });
 }
 
 /**

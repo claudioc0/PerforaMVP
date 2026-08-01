@@ -1,0 +1,18 @@
+{
+  "headerTitle": "Plan Semanal",
+  "sectionLabel": "Elige una división. De forma predeterminada, cada entrenamiento ocupa un día a partir del lunes y el resto se convierte en descanso — pero puedes ajustar cuántos días entrenas por semana y repetir los entrenamientos que quieras.",
+  "stepperLabel": "Días de entrenamiento por semana",
+  "decreaseDaysHint": "Disminuir días de entrenamiento por semana",
+  "increaseDaysHint": "Aumentar días de entrenamiento por semana",
+  "slotsHintDefault": "Predeterminado: un entrenamiento de cada uno, en el orden de la división.",
+  "slotsHintCustom": "Toca un día para elegir qué entrenamiento repetir en él.",
+  "dayNumber": "Día {{number}}",
+  "slotPickerQuestion": "¿Qué entrenamiento cae este día?",
+  "useSplitButton": "Usar esta división",
+  "alerts": {
+    "loadErrorTitle": "Error",
+    "loadErrorMessage": "No se pudieron cargar las divisiones de entrenamiento.",
+    "saveErrorTitle": "Error",
+    "saveErrorMessage": "No se pudo definir el plan semanal."
+  }
+}

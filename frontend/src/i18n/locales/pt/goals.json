@@ -1,0 +1,56 @@
+{
+  "headerTitleOnboarding": "Vamos definir sua meta",
+  "headerTitle": "Definir Metas",
+  "onboardingSubtitle": "Preencha seus dados na calculadora pra começar com uma meta calculada pra você, ou defina manualmente abaixo.",
+  "smartButton": "Usar Calculadora Automática",
+  "manualSectionTitle": "Metas Manuais",
+  "fields": {
+    "calories": "Calorias (kcal)",
+    "protein": "Proteínas (g)",
+    "carbs": "Carboidratos (g)",
+    "fat": "Gorduras (g)"
+  },
+  "saveButton": "Salvar Metas",
+  "errorLoad": {
+    "title": "Não foi possível carregar suas metas",
+    "subtitle": "Verifique sua conexão e tente novamente."
+  },
+  "alerts": {
+    "saveSuccessTitle": "Sucesso!",
+    "saveSuccessMessage": "Suas metas foram atualizadas.",
+    "saveErrorTitle": "Erro ao Salvar",
+    "saveErrorMessage": "Não foi possível atualizar as metas.",
+    "calcMissingFieldsTitle": "Atenção",
+    "calcMissingFieldsMessage": "Por favor, preencha peso, altura e idade.",
+    "calcSuccessTitle": "Sucesso!",
+    "calcSuccessMessage": "Suas metas foram calculadas e aplicadas.",
+    "calcErrorTitle": "Erro no Cálculo",
+    "calcErrorMessage": "Não foi possível calcular as metas."
+  },
+  "calculator": {
+    "modalTitle": "Calculadora Inteligente",
+    "weight": "Peso (kg)",
+    "height": "Altura (cm)",
+    "age": "Idade",
+    "gender": "Gênero",
+    "genderOptions": {
+      "male": "Masculino",
+      "female": "Feminino"
+    },
+    "activityLevel": "Nível de Atividade",
+    "activityOptions": {
+      "sedentary": "Sedentário",
+      "light": "Leve",
+      "moderate": "Moderado",
+      "active": "Ativo",
+      "extreme": "Extremo"
+    },
+    "goal": "Objetivo",
+    "goalOptions": {
+      "lose": "Perder Peso",
+      "maintain": "Manter",
+      "gain": "Ganhar Massa"
+    },
+    "calculateButton": "Calcular e Aplicar"
+  }
+}

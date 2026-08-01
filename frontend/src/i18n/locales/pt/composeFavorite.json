@@ -1,0 +1,28 @@
+{
+  "headerTitle": "Novo Prato Composto",
+  "comboNameLabel": "Nome do combo",
+  "comboNamePlaceholder": "Ex: Marmita de terça",
+  "addFromCatalogLabel": "Adicionar item do catálogo",
+  "searchFoodPlaceholder": "Buscar alimento...",
+  "caloriesPer100g": "{{calories}} kcal /100g",
+  "removeItemHint": "Remover \"{{description}}\" do combo",
+  "quantityUnit": "gramas",
+  "emptyComboText": "Busque itens do catálogo acima pra montar o combo.",
+  "comboTotalTitle": "Total do Combo",
+  "kcalLabel": "Kcal",
+  "proteinLabel": "Proteína",
+  "carbsLabel": "Carbo",
+  "fatLabel": "Gordura",
+  "saveComboButton": "Salvar Combo",
+  "cancelButton": "Cancelar",
+  "alerts": {
+    "attentionTitle": "Atenção",
+    "missingNameMessage": "Dê um nome pro combo (ex: \"Marmita de terça\").",
+    "noItemsMessage": "Adicione pelo menos um item ao combo.",
+    "invalidQuantityMessage": "Informe uma quantidade válida (em gramas) para \"{{description}}\".",
+    "successTitle": "Sucesso",
+    "successMessage": "Combo salvo nos seus favoritos!",
+    "errorTitle": "Erro",
+    "saveErrorFallback": "Não foi possível salvar o combo."
+  }
+}

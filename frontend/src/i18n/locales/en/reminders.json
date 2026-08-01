@@ -1,0 +1,24 @@
+{
+  "title": "Reminders",
+  "subtitle": "Local notifications at your usual time — no internet needed to fire.",
+  "permissionDeniedTitle": "Permission denied",
+  "permissionDeniedMessage": "Enable notifications for Perfora in your device settings to receive reminders.",
+  "editTimeHint": "Tap the time to change it",
+  "types": {
+    "meal": {
+      "label": "Log a meal",
+      "title": "Time to log your meal",
+      "body": "Don't forget to log what you ate today in Perfora."
+    },
+    "water": {
+      "label": "Drink water",
+      "title": "Time to hydrate",
+      "body": "How about a glass of water now?"
+    },
+    "workout": {
+      "label": "Work out",
+      "title": "Time to train",
+      "body": "Today's workout is waiting for you."
+    }
+  }
+}

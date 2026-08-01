@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../theme/ThemeContext';
 
 const AppAlertContext = createContext(null);
@@ -16,15 +17,16 @@ const AppAlertContext = createContext(null);
  */
 export function AppAlertProvider({ children }) {
   const { colors } = useTheme();
+  const { t } = useTranslation('common');
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [visible, setVisible] = useState(false);
   const [content, setContent] = useState(null);
 
   const showAlert = useCallback((title, message, buttons) => {
-    const normalized = buttons && buttons.length > 0 ? buttons : [{ text: 'OK', style: 'default' }];
+    const normalized = buttons && buttons.length > 0 ? buttons : [{ text: t('actions.ok'), style: 'default' }];
     setContent({ title, message, buttons: normalized });
     setVisible(true);
-  }, []);
+  }, [t]);
 
   const close = () => setVisible(false);
 

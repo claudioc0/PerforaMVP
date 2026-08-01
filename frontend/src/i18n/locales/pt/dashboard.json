@@ -1,0 +1,87 @@
+{
+  "greeting": "Olá, {{name}}",
+  "openMenu": "Abrir menu",
+  "previousDay": "Dia anterior",
+  "nextDay": "Próximo dia",
+  "today": "Hoje",
+  "yesterday": "Ontem",
+  "subtitle": "Seu desempenho hoje",
+  "streak": {
+    "days_one": "{{count}} dia seguido",
+    "days_other": "{{count}} dias seguidos"
+  },
+  "insight": {
+    "title": "Insight do Treinador",
+    "loading": "Analisando seu desempenho...",
+    "fallback": "Mantenha o foco na alta performance! Seu treinador virtual está analisando sua evolução."
+  },
+  "adjustedGoal": {
+    "training": "🏋️ Meta ajustada: dia de treino (+carbo)",
+    "rest": "😴 Meta ajustada: dia de descanso (-carbo)"
+  },
+  "calorieHero": {
+    "label": "CALORIAS",
+    "exceeded": "Ultrapassou {{amount}}kcal",
+    "remaining": "Faltam {{amount}}kcal hoje"
+  },
+  "macros": {
+    "protein": "Proteínas",
+    "carbs": "Carboidratos",
+    "fat": "Gorduras",
+    "exceeded": "+{{amount}}{{unit}}",
+    "remaining": "Faltam {{amount}}{{unit}}"
+  },
+  "activitySection": {
+    "title": "Atividade de {{date}}",
+    "connect": "Conectar Health Connect",
+    "steps": "Passos",
+    "activeCalories": "Cal. ativas",
+    "avgHeartRate": "FC média"
+  },
+  "hydration": {
+    "label": "HIDRATAÇÃO"
+  },
+  "repeatSection": {
+    "title": "Repetir de ontem",
+    "repeatAccessibilityLabel": "Repetir \"{{description}}\" de ontem"
+  },
+  "mealsListTitle": "Refeições de {{date}}",
+  "emptyMeals": "Nenhuma refeição registrada. Puxe para atualizar.",
+  "mealItem": {
+    "confidenceBadge": "{{percent}}% IA",
+    "favoriteAccessibilityLabel": "Salvar como favorito"
+  },
+  "fab": {
+    "manualEntry": "Adicionar refeição manualmente",
+    "camera": "Adicionar refeição com foto"
+  },
+  "errors": {
+    "loadFailed": "Não foi possível carregar os dados. Verifique sua conexão.",
+    "waterFailed": "Não foi possível registrar a água. Tente novamente.",
+    "deleteMealFailed": "Não foi possível apagar a refeição.",
+    "favoriteFailed": "Não foi possível salvar como favorito.",
+    "repeatMealFailed": "Não foi possível repetir a refeição."
+  },
+  "alerts": {
+    "errorTitle": "Erro",
+    "yes": "Sim",
+    "no": "Não",
+    "deleteMeal": {
+      "title": "Excluir Refeição",
+      "message": "Tem certeza que deseja apagar este registro?"
+    },
+    "deleteMealError": {
+      "title": "Erro ao Excluir"
+    },
+    "favorite": {
+      "title": "Salvar como Favorito",
+      "message": "Deseja salvar \"{{description}}\" nos seus pratos favoritos?",
+      "successTitle": "Sucesso",
+      "successMessage": "Refeição salva nos seus favoritos!"
+    },
+    "repeatMeal": {
+      "title": "Repetir Refeição",
+      "message": "Adicionar \"{{description}}\" de ontem ao dia de hoje?"
+    }
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "headerNamePlaceholder": "Nombre del entrenamiento",
+  "workoutFallbackName": "Entrenamiento",
+  "finishWorkout": "Finalizar Entrenamiento",
+  "restTargetLabel": "Meta de descanso",
+  "emptySets": "Aún no hay series registradas.",
+  "suggestedLabel": "Sugeridos para hoy",
+  "a11y": {
+    "cancelEditName": "Cancelar edición del nombre del entrenamiento",
+    "saveEditName": "Guardar nombre del entrenamiento",
+    "editName": "Editar nombre del entrenamiento",
+    "deleteWorkout": "Eliminar entrenamiento",
+    "decreaseRestTarget": "Disminuir meta de descanso",
+    "increaseRestTarget": "Aumentar meta de descanso",
+    "cancelEditSet": "Cancelar edición de la serie",
+    "saveEditSet": "Guardar serie",
+    "deleteSet": "Eliminar serie"
+  },
+  "restBanner": {
+    "progress": "Descanso: {{elapsed}} / {{target}}",
+    "achieved": "Descanso: {{elapsed}} — ¡Meta alcanzada!"
+  },
+  "setRow": {
+    "setNumber": "Serie {{number}}",
+    "setValues": "{{weight}}kg × {{reps}}",
+    "editWeightPlaceholder": "kg",
+    "editWeightUnit": "kg ×",
+    "editRepsPlaceholder": "reps",
+    "editRepsUnit": "reps"
+  },
+  "pendingCard": {
+    "lastPerformance": "Última vez: {{weight}}kg × {{reps}}",
+    "lastPerformanceWithSuggestion": "Última vez: {{weight}}kg × {{reps}} — hoy, intenta {{suggested}}kg.",
+    "weightLabel": "Peso (kg)",
+    "repsLabel": "Reps",
+    "placeholderZero": "0",
+    "save": "Guardar Serie"
+  },
+  "addButton": {
+    "other": "Otro Ejercicio",
+    "default": "Agregar Serie"
+  },
+  "alerts": {
+    "errorTitle": "Error",
+    "attentionTitle": "Atención",
+    "fillWeightReps": "Completa peso y repeticiones.",
+    "finishConfirmMessage": "¿Estás seguro de que deseas finalizar este entrenamiento?",
+    "finishConfirmButton": "Finalizar",
+    "deleteWorkoutTitle": "Eliminar Entrenamiento",
+    "deleteWorkoutMessage": "Esta acción no se puede deshacer. ¿Deseas eliminar este entrenamiento y todas sus series?",
+    "deleteSetTitle": "Eliminar Serie",
+    "deleteSetMessage": "¿Deseas eliminar esta serie?"
+  },
+  "errors": {
+    "loadWorkout": "No se pudo cargar el entrenamiento.",
+    "saveSet": "No se pudo registrar la serie.",
+    "finishWorkout": "No se pudo finalizar el entrenamiento.",
+    "renameWorkout": "No se pudo renombrar el entrenamiento.",
+    "deleteWorkout": "No se pudo eliminar el entrenamiento.",
+    "updateSet": "No se pudo actualizar la serie.",
+    "deleteSet": "No se pudo eliminar la serie."
+  }
+}

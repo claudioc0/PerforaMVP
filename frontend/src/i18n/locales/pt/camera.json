@@ -1,0 +1,50 @@
+{
+  "headerTitle": "Nova Refeição",
+  "permissionText": "Precisamos da sua permissão para usar a câmera.",
+  "enableCameraButton": "Habilitar Câmera",
+  "photoCapturedBadge": "Foto capturada",
+  "barcodeHint": "Aponte para um código de barras, ou use os botões abaixo para fotografar",
+  "rescanButton": "Escanear Novamente",
+  "analyzeButton": "Analisar com IA ✨",
+  "retakeButton": "Tirar Outra Foto",
+  "orDivider": "OU",
+  "takeMealPhotoButton": "Tirar Foto do Prato (IA)",
+  "photographLabelButton": "Fotografar Rótulo Nutricional",
+  "cancelButton": "Cancelar e Voltar",
+  "analyzingMessages": [
+    "Identificando os alimentos...",
+    "Calculando as porções...",
+    "Consultando a tabela nutricional...",
+    "Quase lá..."
+  ],
+  "labelAnalyzingMessages": [
+    "Lendo o rótulo...",
+    "Extraindo os valores nutricionais...",
+    "Quase lá..."
+  ],
+  "alerts": {
+    "upsellTitle": "Em breve! 🚀",
+    "upsellMessage": "A assinatura Premium está a caminho.",
+    "cameraErrorTitle": "Erro na Câmera",
+    "cameraErrorMessage": "Não foi possível capturar a foto. Tente novamente.",
+    "attentionTitle": "Atenção",
+    "takePhotoPrompt": "Tire uma foto para analisar a refeição.",
+    "dailyQuotaTitle": "Limite Diário Atingido 🔒",
+    "dailyQuotaMessage": "Você atingiu o limite de análises gratuitas hoje. Assine o Premium para análises ilimitadas, ou adicione os dados manualmente.",
+    "subscribePremium": "Assinar Premium",
+    "manualEntry": "Entrada Manual",
+    "serversBusyTitle": "Servidores Ocupados ⚡",
+    "serversBusyMealMessage": "Nossa IA está processando muitos pratos agora. Aguarde um minuto ou adicione os dados manualmente.",
+    "serversBusyLabelMessage": "Nossa IA está processando muitos rótulos agora. Aguarde um minuto ou adicione os dados manualmente.",
+    "wait": "Aguardar",
+    "analysisErrorTitle": "Erro na Análise",
+    "analysisErrorFallback": "Falha ao analisar a refeição. Verifique o servidor.",
+    "labelReadErrorTitle": "Erro na Leitura",
+    "labelReadErrorFallback": "Não foi possível ler o rótulo. Tente novamente ou cadastre manualmente.",
+    "newProductTitle": "Produto inédito! 🕵️",
+    "newProductMessage": "Não encontramos este código de barras no banco mundial. Deseja cadastrá-lo manualmente?",
+    "registerManualButton": "Cadastrar Manual",
+    "connectionErrorTitle": "Erro de Conexão",
+    "connectionErrorFallback": "Ocorreu um erro ao buscar o produto na internet."
+  }
+}

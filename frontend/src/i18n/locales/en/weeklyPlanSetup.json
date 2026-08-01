@@ -1,0 +1,18 @@
+{
+  "headerTitle": "Weekly Plan",
+  "sectionLabel": "Choose a split. By default, each workout takes up one day starting Monday and the rest becomes rest days — but you can adjust how many days you train per week and repeat any workout you like.",
+  "stepperLabel": "Training days per week",
+  "decreaseDaysHint": "Decrease training days per week",
+  "increaseDaysHint": "Increase training days per week",
+  "slotsHintDefault": "Default: one workout each, in the split's order.",
+  "slotsHintCustom": "Tap a day to choose which workout to repeat on it.",
+  "dayNumber": "Day {{number}}",
+  "slotPickerQuestion": "Which workout falls on this day?",
+  "useSplitButton": "Use this split",
+  "alerts": {
+    "loadErrorTitle": "Error",
+    "loadErrorMessage": "Unable to load workout splits.",
+    "saveErrorTitle": "Error",
+    "saveErrorMessage": "Unable to set the weekly plan."
+  }
+}

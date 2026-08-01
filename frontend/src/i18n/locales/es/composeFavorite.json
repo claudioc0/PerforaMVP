@@ -1,0 +1,28 @@
+{
+  "headerTitle": "Nuevo Plato Compuesto",
+  "comboNameLabel": "Nombre del combo",
+  "comboNamePlaceholder": "Ej: Vianda del martes",
+  "addFromCatalogLabel": "Agregar item del catálogo",
+  "searchFoodPlaceholder": "Buscar alimento...",
+  "caloriesPer100g": "{{calories}} kcal /100g",
+  "removeItemHint": "Quitar \"{{description}}\" del combo",
+  "quantityUnit": "gramos",
+  "emptyComboText": "Busca items del catálogo arriba para armar el combo.",
+  "comboTotalTitle": "Total del Combo",
+  "kcalLabel": "Kcal",
+  "proteinLabel": "Proteína",
+  "carbsLabel": "Carbo",
+  "fatLabel": "Grasa",
+  "saveComboButton": "Guardar Combo",
+  "cancelButton": "Cancelar",
+  "alerts": {
+    "attentionTitle": "Atención",
+    "missingNameMessage": "Ponle un nombre al combo (ej: \"Vianda del martes\").",
+    "noItemsMessage": "Agrega al menos un item al combo.",
+    "invalidQuantityMessage": "Ingresa una cantidad válida (en gramos) para \"{{description}}\".",
+    "successTitle": "Éxito",
+    "successMessage": "¡Combo guardado en tus favoritos!",
+    "errorTitle": "Error",
+    "saveErrorFallback": "No fue posible guardar el combo."
+  }
+}

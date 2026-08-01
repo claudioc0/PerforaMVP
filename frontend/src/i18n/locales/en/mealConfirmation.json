@@ -1,0 +1,24 @@
+{
+  "headerTitle": "Confirm Meal",
+  "errorMissingData": "Error: Meal data not found.",
+  "descriptionSectionLabel": "Identified items",
+  "estimateHint": "Quantities estimated by AI — adjust each item if needed",
+  "unitGrams": "grams",
+  "totalCardTitle": "Meal Total",
+  "macros": {
+    "calories": "Kcal",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat"
+  },
+  "favoriteToggle": "Save this food as a favorite, to add it faster later",
+  "confirmButton": "Confirm Meal",
+  "alerts": {
+    "invalidQuantityTitle": "Attention",
+    "invalidQuantityMessage": "Enter a valid quantity (in grams) for \"{{description}}\" before confirming.",
+    "successTitle": "Success",
+    "successMessage": "Meal logged!",
+    "saveErrorTitle": "Save Error",
+    "saveErrorFallback": "Unable to log the meal."
+  }
+}

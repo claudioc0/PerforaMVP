@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, Activit
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import {
@@ -15,7 +16,14 @@ import {
 } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/workoutHistory.json';
+import en from '../i18n/locales/en/workoutHistory.json';
+import es from '../i18n/locales/es/workoutHistory.json';
+
+registerNamespace('workoutHistory', { pt, en, es });
 
 // JS: 0=Domingo...6=Sábado. Plano: 0=Segunda...6=Domingo.
 function todayPlanIndex() {
@@ -26,6 +34,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['workoutHistory', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -99,7 +108,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
       const workout = await createWorkout({ split_day_id: day.split_day_id, name: day.split_day_name });
       navigation.navigate(ROUTES.WORKOUT_SESSION, { workoutId: workout.id });
     } catch {
-      showAlert('Erro', 'Não foi possível iniciar o treino.');
+      showAlert(t('genericErrorTitle'), t('errors.startWorkout'));
     } finally {
       setStartingDay(false);
     }
@@ -114,11 +123,11 @@ export default function WorkoutHistoryScreen({ navigation }) {
       }));
 
     if (day.split_day_id !== null) {
-      options.push({ text: 'Descanso', onPress: () => saveReassign(day.day_of_week, null) });
+      options.push({ text: t('weeklySection.rest'), onPress: () => saveReassign(day.day_of_week, null) });
     }
-    options.push({ text: 'Cancelar', style: 'cancel' });
+    options.push({ text: t('common:actions.cancel'), style: 'cancel' });
 
-    showAlert('Trocar dia', `O que ${day.day_label.toLowerCase()} deve ser?`, options);
+    showAlert(t('reassignDay.title'), t('reassignDay.message', { day: day.day_label.toLowerCase() }), options);
   };
 
   const saveReassign = async (dayOfWeek, splitDayId) => {
@@ -138,21 +147,21 @@ export default function WorkoutHistoryScreen({ navigation }) {
         }
       }
     } catch {
-      showAlert('Erro', 'Não foi possível atualizar esse dia.');
+      showAlert(t('genericErrorTitle'), t('errors.updateDay'));
     }
   };
 
   const handlePlanOptions = () => {
-    showAlert('Plano Semanal', undefined, [
-      { text: 'Trocar divisão', onPress: () => navigation.navigate(ROUTES.WEEKLY_PLAN_SETUP) },
+    showAlert(t('planOptions.title'), undefined, [
+      { text: t('planOptions.changeSplit'), onPress: () => navigation.navigate(ROUTES.WEEKLY_PLAN_SETUP) },
       {
-        text: 'Excluir plano',
+        text: t('planOptions.deletePlan'),
         style: 'destructive',
         onPress: () => {
-          showAlert('Excluir Plano Semanal', 'Tem certeza? Seus treinos já registrados não são afetados.', [
-            { text: 'Cancelar', style: 'cancel' },
+          showAlert(t('deletePlanConfirm.title'), t('deletePlanConfirm.message'), [
+            { text: t('common:actions.cancel'), style: 'cancel' },
             {
-              text: 'Excluir',
+              text: t('common:actions.delete'),
               style: 'destructive',
               onPress: async () => {
                 try {
@@ -160,14 +169,14 @@ export default function WorkoutHistoryScreen({ navigation }) {
                   setWeeklyPlan({ has_plan: false });
                   setExpandedDay(null);
                 } catch {
-                  showAlert('Erro', 'Não foi possível excluir o plano semanal.');
+                  showAlert(t('genericErrorTitle'), t('errors.deletePlan'));
                 }
               },
             },
           ]);
         },
       },
-      { text: 'Cancelar', style: 'cancel' },
+      { text: t('common:actions.cancel'), style: 'cancel' },
     ]);
   };
 
@@ -183,12 +192,12 @@ export default function WorkoutHistoryScreen({ navigation }) {
     if (!weeklyPlan || !weeklyPlan.has_plan) {
       return (
         <View style={styles.weeklySection}>
-          <Text style={styles.weeklyTitle}>Sua Semana</Text>
+          <Text style={styles.weeklyTitle}>{t('weeklySection.title')}</Text>
           <TouchableOpacity style={styles.definePlanCard} onPress={() => navigation.navigate(ROUTES.WEEKLY_PLAN_SETUP)}>
             <Ionicons name="calendar-outline" size={22} color={colors.primary} style={{ marginRight: 12 }} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.definePlanTitle}>Defina seu plano semanal</Text>
-              <Text style={styles.definePlanSubtitle}>Escolha uma divisão e organize seus treinos de Segunda a Domingo</Text>
+              <Text style={styles.definePlanTitle}>{t('weeklySection.definePlanTitle')}</Text>
+              <Text style={styles.definePlanSubtitle}>{t('weeklySection.definePlanSubtitle')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -202,13 +211,13 @@ export default function WorkoutHistoryScreen({ navigation }) {
     return (
       <View style={styles.weeklySection}>
         <View style={styles.weeklyHeaderRow}>
-          <Text style={styles.weeklyTitle}>Sua Semana</Text>
+          <Text style={styles.weeklyTitle}>{t('weeklySection.title')}</Text>
           <Text style={styles.weeklySplitName}>{weeklyPlan.split_name}</Text>
           <TouchableOpacity
             onPress={handlePlanOptions}
             style={{ padding: 4 }}
             accessibilityRole="button"
-            accessibilityLabel="Opções do plano semanal"
+            accessibilityLabel={t('weeklySection.optionsHint')}
           >
             <Ionicons name="ellipsis-horizontal" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -233,7 +242,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
                   {day.day_label.slice(0, 3)}
                 </Text>
                 <Text style={[styles.dayChipValue, isRest && styles.dayChipValueRest]} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                  {isRest ? 'Descanso' : day.split_day_name}
+                  {isRest ? t('weeklySection.rest') : day.split_day_name}
                 </Text>
               </TouchableOpacity>
             );
@@ -244,12 +253,12 @@ export default function WorkoutHistoryScreen({ navigation }) {
           <View style={styles.dayDetailCard}>
             <View style={styles.dayDetailHeader}>
               <Text style={styles.dayDetailTitle}>
-                {expanded.day_label}{expanded.day_of_week === todayIndex ? ' · Hoje' : ''}
+                {expanded.day_label}{expanded.day_of_week === todayIndex ? t('weeklySection.todaySuffix') : ''}
               </Text>
               <TouchableOpacity
                 onPress={() => handleReassignDay(expanded)}
                 accessibilityRole="button"
-                accessibilityLabel="Reatribuir dia da divisão"
+                accessibilityLabel={t('weeklySection.reassignHint')}
               >
                 <Ionicons name="pencil" size={16} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -265,7 +274,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
                   ))
                 )}
                 <TouchableOpacity style={styles.startDayButton} onPress={() => handleStartDay(expanded)} disabled={startingDay}>
-                  {startingDay ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.startDayText}>Iniciar Treino</Text>}
+                  {startingDay ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.startDayText}>{t('weeklySection.startWorkout')}</Text>}
                 </TouchableOpacity>
               </>
             ) : (
@@ -283,11 +292,11 @@ export default function WorkoutHistoryScreen({ navigation }) {
       onPress={() => navigation.navigate(ROUTES.WORKOUT_SESSION, { workoutId: item.id })}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.split_day_name || item.name || 'Treino'}</Text>
+        <Text style={styles.cardTitle}>{item.split_day_name || item.name || t('card.defaultName')}</Text>
         {item.is_finished ? (
-          <View style={styles.badgeDone}><Text style={styles.badgeDoneText}>Finalizado</Text></View>
+          <View style={styles.badgeDone}><Text style={styles.badgeDoneText}>{t('card.statusDone')}</Text></View>
         ) : (
-          <View style={styles.badgeActive}><Text style={styles.badgeActiveText}>Em andamento</Text></View>
+          <View style={styles.badgeActive}><Text style={styles.badgeActiveText}>{t('card.statusActive')}</Text></View>
         )}
       </View>
       <Text style={styles.cardDate}>{formatShortDate(item.started_at, { includeYear: true })}</Text>
@@ -298,7 +307,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
     <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Treinos</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
 
       {renderWeeklySection()}
@@ -308,10 +317,10 @@ export default function WorkoutHistoryScreen({ navigation }) {
       ) : workoutsError ? (
         <View style={styles.errorContainer}>
           <Ionicons name="cloud-offline-outline" size={36} color={colors.textSecondary} style={{ marginBottom: 10 }} />
-          <Text style={styles.errorTitle}>Não foi possível carregar seu histórico</Text>
-          <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
+          <Text style={styles.errorTitle}>{t('errors.loadHistoryTitle')}</Text>
+          <Text style={styles.errorSubtitle}>{t('errors.loadHistorySubtitle')}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchWorkouts}>
-            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+            <Text style={styles.retryButtonText}>{t('common:actions.tryAgain')}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -320,7 +329,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
           keyExtractor={(item) => item.id.toString()}
           renderItem={renderItem}
           contentContainerStyle={{ paddingBottom: 120 }}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nenhum treino registrado ainda. Toque no + para começar.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{t('emptyText')}</Text>}
         />
       )}
 
@@ -328,7 +337,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
         style={styles.fab}
         onPress={() => navigation.navigate(ROUTES.CHOOSE_SPLIT)}
         accessibilityRole="button"
-        accessibilityLabel="Novo treino"
+        accessibilityLabel={t('newWorkoutHint')}
       >
         <Ionicons name="add" size={32} color={colors.onPrimary} />
       </TouchableOpacity>

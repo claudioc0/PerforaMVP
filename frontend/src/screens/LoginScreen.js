@@ -1,16 +1,25 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import { loginUser } from '../services/api';
 import { setToken } from '../services/secureTokenStorage';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/login.json';
+import en from '../i18n/locales/en/login.json';
+import es from '../i18n/locales/es/login.json';
+
+registerNamespace('login', { pt, en, es });
 
 export default function LoginScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const { colors } = useTheme();
+  const { t } = useTranslation(['login', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,7 +37,7 @@ export default function LoginScreen({ navigation, route }) {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      showAlert('Erro', 'Preencha email e senha.');
+      showAlert(t('alerts.missingFieldsTitle'), t('alerts.missingFieldsMessage'));
       return;
     }
 
@@ -56,7 +65,7 @@ export default function LoginScreen({ navigation, route }) {
         navigation.replace(ROUTES.DASHBOARD); // 'replace' impede que o usuário volte pro login com a seta do celular
       }
     } catch (error) {
-      showAlert('Erro no Login', error.message);
+      showAlert(t('alerts.loginErrorTitle'), error.message);
     } finally {
       setLoading(false);
     }
@@ -73,14 +82,14 @@ export default function LoginScreen({ navigation, route }) {
           <LogoMark size={44} />
           <Text style={styles.title}>PERFORA</Text>
         </View>
-        <Text style={styles.subtitle}>Acesse sua conta para continuar</Text>
+        <Text style={styles.subtitle}>{t('subtitle')}</Text>
       </View>
 
       <View style={styles.form}>
-        <Text style={styles.label}>E-mail</Text>
+        <Text style={styles.label}>{t('emailLabel')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="exemplo@email.com"
+          placeholder={t('emailPlaceholder')}
           placeholderTextColor={colors.textMuted}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -88,33 +97,33 @@ export default function LoginScreen({ navigation, route }) {
           onChangeText={setEmail}
         />
 
-        <Text style={styles.label}>Senha</Text>
+        <Text style={styles.label}>{t('passwordLabel')}</Text>
         <TextInput
           style={styles.input}
-          placeholder="••••••••"
+          placeholder={t('passwordPlaceholder')}
           placeholderTextColor={colors.textMuted}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.buttonDisabled]} 
+        <TouchableOpacity
+          style={[styles.button, loading && styles.buttonDisabled]}
           onPress={handleLogin}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
-            <Text style={styles.buttonText}>Entrar</Text>
+            <Text style={styles.buttonText}>{t('loginButton')}</Text>
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.linkButton} 
+        <TouchableOpacity
+          style={styles.linkButton}
           onPress={() => navigation.navigate(ROUTES.REGISTER)}
         >
-          <Text style={styles.linkText}>Não tem uma conta? <Text style={styles.linkTextBold}>Cadastre-se</Text></Text>
+          <Text style={styles.linkText}>{t('noAccount')} <Text style={styles.linkTextBold}>{t('signUp')}</Text></Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

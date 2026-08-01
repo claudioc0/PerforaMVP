@@ -1,0 +1,41 @@
+{
+  "headerTitle": "Entrenamientos",
+  "genericErrorTitle": "Error",
+  "errors": {
+    "startWorkout": "No se pudo iniciar el entrenamiento.",
+    "updateDay": "No se pudo actualizar ese día.",
+    "deletePlan": "No se pudo eliminar el plan semanal.",
+    "loadHistoryTitle": "No se pudo cargar tu historial",
+    "loadHistorySubtitle": "Verifica tu conexión e intenta de nuevo."
+  },
+  "reassignDay": {
+    "title": "Cambiar día",
+    "message": "¿Qué debería ser {{day}}?"
+  },
+  "planOptions": {
+    "title": "Plan Semanal",
+    "changeSplit": "Cambiar rutina",
+    "deletePlan": "Eliminar plan"
+  },
+  "deletePlanConfirm": {
+    "title": "Eliminar Plan Semanal",
+    "message": "¿Estás seguro? Tus entrenamientos ya registrados no se ven afectados."
+  },
+  "weeklySection": {
+    "title": "Tu Semana",
+    "definePlanTitle": "Define tu plan semanal",
+    "definePlanSubtitle": "Elige una rutina y organiza tus entrenamientos de lunes a domingo",
+    "optionsHint": "Opciones del plan semanal",
+    "rest": "Descanso",
+    "todaySuffix": " · Hoy",
+    "reassignHint": "Reasignar día de la rutina",
+    "startWorkout": "Iniciar Entrenamiento"
+  },
+  "card": {
+    "defaultName": "Entrenamiento",
+    "statusDone": "Finalizado",
+    "statusActive": "En curso"
+  },
+  "emptyText": "Aún no hay entrenamientos registrados. Toca el + para empezar.",
+  "newWorkoutHint": "Nuevo entrenamiento"
+}

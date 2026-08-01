@@ -1,0 +1,21 @@
+{
+  "headerTitle": "Ajustar Quantidade",
+  "errorMissingData": "Erro: dados da refeição não encontrados.",
+  "unitGrams": "gramas",
+  "newQuantityCardTitle": "Nova Quantidade",
+  "totalCardTitle": "Total da Refeição",
+  "newEstimateCardTitle": "Nova Estimativa Nutricional",
+  "macros": {
+    "calories": "Kcal",
+    "protein": "Proteína",
+    "carbs": "Carbo",
+    "fat": "Gordura"
+  },
+  "saveChangesButton": "Salvar Alterações",
+  "alerts": {
+    "successTitle": "Sucesso",
+    "successMessage": "Refeição atualizada!",
+    "saveErrorTitle": "Erro ao Salvar",
+    "saveErrorFallback": "Não foi possível atualizar a refeição."
+  }
+}

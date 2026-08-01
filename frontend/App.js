@@ -11,6 +11,7 @@ import { navigationRef } from "./src/navigation/RootNavigation";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import { colors } from "./src/theme/colors";
 import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
+import { LanguageProvider } from "./src/i18n/LanguageContext";
 
 // Importa o navegador centralizado
 import AppNavigator from "./src/navigation/AppNavigator";
@@ -66,7 +67,9 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <AppContent />
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
     </ThemeProvider>
   );
 }

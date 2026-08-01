@@ -1,0 +1,12 @@
+{
+  "title": "Start Workout",
+  "freestyleTitle": "Freestyle",
+  "freestyleSubtitle": "No routine — pick your exercises on the spot",
+  "sectionLabel": "Or choose a split",
+  "alerts": {
+    "loadErrorTitle": "Error",
+    "loadErrorMessage": "Couldn't load the workout splits.",
+    "startErrorTitle": "Error",
+    "startErrorMessage": "Couldn't start the workout."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "subtitle": "Sign in to your account to continue",
+  "emailLabel": "Email",
+  "emailPlaceholder": "email@example.com",
+  "passwordLabel": "Password",
+  "passwordPlaceholder": "••••••••",
+  "loginButton": "Sign In",
+  "noAccount": "Don't have an account?",
+  "signUp": "Sign up",
+  "alerts": {
+    "missingFieldsTitle": "Error",
+    "missingFieldsMessage": "Enter your email and password.",
+    "loginErrorTitle": "Login Error"
+  }
+}

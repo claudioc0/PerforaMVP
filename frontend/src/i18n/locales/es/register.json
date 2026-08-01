@@ -1,0 +1,20 @@
+{
+  "subtitle": "Crea tu cuenta para empezar",
+  "namePlaceholder": "Nombre Completo",
+  "emailPlaceholder": "Correo electrónico",
+  "passwordPlaceholder": "Contraseña",
+  "requirements": {
+    "minLength": "Al menos 8 caracteres",
+    "upperCase": "Una letra mayúscula",
+    "lowerCase": "Una letra minúscula",
+    "number": "Al menos un número"
+  },
+  "registerButton": "Registrarse",
+  "alerts": {
+    "weakPasswordTitle": "Contraseña Débil",
+    "weakPasswordMessage": "Asegúrate de que tu contraseña cumpla con todos los requisitos.",
+    "successTitle": "¡Éxito!",
+    "successMessage": "Tu cuenta fue creada. Inicia sesión para continuar.",
+    "registerErrorTitle": "Error de Registro"
+  }
+}

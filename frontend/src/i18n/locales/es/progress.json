@@ -1,0 +1,16 @@
+{
+  "headerTitle": "Progreso",
+  "errorTitle": "No se pudo cargar tu progreso",
+  "errorSubtitle": "Verifica tu conexión e intenta de nuevo.",
+  "emptyText": "Aún no hay entrenamientos completados. Completa un entrenamiento para empezar a seguir tu evolución.",
+  "trend": {
+    "up": "Tonelaje en aumento respecto al entrenamiento anterior",
+    "down": "Tonelaje en descenso respecto al entrenamiento anterior",
+    "stable": "Tonelaje estable respecto al entrenamiento anterior"
+  },
+  "stats": {
+    "tonnage": "Tonelaje",
+    "reps": "Reps",
+    "avgRest": "Descanso promedio"
+  }
+}

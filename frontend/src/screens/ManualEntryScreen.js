@@ -1,13 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/manualEntry.json';
+import en from '../i18n/locales/en/manualEntry.json';
+import es from '../i18n/locales/es/manualEntry.json';
+
+registerNamespace('manualEntry', { pt, en, es });
 
 const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder, styles, colors }) => (
   <View style={styles.fieldContainer}>
@@ -30,6 +38,7 @@ export default function ManualEntryScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['manualEntry', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   // route.params pode vir ausente (navegação sem os parâmetros esperados,
   // ex: um deep link ou uma rota antiga) — sem o `|| {}`, o destructuring
@@ -95,13 +104,13 @@ export default function ManualEntryScreen({ navigation, route }) {
         const favs = await getFavorites();
         setFavorites(favs);
       } catch {
-        showAlert("Erro", "Não foi possível carregar seus pratos favoritos.");
+        showAlert(t('alerts.loadFavoritesErrorTitle'), t('alerts.loadFavoritesErrorMessage'));
       } finally {
         setLoadingFavorites(false);
       }
     };
     fetchFavorites();
-  }, [showAlert]);
+  }, [showAlert, t]);
 
   const handleFieldChange = (field, text) => {
     setMeal(prev => ({ ...prev, [field]: text }));
@@ -126,7 +135,7 @@ export default function ManualEntryScreen({ navigation, route }) {
 
   const handleEstimate = async () => {
     if (!meal.description.trim()) {
-      showAlert('Atenção', 'Descreva o alimento antes de estimar automaticamente.');
+      showAlert(t('alerts.missingDescriptionTitle'), t('alerts.missingDescriptionMessage'));
       return;
     }
 
@@ -139,9 +148,9 @@ export default function ManualEntryScreen({ navigation, route }) {
       // vez de adivinhar pelo texto da mensagem de erro.
       const errorMsg = error.message || '';
       if (error.status === 429) {
-        showAlert('Servidores Ocupados ⚡', 'Nossa IA está processando muitos pratos agora. Tente de novo em instantes ou preencha os valores manualmente abaixo.');
+        showAlert(t('alerts.busyServersTitle'), t('alerts.busyServersMessage'));
       } else {
-        showAlert('Erro na Estimativa', errorMsg || 'Não foi possível estimar os valores. Preencha manualmente abaixo.');
+        showAlert(t('alerts.estimateErrorTitle'), errorMsg || t('alerts.estimateErrorMessage'));
       }
     } finally {
       setEstimating(false);
@@ -150,7 +159,7 @@ export default function ManualEntryScreen({ navigation, route }) {
 
   const handleSaveMeal = async () => {
     if (!meal.description || !meal.calories || !meal.protein_g || !meal.carbs_g || !meal.fat_g) {
-      showAlert('Atenção', 'Por favor, preencha todos os campos.');
+      showAlert(t('alerts.missingFieldsTitle'), t('alerts.missingFieldsMessage'));
       return;
     }
 
@@ -182,11 +191,11 @@ export default function ManualEntryScreen({ navigation, route }) {
         }
       }
 
-      showAlert('Sucesso', 'Refeição registrada manualmente!');
+      showAlert(t('alerts.saveSuccessTitle'), t('alerts.saveSuccessMessage'));
       navigation.goBack();
 
     } catch (error) {
-      showAlert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
+      showAlert(t('alerts.saveErrorTitle'), error.message || t('alerts.saveErrorMessage'));
     } finally {
       setLoading(false);
     }
@@ -204,30 +213,30 @@ export default function ManualEntryScreen({ navigation, route }) {
         date: targetDate,
       };
       await saveMeal(payload);
-      showAlert('Sucesso!', `"${favorite.description}" foi adicionado ao seu dia.`);
+      showAlert(t('alerts.addFavoriteSuccessTitle'), t('alerts.addFavoriteSuccessMessage', { description: favorite.description }));
       navigation.goBack();
     } catch (error) {
-      showAlert('Erro', error.message || 'Não foi possível adicionar o prato favorito.');
+      showAlert(t('alerts.addFavoriteErrorTitle'), error.message || t('alerts.addFavoriteErrorMessage'));
     }
   };
 
   const handleRemoveFavorite = async (favId) => {
     showAlert(
-      "Excluir Favorito",
-      "Tem certeza que deseja remover este prato da sua lista de favoritos?",
+      t('alerts.removeFavoriteConfirmTitle'),
+      t('alerts.removeFavoriteConfirmMessage'),
       [
-        { text: "Não", style: "cancel" },
+        { text: t('alerts.removeFavoriteConfirmNo'), style: "cancel" },
         {
-          text: "Sim",
+          text: t('alerts.removeFavoriteConfirmYes'),
           style: "destructive",
           onPress: async () => {
             try {
               await removeFavorite(favId);
               // Atualização otimista da UI
               setFavorites(currentFavorites => currentFavorites.filter(f => f.id !== favId));
-              showAlert("Removido", "O prato foi removido dos seus favoritos.");
+              showAlert(t('alerts.removeFavoriteSuccessTitle'), t('alerts.removeFavoriteSuccessMessage'));
             } catch (error) {
-              showAlert("Erro", error.message || "Não foi possível remover o favorito.");
+              showAlert(t('alerts.removeFavoriteErrorTitle'), error.message || t('alerts.removeFavoriteErrorMessage'));
             }
           },
         },
@@ -240,7 +249,7 @@ export default function ManualEntryScreen({ navigation, route }) {
       <View style={styles.favInfo}>
         <Text style={styles.favDesc}>
           {item.description}
-          {item.items?.length > 0 && <Text style={styles.favComboTag}>  · {item.items.length} itens</Text>}
+          {item.items?.length > 0 && <Text style={styles.favComboTag}>  {t('comboItemsTag', { count: item.items.length })}</Text>}
         </Text>
         <MacroSummaryLine
           calories={item.calories}
@@ -255,7 +264,7 @@ export default function ManualEntryScreen({ navigation, route }) {
           style={styles.favButton}
           onPress={() => handleAddFavoriteToToday(item)}
           accessibilityRole="button"
-          accessibilityLabel={`Adicionar "${item.description}" aos registros de hoje`}
+          accessibilityLabel={t('addFavoriteA11y', { description: item.description })}
         >
           <Ionicons name="add-circle" size={26} color={colors.primary} />
         </TouchableOpacity>
@@ -263,7 +272,7 @@ export default function ManualEntryScreen({ navigation, route }) {
           style={styles.favButton}
           onPress={() => handleRemoveFavorite(item.id)}
           accessibilityRole="button"
-          accessibilityLabel={`Remover "${item.description}" dos favoritos`}
+          accessibilityLabel={t('removeFavoriteA11y', { description: item.description })}
         >
           <Ionicons name="trash" size={22} color={colors.danger} />
         </TouchableOpacity>
@@ -289,17 +298,17 @@ export default function ManualEntryScreen({ navigation, route }) {
         <>
           <View style={styles.headerRow}>
             <BackButton />
-            <Text style={styles.headerTitle}>Registro Manual</Text>
+            <Text style={styles.headerTitle}>{t('title')}</Text>
           </View>
 
           <View style={styles.section}>
             <View style={styles.card}>
               <EditableField
-                label="Descrição do Alimento"
+                label={t('descriptionLabel')}
                 value={meal.description}
                 onChangeText={(text) => handleFieldChange('description', text)}
                 keyboardType="default"
-                placeholder="Ex: Arroz, feijão e bife"
+                placeholder={t('descriptionPlaceholder')}
                 styles={styles}
                 colors={colors}
               />
@@ -325,14 +334,14 @@ export default function ManualEntryScreen({ navigation, route }) {
                 ) : (
                   <>
                     <Ionicons name="sparkles" size={18} color={colors.primary} style={{ marginRight: 8 }} />
-                    <Text style={styles.estimateText}>Estimar valores com IA</Text>
+                    <Text style={styles.estimateText}>{t('estimateButton')}</Text>
                   </>
                 )}
               </TouchableOpacity>
-              <Text style={styles.estimateHint}>Ou preencha os valores manualmente abaixo</Text>
+              <Text style={styles.estimateHint}>{t('estimateHint')}</Text>
 
               <EditableField
-                label="Calorias"
+                label={t('caloriesLabel')}
                 value={meal.calories}
                 onChangeText={(text) => handleFieldChange('calories', text)}
                 unit="kcal"
@@ -342,7 +351,7 @@ export default function ManualEntryScreen({ navigation, route }) {
                 colors={colors}
               />
               <EditableField
-                label="Proteínas"
+                label={t('proteinLabel')}
                 value={meal.protein_g}
                 onChangeText={(text) => handleFieldChange('protein_g', text)}
                 unit="g"
@@ -352,7 +361,7 @@ export default function ManualEntryScreen({ navigation, route }) {
                 colors={colors}
               />
               <EditableField
-                label="Carboidratos"
+                label={t('carbsLabel')}
                 value={meal.carbs_g}
                 onChangeText={(text) => handleFieldChange('carbs_g', text)}
                 unit="g"
@@ -362,7 +371,7 @@ export default function ManualEntryScreen({ navigation, route }) {
                 colors={colors}
               />
               <EditableField
-                label="Gorduras"
+                label={t('fatLabel')}
                 value={meal.fat_g}
                 onChangeText={(text) => handleFieldChange('fat_g', text)}
                 unit="g"
@@ -380,33 +389,33 @@ export default function ManualEntryScreen({ navigation, route }) {
               accessibilityState={{ checked: saveAsFavorite }}
             >
               <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? colors.primary : colors.textSecondary} />
-              <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
+              <Text style={styles.favoriteToggleText}>{t('saveAsFavorite')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
-              {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
+              {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>{t('saveButton')}</Text>}
             </TouchableOpacity>
           </View>
 
           <View style={styles.favoritesHeaderRow}>
-            <Text style={styles.sectionTitle}>Seus Pratos Favoritos</Text>
+            <Text style={styles.sectionTitle}>{t('favoritesTitle')}</Text>
             <TouchableOpacity
               onPress={() => navigation.navigate(ROUTES.COMPOSE_FAVORITE)}
               accessibilityRole="button"
-              accessibilityLabel="Criar novo prato composto"
+              accessibilityLabel={t('newComboA11y')}
             >
-              <Text style={styles.newComboLink}>+ Novo prato composto</Text>
+              <Text style={styles.newComboLink}>{t('newComboLink')}</Text>
             </TouchableOpacity>
           </View>
           {loadingFavorites && <ActivityIndicator color={colors.primary} style={{ marginTop: 20 }} />}
         </>
       }
       ListEmptyComponent={
-        loadingFavorites ? null : <Text style={styles.emptyText}>Você ainda não tem pratos favoritos.</Text>
+        loadingFavorites ? null : <Text style={styles.emptyText}>{t('emptyFavorites')}</Text>
       }
       ListFooterComponent={
         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelText}>Cancelar</Text>
+          <Text style={styles.cancelText}>{t('common:actions.cancel')}</Text>
         </TouchableOpacity>
       }
     />
