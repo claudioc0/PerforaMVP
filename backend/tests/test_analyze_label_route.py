@@ -61,6 +61,9 @@ class TestAnalyzeLabelRoute:
             "protein_g": 20.0,
             "carbs_g": 15.0,
             "fat_g": 6.0,
+            # ai_quota: exposto pra o app mostrar "N análises grátis restantes
+            # hoje" — ver AiQuotaService/achado de freemium.
+            "ai_quota": {"remaining": 4, "is_premium": False},
         }
 
     def test_rate_limit_devolve_429(self, client, monkeypatch):

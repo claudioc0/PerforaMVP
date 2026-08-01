@@ -13,6 +13,16 @@ class User(db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Assinatura premium remove o limite diário de análises de IA (ver
+    # AiQuotaService). Ativação é manual por enquanto (sem processador de
+    # pagamento integrado ainda) — ver plano/achado de freemium.
+    is_premium = db.Column(db.Boolean, nullable=False, default=False)
+    # Contador do dia corrente (UTC) de chamadas gratuitas de IA consumidas;
+    # daily_ai_calls_date guarda a que dia esse contador se refere, pra
+    # AiQuotaService saber quando resetar em vez de acumular pra sempre.
+    daily_ai_calls_count = db.Column(db.Integer, nullable=False, default=0)
+    daily_ai_calls_date = db.Column(db.Date, nullable=True)
+
     # O relacionamento 1:N (Um usuário tem várias refeições)
     meals = db.relationship('Meal', backref='user', lazy=True, cascade="all, delete-orphan")
     # Relação um-para-um com as metas do usuário.
