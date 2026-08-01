@@ -1,0 +1,87 @@
+{
+  "greeting": "Hi, {{name}}",
+  "openMenu": "Open menu",
+  "previousDay": "Previous day",
+  "nextDay": "Next day",
+  "today": "Today",
+  "yesterday": "Yesterday",
+  "subtitle": "Your performance today",
+  "streak": {
+    "days_one": "{{count}} day streak",
+    "days_other": "{{count}} day streak"
+  },
+  "insight": {
+    "title": "Coach's Insight",
+    "loading": "Analyzing your performance...",
+    "fallback": "Stay focused on peak performance! Your virtual coach is analyzing your progress."
+  },
+  "adjustedGoal": {
+    "training": "🏋️ Adjusted goal: training day (+carbs)",
+    "rest": "😴 Adjusted goal: rest day (-carbs)"
+  },
+  "calorieHero": {
+    "label": "CALORIES",
+    "exceeded": "{{amount}}kcal over",
+    "remaining": "{{amount}}kcal left today"
+  },
+  "macros": {
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat",
+    "exceeded": "+{{amount}}{{unit}}",
+    "remaining": "{{amount}}{{unit}} left"
+  },
+  "activitySection": {
+    "title": "{{date}} activity",
+    "connect": "Connect Health Connect",
+    "steps": "Steps",
+    "activeCalories": "Active cal.",
+    "avgHeartRate": "Avg. HR"
+  },
+  "hydration": {
+    "label": "HYDRATION"
+  },
+  "repeatSection": {
+    "title": "Repeat from yesterday",
+    "repeatAccessibilityLabel": "Repeat \"{{description}}\" from yesterday"
+  },
+  "mealsListTitle": "{{date}} meals",
+  "emptyMeals": "No meals logged yet. Pull to refresh.",
+  "mealItem": {
+    "confidenceBadge": "{{percent}}% AI",
+    "favoriteAccessibilityLabel": "Save as favorite"
+  },
+  "fab": {
+    "manualEntry": "Add meal manually",
+    "camera": "Add meal with photo"
+  },
+  "errors": {
+    "loadFailed": "Couldn't load your data. Check your connection.",
+    "waterFailed": "Couldn't log your water intake. Try again.",
+    "deleteMealFailed": "Couldn't delete the meal.",
+    "favoriteFailed": "Couldn't save as favorite.",
+    "repeatMealFailed": "Couldn't repeat the meal."
+  },
+  "alerts": {
+    "errorTitle": "Error",
+    "yes": "Yes",
+    "no": "No",
+    "deleteMeal": {
+      "title": "Delete Meal",
+      "message": "Are you sure you want to delete this entry?"
+    },
+    "deleteMealError": {
+      "title": "Delete Failed"
+    },
+    "favorite": {
+      "title": "Save as Favorite",
+      "message": "Save \"{{description}}\" to your favorite meals?",
+      "successTitle": "Success",
+      "successMessage": "Meal saved to your favorites!"
+    },
+    "repeatMeal": {
+      "title": "Repeat Meal",
+      "message": "Add \"{{description}}\" from yesterday to today?"
+    }
+  }
+}

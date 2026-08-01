@@ -1,0 +1,24 @@
+{
+  "title": "Recordatorios",
+  "subtitle": "Notificaciones locales en tu horario habitual — no necesita internet para dispararse.",
+  "permissionDeniedTitle": "Permiso denegado",
+  "permissionDeniedMessage": "Activa las notificaciones de Perfora en la configuración del dispositivo para recibir recordatorios.",
+  "editTimeHint": "Toca el horario para cambiarlo",
+  "types": {
+    "meal": {
+      "label": "Registrar comida",
+      "title": "Hora de registrar tu comida",
+      "body": "No olvides registrar lo que comiste hoy en Perfora."
+    },
+    "water": {
+      "label": "Beber agua",
+      "title": "Hora de hidratarte",
+      "body": "¿Qué tal un vaso de agua ahora?"
+    },
+    "workout": {
+      "label": "Entrenar",
+      "title": "Hora de entrenar",
+      "body": "Tu entrenamiento de hoy te está esperando."
+    }
+  }
+}

@@ -2,6 +2,7 @@
   "expo": {
     "name": "Perfora",
     "slug": "perfora",
+    "owner": "claudioc0z",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
@@ -33,7 +34,14 @@
             "minSdkVersion": 26
           }
         }
-      ]
-    ]
+      ],
+      "expo-localization",
+      "@react-native-community/datetimepicker"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "18e05339-d16e-4a66-a4b0-621fa95d9ba3"
+      }
+    }
   }
 }

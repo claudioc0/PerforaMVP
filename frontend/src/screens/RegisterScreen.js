@@ -1,11 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { registerUser } from '../services/api'; // Importa a função da API
 import BackButton from '../components/BackButton';
 import LogoMark from '../components/LogoMark';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
+import { registerNamespace } from '../i18n';
+
+import pt from '../i18n/locales/pt/register.json';
+import en from '../i18n/locales/en/register.json';
+import es from '../i18n/locales/es/register.json';
+
+registerNamespace('register', { pt, en, es });
 
 // Componente para exibir um requisito da senha
 const PasswordRequirement = ({ met, text, styles }) => (
@@ -17,6 +25,7 @@ const PasswordRequirement = ({ met, text, styles }) => (
 export default function RegisterScreen({ navigation }) {
   const showAlert = useAppAlert();
   const { colors } = useTheme();
+  const { t } = useTranslation(['register', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -35,21 +44,21 @@ export default function RegisterScreen({ navigation }) {
 
   const handleRegister = async () => {
     if (!passwordValidation.allMet) {
-      showAlert("Senha Fraca", "Por favor, certifique-se de que sua senha atende a todos os requisitos.");
+      showAlert(t('alerts.weakPasswordTitle'), t('alerts.weakPasswordMessage'));
       return;
     }
     setLoading(true);
     try {
       await registerUser(name, email, password);
       showAlert(
-        "Sucesso!",
-        "Sua conta foi criada. Faça o login para continuar.",
-        [{ text: "OK", onPress: () => navigation.navigate(ROUTES.LOGIN, { justRegistered: true, prefillEmail: email }) }]
+        t('alerts.successTitle'),
+        t('alerts.successMessage'),
+        [{ text: t('common:actions.ok'), onPress: () => navigation.navigate(ROUTES.LOGIN, { justRegistered: true, prefillEmail: email }) }]
       );
     } catch (error) {
       // A API já retorna os detalhes, podemos usá-los aqui também
       const errorMessage = error.details ? `${error.message}\n- ${error.details.join('\n- ')}` : error.message;
-      showAlert("Erro no Cadastro", errorMessage);
+      showAlert(t('alerts.registerErrorTitle'), errorMessage);
     } finally {
       setLoading(false);
     }
@@ -67,19 +76,19 @@ export default function RegisterScreen({ navigation }) {
           <LogoMark size={36} />
           <Text style={styles.title}>PERFORA</Text>
         </View>
-        <Text style={styles.subtitle}>Crie sua conta para começar</Text>
+        <Text style={styles.subtitle}>{t('subtitle')}</Text>
       </View>
 
       <TextInput
         style={styles.input}
-        placeholder="Nome Completo"
+        placeholder={t('namePlaceholder')}
         placeholderTextColor={colors.textSecondary}
         value={name}
         onChangeText={setName}
       />
       <TextInput
         style={styles.input}
-        placeholder="E-mail"
+        placeholder={t('emailPlaceholder')}
         placeholderTextColor={colors.textSecondary}
         value={email}
         onChangeText={setEmail}
@@ -88,7 +97,7 @@ export default function RegisterScreen({ navigation }) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Senha"
+        placeholder={t('passwordPlaceholder')}
         placeholderTextColor={colors.textSecondary}
         value={password}
         onChangeText={setPassword}
@@ -97,18 +106,18 @@ export default function RegisterScreen({ navigation }) {
 
       {/* Requisitos da Senha - Feedback em Tempo Real */}
       <View style={styles.requirementsContainer}>
-        <PasswordRequirement met={passwordValidation.hasMinLength} text="Pelo menos 8 caracteres" styles={styles} />
-        <PasswordRequirement met={passwordValidation.hasUpperCase} text="Uma letra maiúscula" styles={styles} />
-        <PasswordRequirement met={passwordValidation.hasLowerCase} text="Uma letra minúscula" styles={styles} />
-        <PasswordRequirement met={passwordValidation.hasNumber} text="Pelo menos um número" styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasMinLength} text={t('requirements.minLength')} styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasUpperCase} text={t('requirements.upperCase')} styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasLowerCase} text={t('requirements.lowerCase')} styles={styles} />
+        <PasswordRequirement met={passwordValidation.hasNumber} text={t('requirements.number')} styles={styles} />
       </View>
 
-      <TouchableOpacity 
-        style={[styles.button, !passwordValidation.allMet && styles.buttonDisabled]} 
-        onPress={handleRegister} 
+      <TouchableOpacity
+        style={[styles.button, !passwordValidation.allMet && styles.buttonDisabled]}
+        onPress={handleRegister}
         disabled={loading || !passwordValidation.allMet}
       >
-        {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>Cadastrar</Text>}
+        {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.buttonText}>{t('registerButton')}</Text>}
       </TouchableOpacity>
     </ScrollView>
     </KeyboardAvoidingView>

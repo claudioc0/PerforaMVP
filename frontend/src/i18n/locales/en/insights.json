@@ -1,0 +1,42 @@
+{
+  "headerTitle": "Your Insights",
+  "genericErrorTitle": "Error",
+  "successTitle": "Success",
+  "chart": {
+    "insufficientData": "Not enough data to display the chart.",
+    "caloriesLabel": "Calorie Intake (vs. Goal)"
+  },
+  "errors": {
+    "exportReport": "Couldn't open the report download.",
+    "loadInsights": "Couldn't load your insights. Please try again.",
+    "invalidWeight": "Please enter a valid weight.",
+    "logWeight": "Couldn't log your weight."
+  },
+  "weightLoggedSuccess": "Weight logged!",
+  "weeklyAverage": {
+    "title": "Weekly Average",
+    "caloriesLabel": "Avg. Kcal / day",
+    "proteinLabel": "Avg. Protein / day"
+  },
+  "bodyEvolution": {
+    "title": "Body Progress",
+    "weightPlaceholder": "Today's weight (kg)",
+    "logButton": "Log",
+    "recentLabel": "Recent Entries:",
+    "trendDown": "Weight went down compared to the previous entry",
+    "trendUp": "Weight went up compared to the previous entry",
+    "trendStable": "Weight stayed stable compared to the previous entry",
+    "emptyText": "No weight entries yet."
+  },
+  "progressPhotos": {
+    "title": "Progress Photos",
+    "lastPhoto": "Last photo: {{date}}",
+    "viewTimeline": "View Timeline",
+    "emptyText": "No progress photos yet.",
+    "takeFirst": "Take First Photo"
+  },
+  "exportReport": {
+    "title": "Export Report",
+    "description": "Download a summary of your progress (calories, weight, and workouts) to share with your nutritionist or trainer."
+  }
+}

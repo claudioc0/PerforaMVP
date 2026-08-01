@@ -1,0 +1,50 @@
+{
+  "headerTitle": "New Meal",
+  "permissionText": "We need your permission to use the camera.",
+  "enableCameraButton": "Enable Camera",
+  "photoCapturedBadge": "Photo captured",
+  "barcodeHint": "Aim at a barcode, or use the buttons below to take a photo",
+  "rescanButton": "Scan Again",
+  "analyzeButton": "Analyze with AI ✨",
+  "retakeButton": "Take Another Photo",
+  "orDivider": "OR",
+  "takeMealPhotoButton": "Take a Photo of Your Meal (AI)",
+  "photographLabelButton": "Photograph Nutrition Label",
+  "cancelButton": "Cancel and Go Back",
+  "analyzingMessages": [
+    "Identifying the food...",
+    "Calculating the portions...",
+    "Checking the nutrition table...",
+    "Almost there..."
+  ],
+  "labelAnalyzingMessages": [
+    "Reading the label...",
+    "Extracting the nutrition facts...",
+    "Almost there..."
+  ],
+  "alerts": {
+    "upsellTitle": "Coming soon! 🚀",
+    "upsellMessage": "Premium subscription is on its way.",
+    "cameraErrorTitle": "Camera Error",
+    "cameraErrorMessage": "Could not capture the photo. Please try again.",
+    "attentionTitle": "Heads up",
+    "takePhotoPrompt": "Take a photo to analyze the meal.",
+    "dailyQuotaTitle": "Daily Limit Reached 🔒",
+    "dailyQuotaMessage": "You've reached today's limit of free analyses. Subscribe to Premium for unlimited analyses, or add the data manually.",
+    "subscribePremium": "Subscribe to Premium",
+    "manualEntry": "Manual Entry",
+    "serversBusyTitle": "Servers Busy ⚡",
+    "serversBusyMealMessage": "Our AI is processing a lot of meals right now. Wait a minute or add the data manually.",
+    "serversBusyLabelMessage": "Our AI is processing a lot of labels right now. Wait a minute or add the data manually.",
+    "wait": "Wait",
+    "analysisErrorTitle": "Analysis Error",
+    "analysisErrorFallback": "Failed to analyze the meal. Check the server.",
+    "labelReadErrorTitle": "Reading Error",
+    "labelReadErrorFallback": "Could not read the label. Try again or add it manually.",
+    "newProductTitle": "New product! 🕵️",
+    "newProductMessage": "We couldn't find this barcode in the global database. Would you like to register it manually?",
+    "registerManualButton": "Register Manually",
+    "connectionErrorTitle": "Connection Error",
+    "connectionErrorFallback": "An error occurred while looking up the product online."
+  }
+}

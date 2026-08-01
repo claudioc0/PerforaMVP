@@ -1,0 +1,50 @@
+{
+  "headerTitle": "Nueva Comida",
+  "permissionText": "Necesitamos tu permiso para usar la cámara.",
+  "enableCameraButton": "Habilitar Cámara",
+  "photoCapturedBadge": "Foto capturada",
+  "barcodeHint": "Apunta a un código de barras, o usa los botones de abajo para fotografiar",
+  "rescanButton": "Escanear de Nuevo",
+  "analyzeButton": "Analizar con IA ✨",
+  "retakeButton": "Tomar Otra Foto",
+  "orDivider": "O",
+  "takeMealPhotoButton": "Fotografiar el Plato (IA)",
+  "photographLabelButton": "Fotografiar Etiqueta Nutricional",
+  "cancelButton": "Cancelar y Volver",
+  "analyzingMessages": [
+    "Identificando los alimentos...",
+    "Calculando las porciones...",
+    "Consultando la tabla nutricional...",
+    "Ya casi..."
+  ],
+  "labelAnalyzingMessages": [
+    "Leyendo la etiqueta...",
+    "Extrayendo los valores nutricionales...",
+    "Ya casi..."
+  ],
+  "alerts": {
+    "upsellTitle": "¡Muy pronto! 🚀",
+    "upsellMessage": "La suscripción Premium está en camino.",
+    "cameraErrorTitle": "Error de Cámara",
+    "cameraErrorMessage": "No fue posible capturar la foto. Intenta de nuevo.",
+    "attentionTitle": "Atención",
+    "takePhotoPrompt": "Toma una foto para analizar la comida.",
+    "dailyQuotaTitle": "Límite Diario Alcanzado 🔒",
+    "dailyQuotaMessage": "Alcanzaste el límite de análisis gratuitos de hoy. Suscríbete a Premium para análisis ilimitados, o agrega los datos manualmente.",
+    "subscribePremium": "Suscribirse a Premium",
+    "manualEntry": "Entrada Manual",
+    "serversBusyTitle": "Servidores Ocupados ⚡",
+    "serversBusyMealMessage": "Nuestra IA está procesando muchos platos ahora mismo. Espera un minuto o agrega los datos manualmente.",
+    "serversBusyLabelMessage": "Nuestra IA está procesando muchas etiquetas ahora mismo. Espera un minuto o agrega los datos manualmente.",
+    "wait": "Esperar",
+    "analysisErrorTitle": "Error de Análisis",
+    "analysisErrorFallback": "No se pudo analizar la comida. Verifica el servidor.",
+    "labelReadErrorTitle": "Error de Lectura",
+    "labelReadErrorFallback": "No fue posible leer la etiqueta. Intenta de nuevo o regístrala manualmente.",
+    "newProductTitle": "¡Producto nuevo! 🕵️",
+    "newProductMessage": "No encontramos este código de barras en la base de datos mundial. ¿Deseas registrarlo manualmente?",
+    "registerManualButton": "Registrar Manualmente",
+    "connectionErrorTitle": "Error de Conexión",
+    "connectionErrorFallback": "Ocurrió un error al buscar el producto en internet."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "headerTitle": "New Combo Meal",
+  "comboNameLabel": "Combo name",
+  "comboNamePlaceholder": "E.g.: Tuesday's lunchbox",
+  "addFromCatalogLabel": "Add item from catalog",
+  "searchFoodPlaceholder": "Search for food...",
+  "caloriesPer100g": "{{calories}} kcal /100g",
+  "removeItemHint": "Remove \"{{description}}\" from the combo",
+  "quantityUnit": "grams",
+  "emptyComboText": "Search for catalog items above to build the combo.",
+  "comboTotalTitle": "Combo Total",
+  "kcalLabel": "Kcal",
+  "proteinLabel": "Protein",
+  "carbsLabel": "Carbs",
+  "fatLabel": "Fat",
+  "saveComboButton": "Save Combo",
+  "cancelButton": "Cancel",
+  "alerts": {
+    "attentionTitle": "Heads up",
+    "missingNameMessage": "Give the combo a name (e.g.: \"Tuesday's lunchbox\").",
+    "noItemsMessage": "Add at least one item to the combo.",
+    "invalidQuantityMessage": "Enter a valid quantity (in grams) for \"{{description}}\".",
+    "successTitle": "Success",
+    "successMessage": "Combo saved to your favorites!",
+    "errorTitle": "Error",
+    "saveErrorFallback": "Could not save the combo."
+  }
+}

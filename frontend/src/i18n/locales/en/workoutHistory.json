@@ -1,0 +1,41 @@
+{
+  "headerTitle": "Workouts",
+  "genericErrorTitle": "Error",
+  "errors": {
+    "startWorkout": "Couldn't start the workout.",
+    "updateDay": "Couldn't update that day.",
+    "deletePlan": "Couldn't delete the weekly plan.",
+    "loadHistoryTitle": "Couldn't load your history",
+    "loadHistorySubtitle": "Check your connection and try again."
+  },
+  "reassignDay": {
+    "title": "Change day",
+    "message": "What should {{day}} be?"
+  },
+  "planOptions": {
+    "title": "Weekly Plan",
+    "changeSplit": "Change split",
+    "deletePlan": "Delete plan"
+  },
+  "deletePlanConfirm": {
+    "title": "Delete Weekly Plan",
+    "message": "Are you sure? Your logged workouts won't be affected."
+  },
+  "weeklySection": {
+    "title": "Your Week",
+    "definePlanTitle": "Set up your weekly plan",
+    "definePlanSubtitle": "Choose a split and organize your workouts from Monday to Sunday",
+    "optionsHint": "Weekly plan options",
+    "rest": "Rest",
+    "todaySuffix": " · Today",
+    "reassignHint": "Reassign split day",
+    "startWorkout": "Start Workout"
+  },
+  "card": {
+    "defaultName": "Workout",
+    "statusDone": "Finished",
+    "statusActive": "In progress"
+  },
+  "emptyText": "No workouts logged yet. Tap the + to get started.",
+  "newWorkoutHint": "New workout"
+}

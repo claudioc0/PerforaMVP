@@ -101,7 +101,7 @@ class TestConstrucaoPreguicosaDoGeminiService:
 
         factory.assert_called_once()
         fake_gemini.generate_daily_insight.assert_called_once_with(
-            {"goal_calories": 2000}, {"calories": 500}
+            {"goal_calories": 2000}, {"calories": 500}, "pt"
         )
         assert result is fake_gemini.generate_daily_insight.return_value
 

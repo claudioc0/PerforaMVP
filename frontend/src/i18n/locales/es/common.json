@@ -1,0 +1,30 @@
+{
+  "actions": {
+    "ok": "OK",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "back": "Volver",
+    "tryAgain": "Intentar de Nuevo",
+    "confirm": "Confirmar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "close": "Cerrar"
+  },
+  "errors": {
+    "networkGeneric": "No se pudo conectar con el servidor. Verifica tu conexión e intenta de nuevo.",
+    "generic": "Algo salió mal. Intenta de nuevo."
+  },
+  "drawer": {
+    "workouts": "Entrenamientos",
+    "insights": "Estadísticas",
+    "progress": "Progreso",
+    "goals": "Metas",
+    "reminders": "Recordatorios",
+    "themeLabel": "Tema",
+    "themeDark": "Oscuro",
+    "themeLight": "Claro",
+    "languageLabel": "Idioma",
+    "languageAuto": "Automático",
+    "logout": "Salir"
+  }
+}

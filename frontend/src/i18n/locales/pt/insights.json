@@ -1,0 +1,42 @@
+{
+  "headerTitle": "Seus Insights",
+  "genericErrorTitle": "Erro",
+  "successTitle": "Sucesso",
+  "chart": {
+    "insufficientData": "Dados insuficientes para exibir o gráfico.",
+    "caloriesLabel": "Consumo de Calorias (vs. Meta)"
+  },
+  "errors": {
+    "exportReport": "Não foi possível abrir o download do relatório.",
+    "loadInsights": "Não foi possível carregar os insights. Tente novamente.",
+    "invalidWeight": "Por favor, insira um peso válido.",
+    "logWeight": "Não foi possível registrar o peso."
+  },
+  "weightLoggedSuccess": "Peso registrado!",
+  "weeklyAverage": {
+    "title": "Média da Semana",
+    "caloriesLabel": "Média de Kcal / dia",
+    "proteinLabel": "Média de Proteína / dia"
+  },
+  "bodyEvolution": {
+    "title": "Evolução Corporal",
+    "weightPlaceholder": "Peso de hoje (kg)",
+    "logButton": "Registrar",
+    "recentLabel": "Últimos Registros:",
+    "trendDown": "Peso caiu em relação ao registro anterior",
+    "trendUp": "Peso subiu em relação ao registro anterior",
+    "trendStable": "Peso estável em relação ao registro anterior",
+    "emptyText": "Nenhum registro de peso ainda."
+  },
+  "progressPhotos": {
+    "title": "Fotos de Progresso",
+    "lastPhoto": "Última foto: {{date}}",
+    "viewTimeline": "Ver Timeline",
+    "emptyText": "Nenhuma foto de progresso ainda.",
+    "takeFirst": "Tirar Primeira Foto"
+  },
+  "exportReport": {
+    "title": "Exportar Relatório",
+    "description": "Baixe um resumo do seu progresso (calorias, peso e treinos) pra levar ao seu nutricionista ou personal."
+  }
+}

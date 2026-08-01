@@ -351,9 +351,10 @@ def daily_insight():
 
         goals = data.get("goals", {})
         consumed = data.get("consumed", {})
-        
+        language = data.get("language", "pt")
+
         meal_service = _get_meal_service()
-        insight_text = meal_service.generate_daily_insight(goals, consumed)
+        insight_text = meal_service.generate_daily_insight(goals, consumed, language)
         
         return jsonify({"insight": insight_text}), 200
     except Exception:

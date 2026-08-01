@@ -4,11 +4,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getProgressPhotos, addProgressPhoto, getAuthenticatedImageSource } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
+
+import pt from '../i18n/locales/pt/progressPhotos.json';
+import en from '../i18n/locales/en/progressPhotos.json';
+import es from '../i18n/locales/es/progressPhotos.json';
+
+registerNamespace('progressPhotos', { pt, en, es });
 
 // Timeline de fotos de progresso (mesmo ângulo, ao longo do tempo — uma por
 // dia, mesma cadência de peso) com um modo de comparação lado a lado: toca em
@@ -17,6 +25,7 @@ export default function ProgressPhotosScreen() {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['progressPhotos', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,11 +43,11 @@ export default function ProgressPhotosScreen() {
       );
       setPhotos(withSources);
     } catch {
-      showAlert('Erro', 'Não foi possível carregar suas fotos de progresso.');
+      showAlert(t('alerts.loadErrorTitle'), t('alerts.loadErrorMessage'));
     } finally {
       setLoading(false);
     }
-  }, [showAlert]);
+  }, [showAlert, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -49,7 +58,7 @@ export default function ProgressPhotosScreen() {
   const handleCapture = async () => {
     const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
     if (!permissionResult.granted) {
-      showAlert('Permissão Necessária', 'Precisamos da permissão da câmera para registrar sua foto de progresso!');
+      showAlert(t('alerts.permissionRequiredTitle'), t('alerts.permissionRequiredMessage'));
       return;
     }
 
@@ -59,13 +68,13 @@ export default function ProgressPhotosScreen() {
     setUploading(true);
     try {
       await addProgressPhoto(result.assets[0].uri);
-      showAlert('Sucesso', 'Foto de progresso registrada!');
+      showAlert(t('alerts.successTitle'), t('alerts.successMessage'));
       fetchPhotos();
     } catch (error) {
       if (error.status === 409) {
-        showAlert('Atenção', 'Você já registrou uma foto de progresso hoje.');
+        showAlert(t('alerts.alreadyTakenTitle'), t('alerts.alreadyTakenMessage'));
       } else {
-        showAlert('Erro', error.message || 'Não foi possível salvar a foto.');
+        showAlert(t('alerts.saveErrorTitle'), error.message || t('alerts.saveErrorFallback'));
       }
     } finally {
       setUploading(false);
@@ -89,7 +98,7 @@ export default function ProgressPhotosScreen() {
     <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Fotos de Progresso</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
 
       <TouchableOpacity style={[styles.captureButton, uploading && styles.disabledButton]} onPress={handleCapture} disabled={uploading}>
@@ -98,7 +107,7 @@ export default function ProgressPhotosScreen() {
         ) : (
           <>
             <Ionicons name="camera" size={20} color={colors.onPrimary} style={{ marginRight: 8 }} />
-            <Text style={styles.captureButtonText}>Tirar Foto de Hoje</Text>
+            <Text style={styles.captureButtonText}>{t('captureButton')}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -106,11 +115,11 @@ export default function ProgressPhotosScreen() {
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 30 }} />
       ) : photos.length === 0 ? (
-        <Text style={styles.emptyText}>Nenhuma foto de progresso ainda. Tire a primeira acima.</Text>
+        <Text style={styles.emptyText}>{t('emptyText')}</Text>
       ) : (
         <>
           <Text style={styles.sectionLabel}>
-            {selectedIds.length === 0 ? 'Toque em até 2 fotos pra comparar' : `${selectedIds.length}/2 selecionadas`}
+            {selectedIds.length === 0 ? t('compareHint') : t('selectedCount', { count: selectedIds.length })}
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timelineRow}>
             {photos.map((photo) => {
@@ -121,7 +130,7 @@ export default function ProgressPhotosScreen() {
                   style={[styles.thumbWrapper, isSelected && styles.thumbWrapperSelected]}
                   onPress={() => toggleSelect(photo.id)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Foto de progresso de ${formatShortDate(photo.taken_at, { includeYear: true })}`}
+                  accessibilityLabel={t('photoAccessibilityLabel', { date: formatShortDate(photo.taken_at, { includeYear: true }) })}
                 >
                   <Image source={photo.source} style={styles.thumbImage} />
                   <Text style={styles.thumbDate}>{formatShortDate(photo.taken_at)}</Text>
@@ -132,7 +141,7 @@ export default function ProgressPhotosScreen() {
 
           {selectedPhotos.length === 2 && (
             <View style={styles.comparisonCard}>
-              <Text style={styles.cardTitle}>Comparação</Text>
+              <Text style={styles.cardTitle}>{t('comparisonTitle')}</Text>
               <View style={styles.comparisonRow}>
                 {selectedPhotos.map((photo) => (
                   <View key={photo.id} style={styles.comparisonItem}>

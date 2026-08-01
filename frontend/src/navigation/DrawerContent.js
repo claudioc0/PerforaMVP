@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import LogoMark from '../components/LogoMark';
 import { navigate, resetToLogin } from './RootNavigation';
 import { useDrawerMenu } from './DrawerMenuContext';
@@ -8,22 +9,32 @@ import { logoutUser } from '../services/api';
 import { getToken } from '../services/secureTokenStorage';
 import { clearLocalSession } from '../services/session';
 import { useTheme } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
 import { ROUTES } from './routes';
 
 const DRAWER_WIDTH = Math.min(300, Dimensions.get('window').width * 0.8);
 
-const MENU_ITEMS = [
-  { label: 'Treinos', route: ROUTES.WORKOUT_HISTORY, icon: 'barbell' },
-  { label: 'Gráficos', route: ROUTES.INSIGHTS, icon: 'stats-chart' },
-  { label: 'Progresso', route: ROUTES.PROGRESS, icon: 'trending-up' },
-  { label: 'Metas', route: ROUTES.GOALS, icon: 'flag' },
-  { label: 'Lembretes', route: ROUTES.REMINDERS, icon: 'notifications' },
+const LANGUAGE_OPTIONS = [
+  { code: 'auto', flag: '🌐' },
+  { code: 'pt', flag: '🇧🇷' },
+  { code: 'en', flag: '🇺🇸' },
+  { code: 'es', flag: '🇪🇸' },
 ];
 
 export default function DrawerContent() {
   const { isOpen, close } = useDrawerMenu();
   const { mode, colors, setThemeMode } = useTheme();
+  const { preference, setLanguage } = useLanguage();
+  const { t } = useTranslation('common');
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const MENU_ITEMS = [
+    { label: t('drawer.workouts'), route: ROUTES.WORKOUT_HISTORY, icon: 'barbell' },
+    { label: t('drawer.insights'), route: ROUTES.INSIGHTS, icon: 'stats-chart' },
+    { label: t('drawer.progress'), route: ROUTES.PROGRESS, icon: 'trending-up' },
+    { label: t('drawer.goals'), route: ROUTES.GOALS, icon: 'flag' },
+    { label: t('drawer.reminders'), route: ROUTES.REMINDERS, icon: 'notifications' },
+  ];
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   // Continua renderizado durante a animação de saída — só sai da árvore
@@ -106,26 +117,46 @@ export default function DrawerContent() {
         <View style={styles.divider} />
 
         <View style={styles.themeSection}>
-          <Text style={styles.themeSectionLabel}>Tema</Text>
+          <Text style={styles.themeSectionLabel}>{t('drawer.themeLabel')}</Text>
           <View style={styles.themeToggleRow}>
             <TouchableOpacity
               style={[styles.themeOption, mode === 'dark' && styles.themeOptionSelected]}
               onPress={() => setThemeMode('dark')}
               accessibilityRole="button"
-              accessibilityLabel="Tema escuro"
+              accessibilityLabel={t('drawer.themeDark')}
             >
               <Ionicons name="moon" size={16} color={mode === 'dark' ? colors.onPrimary : colors.textSecondary} />
-              <Text style={[styles.themeOptionText, mode === 'dark' && styles.themeOptionTextSelected]}>Escuro</Text>
+              <Text style={[styles.themeOptionText, mode === 'dark' && styles.themeOptionTextSelected]}>{t('drawer.themeDark')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.themeOption, mode === 'light' && styles.themeOptionSelected]}
               onPress={() => setThemeMode('light')}
               accessibilityRole="button"
-              accessibilityLabel="Tema claro"
+              accessibilityLabel={t('drawer.themeLight')}
             >
               <Ionicons name="sunny" size={16} color={mode === 'light' ? colors.onPrimary : colors.textSecondary} />
-              <Text style={[styles.themeOptionText, mode === 'light' && styles.themeOptionTextSelected]}>Claro</Text>
+              <Text style={[styles.themeOptionText, mode === 'light' && styles.themeOptionTextSelected]}>{t('drawer.themeLight')}</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.themeSection}>
+          <Text style={styles.themeSectionLabel}>{t('drawer.languageLabel')}</Text>
+          <View style={styles.themeToggleRow}>
+            {LANGUAGE_OPTIONS.map((option) => (
+              <TouchableOpacity
+                key={option.code}
+                style={[styles.languageOption, preference === option.code && styles.themeOptionSelected]}
+                onPress={() => setLanguage(option.code)}
+                accessibilityRole="button"
+                accessibilityLabel={option.code === 'auto' ? t('drawer.languageAuto') : option.code}
+              >
+                <Text style={styles.languageOptionFlag}>{option.flag}</Text>
+                <Text style={[styles.languageOptionText, preference === option.code && styles.themeOptionTextSelected]}>
+                  {option.code === 'auto' ? t('drawer.languageAuto') : option.code.toUpperCase()}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
@@ -133,7 +164,7 @@ export default function DrawerContent() {
 
         <TouchableOpacity style={styles.item} onPress={handleLogout}>
           <Ionicons name="log-out" size={22} color={colors.textSecondary} style={styles.itemIcon} />
-          <Text style={styles.logoutText}>Sair</Text>
+          <Text style={styles.logoutText}>{t('drawer.logout')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
@@ -160,7 +191,7 @@ const createStyles = (colors) => StyleSheet.create({
   itemText: { color: colors.white, fontSize: 16, fontWeight: '500' },
   logoutText: { color: colors.textSecondary, fontSize: 16 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 15, marginHorizontal: 20 },
-  themeSection: { paddingHorizontal: 20 },
+  themeSection: { paddingHorizontal: 20, marginTop: 20 },
   themeSectionLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 10 },
   themeToggleRow: { flexDirection: 'row' },
   themeOption: {
@@ -176,4 +207,16 @@ const createStyles = (colors) => StyleSheet.create({
   themeOptionSelected: { backgroundColor: colors.primary },
   themeOptionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginLeft: 6 },
   themeOptionTextSelected: { color: colors.onPrimary },
+  languageOption: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+    marginRight: 6,
+  },
+  languageOptionFlag: { fontSize: 16 },
+  languageOptionText: { color: colors.textSecondary, fontSize: 10, fontWeight: '600', marginTop: 2 },
 });

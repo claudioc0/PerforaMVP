@@ -3,14 +3,23 @@ import { View, Text, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import { getWorkoutProgress } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
+
+import pt from '../i18n/locales/pt/progress.json';
+import en from '../i18n/locales/en/progress.json';
+import es from '../i18n/locales/es/progress.json';
+
+registerNamespace('progress', { pt, en, es });
 
 export default function ProgressScreen() {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['progress', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,14 +61,14 @@ export default function ProgressScreen() {
       <View style={styles.rootContainer}>
         <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
           <BackButton style={[styles.backButton, { top: insets.top + 20 }]} />
-          <Text style={styles.headerTitle}>Progresso</Text>
+          <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
         </View>
         <View style={styles.center}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: 12 }} />
-          <Text style={styles.errorTitle}>Não foi possível carregar seu progresso</Text>
-          <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
+          <Text style={styles.errorTitle}>{t('errorTitle')}</Text>
+          <Text style={styles.errorSubtitle}>{t('errorSubtitle')}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={fetchProgress}>
-            <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+            <Text style={styles.retryButtonText}>{t('common:actions.tryAgain')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -70,13 +79,13 @@ export default function ProgressScreen() {
     <View style={styles.rootContainer}>
       <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <BackButton style={[styles.backButton, { top: insets.top + 20 }]} />
-        <Text style={styles.headerTitle}>Progresso</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
 
       <ScrollView style={styles.container}>
         {progress.length === 0 ? (
           <Text style={styles.emptyText}>
-            Nenhum treino finalizado ainda. Complete um treino pra começar a acompanhar sua evolução.
+            {t('emptyText')}
           </Text>
         ) : (
           progress.map((workout, index) => {
@@ -89,15 +98,15 @@ export default function ProgressScreen() {
               if (workout.total_tonnage > olderWorkout.total_tonnage) {
                 trendIcon = 'trending-up';
                 trendColor = colors.primary;
-                trendLabel = 'Tonelagem em alta em relação ao treino anterior';
+                trendLabel = t('trend.up');
               } else if (workout.total_tonnage < olderWorkout.total_tonnage) {
                 trendIcon = 'trending-down';
                 trendColor = colors.danger;
-                trendLabel = 'Tonelagem em queda em relação ao treino anterior';
+                trendLabel = t('trend.down');
               } else {
                 trendIcon = 'remove';
                 trendColor = colors.textSecondary;
-                trendLabel = 'Tonelagem estável em relação ao treino anterior';
+                trendLabel = t('trend.stable');
               }
             }
 
@@ -110,17 +119,17 @@ export default function ProgressScreen() {
                 <View style={styles.statsRow}>
                   <View style={styles.statBox}>
                     <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>{workout.total_tonnage.toFixed(0)}kg</Text>
-                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Tonelagem</Text>
+                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>{t('stats.tonnage')}</Text>
                   </View>
                   <View style={styles.statBox}>
                     <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>{workout.total_reps}</Text>
-                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Reps</Text>
+                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>{t('stats.reps')}</Text>
                   </View>
                   <View style={styles.statBox}>
                     <Text style={styles.statValue} maxFontSizeMultiplier={1.3}>
                       {workout.avg_rest_seconds !== null ? `${workout.avg_rest_seconds.toFixed(0)}s` : '—'}
                     </Text>
-                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>Descanso médio</Text>
+                    <Text style={styles.statLabel} maxFontSizeMultiplier={1.3}>{t('stats.avgRest')}</Text>
                   </View>
                 </View>
               </View>

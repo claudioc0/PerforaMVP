@@ -1,0 +1,16 @@
+{
+  "headerTitle": "Progress",
+  "errorTitle": "Couldn't load your progress",
+  "errorSubtitle": "Check your connection and try again.",
+  "emptyText": "No workouts completed yet. Finish a workout to start tracking your progress.",
+  "trend": {
+    "up": "Tonnage trending up compared to the previous workout",
+    "down": "Tonnage trending down compared to the previous workout",
+    "stable": "Tonnage stable compared to the previous workout"
+  },
+  "stats": {
+    "tonnage": "Tonnage",
+    "reps": "Reps",
+    "avgRest": "Avg. rest"
+  }
+}

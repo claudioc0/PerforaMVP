@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { useDrawerMenu } from '../navigation/DrawerMenuContext';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
@@ -16,7 +17,15 @@ import LogoMark from '../components/LogoMark';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import CircularProgress from '../components/CircularProgress';
 import { useTheme } from '../theme/ThemeContext';
+import { useLanguage } from '../i18n/LanguageContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/dashboard.json';
+import en from '../i18n/locales/en/dashboard.json';
+import es from '../i18n/locales/es/dashboard.json';
+
+registerNamespace('dashboard', { pt, en, es });
 
 // --- Funções utilitárias para manipulação de datas ---
 // A data enviada pra API é sempre montada a partir dos componentes LOCAIS do aparelho.
@@ -37,15 +46,19 @@ const startOfDay = (date) => {
   return copy;
 };
 
-const getDisplayDate = (date) => {
+// Retorna um código independente de idioma ('today'/'yesterday'/null) — a
+// tela resolve o texto exibido via t() separadamente (ver `displayDateLabel`
+// no componente), pra não acoplar a lógica interna (comparações de dia) ao
+// idioma selecionado pelo usuário.
+const getDisplayDateCode = (date) => {
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
 
-  if (date.toDateString() === today.toDateString()) return "Hoje";
-  if (date.toDateString() === yesterday.toDateString()) return "Ontem";
+  if (date.toDateString() === today.toDateString()) return 'today';
+  if (date.toDateString() === yesterday.toDateString()) return 'yesterday';
 
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  return null;
 };
 
 // Date.getDay() do JS: 0=Domingo...6=Sábado. O plano semanal usa 0=Segunda...6=Domingo
@@ -55,7 +68,7 @@ const getPlanDayIndex = (date) => (date.getDay() + 6) % 7;
 // --- Card grande de calorias (hero), com anel de progresso circular ---
 // `styles`/`colors` vêm do componente pai (useTheme() já resolvido lá) —
 // evita cada helper component recalcular seu próprio createStyles(colors).
-const CalorieHeroCard = ({ consumed = 0, goal = 0, styles, colors }) => {
+const CalorieHeroCard = ({ consumed = 0, goal = 0, styles, colors, t }) => {
   const safeGoal = goal > 0 ? goal : 1;
   const percentage = (consumed / safeGoal) * 100;
   const remaining = goal - consumed;
@@ -64,12 +77,14 @@ const CalorieHeroCard = ({ consumed = 0, goal = 0, styles, colors }) => {
   return (
     <View style={styles.calorieHeroCard}>
       <View style={styles.calorieHeroInfo}>
-        <Text style={styles.calorieHeroLabel}>CALORIAS</Text>
+        <Text style={styles.calorieHeroLabel}>{t('calorieHero.label')}</Text>
         <Text style={styles.calorieHeroValue}>
           {consumed.toFixed(0)}<Text style={styles.calorieHeroUnit}> / {goal.toFixed(0)} kcal</Text>
         </Text>
         <Text style={styles.calorieHeroMeta}>
-          {hasExceeded ? `Ultrapassou ${Math.abs(remaining).toFixed(0)}kcal` : `Faltam ${remaining.toFixed(0)}kcal hoje`}
+          {hasExceeded
+            ? t('calorieHero.exceeded', { amount: Math.abs(remaining).toFixed(0) })
+            : t('calorieHero.remaining', { amount: remaining.toFixed(0) })}
         </Text>
       </View>
       <CircularProgress
@@ -89,7 +104,7 @@ const CalorieHeroCard = ({ consumed = 0, goal = 0, styles, colors }) => {
 // (mesmo cinza escuro dos outros cards), ícone/percentual/barra no verde de
 // marca, pra manter os 3 cards como uma família coesa em vez de uma cor
 // diferente por card. ---
-const MacroCard = ({ icon, label, consumed = 0, goal = 0, unit = 'g', accentColor, styles }) => {
+const MacroCard = ({ icon, label, consumed = 0, goal = 0, unit = 'g', accentColor, styles, t }) => {
   const safeGoal = goal > 0 ? goal : 1;
   const percentage = (consumed / safeGoal) * 100;
   const visualPercentage = Math.min(percentage, 100);
@@ -108,21 +123,23 @@ const MacroCard = ({ icon, label, consumed = 0, goal = 0, unit = 'g', accentColo
         <View style={[styles.macroCardFill, { width: `${visualPercentage}%`, backgroundColor: accentColor }]} />
       </View>
       <Text style={styles.macroCardMeta} numberOfLines={1}>
-        {hasExceeded ? `+${Math.abs(remaining).toFixed(0)}${unit}` : `Faltam ${remaining.toFixed(0)}${unit}`}
+        {hasExceeded
+          ? t('macros.exceeded', { amount: Math.abs(remaining).toFixed(0), unit })
+          : t('macros.remaining', { amount: remaining.toFixed(0), unit })}
       </Text>
     </View>
   );
 };
 
 // --- Badge de Sequência (Streak) ---
-const StreakBadge = ({ currentStreak, styles, colors }) => {
+const StreakBadge = ({ currentStreak, styles, colors, t }) => {
   if (!currentStreak) return null;
   const tier = getStreakTier(currentStreak);
   return (
     <View style={[styles.streakBadge, styles[`streakBadge_${tier}`]]}>
       <Ionicons name="flame" size={18} color={colors.primary} />
       <Text style={styles.streakText}>
-        {currentStreak} {currentStreak === 1 ? 'dia seguido' : 'dias seguidos'}
+        {t('streak.days', { count: currentStreak })}
       </Text>
     </View>
   );
@@ -133,6 +150,8 @@ export default function DashboardScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { language } = useLanguage();
+  const { t } = useTranslation(['dashboard', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { goals, refreshGoals } = useUserGoals();
   const [summary, setSummary] = useState(null);
@@ -163,21 +182,28 @@ export default function DashboardScreen({ navigation }) {
     () => startOfDay(currentDate) > startOfDay(new Date()),
     [currentDate]
   );
-  // getDisplayDate aloca Date novos (hoje/ontem) e chama toDateString() a cada
-  // chamada — antes era invocada 3x por render (2x no JSX + 1x dentro do
+  // getDisplayDateCode aloca Date novos (hoje/ontem) e chama toDateString() a
+  // cada chamada — antes era invocada 3x por render (2x no JSX + 1x dentro do
   // efeito do insight), inclusive em re-renders que nada tinham a ver com a
   // data (digitar água, carregar insight). Memoizado aqui, só recalcula
   // quando currentDate muda de fato.
-  const displayDate = useMemo(() => getDisplayDate(currentDate), [currentDate]);
+  const displayDateCode = useMemo(() => getDisplayDateCode(currentDate), [currentDate]);
+  // Texto exibido, já traduzido — separado do código acima pra lógica interna
+  // (comparações de dia) não depender do idioma selecionado pelo usuário.
+  const displayDate = useMemo(() => {
+    if (displayDateCode === 'today') return t('today');
+    if (displayDateCode === 'yesterday') return t('yesterday');
+    return currentDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  }, [displayDateCode, currentDate, t]);
 
   // Só ajusta a meta em "Hoje" — pra dias passados, o plano semanal de HOJE não
   // necessariamente reflete o que valia naquele dia (o usuário pode ter trocado de
   // divisão desde então), então mostrar a meta base ali evita uma suposição confusa.
   const isTrainingDay = useMemo(() => {
-    if (displayDate !== 'Hoje' || !weeklyPlan?.has_plan) return null;
+    if (displayDateCode !== 'today' || !weeklyPlan?.has_plan) return null;
     const todayIndex = getPlanDayIndex(new Date());
     return Boolean(weeklyPlan.days?.[todayIndex]?.split_day_id);
-  }, [displayDate, weeklyPlan]);
+  }, [displayDateCode, weeklyPlan]);
 
   const adjustedGoals = useMemo(() => getAdjustedGoals(goals, isTrainingDay), [goals, isTrainingDay]);
 
@@ -193,12 +219,12 @@ export default function DashboardScreen({ navigation }) {
       setWaterIntake(summaryData?.total_water_ml || 0);
     } catch (err) {
       if (err.status !== 401) {
-        setError("Não foi possível carregar os dados. Verifique sua conexão.");
+        setError(t('errors.loadFailed'));
       }
     } finally {
       setLoading(false);
     }
-  }, [formattedCurrentDate, refreshGoals]);
+  }, [formattedCurrentDate, refreshGoals, t]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -281,7 +307,7 @@ export default function DashboardScreen({ navigation }) {
   useEffect(() => {
     const fetchInsight = async () => {
       const CACHE_KEY = DAILY_INSIGHT_CACHE_KEY;
-      const isToday = displayDate === "Hoje";
+      const isToday = displayDateCode === 'today';
 
       if (summary && goals && isToday) {
         setLoadingInsight(true);
@@ -294,7 +320,10 @@ export default function DashboardScreen({ navigation }) {
           fat_g: summary.total_fat_g,
         };
 
-        const nutrientsHash = `${consumed.calories}-${consumed.protein_g}-${consumed.carbs_g}-${consumed.fat_g}`;
+        // Idioma entra no hash — senão trocar o idioma do app mostraria o
+        // insight antigo em cache (mesmos nutrientes, texto no idioma errado)
+        // até os macros do dia mudarem de novo.
+        const nutrientsHash = `${consumed.calories}-${consumed.protein_g}-${consumed.carbs_g}-${consumed.fat_g}-${language}`;
 
         try {
           const cachedInsightJSON = await AsyncStorage.getItem(CACHE_KEY);
@@ -307,7 +336,7 @@ export default function DashboardScreen({ navigation }) {
             }
           }
 
-          const insightData = await getDailyInsight(goals, consumed);
+          const insightData = await getDailyInsight(goals, consumed, language);
           setAiInsight(insightData.insight);
 
           const newCacheObject = {
@@ -318,14 +347,14 @@ export default function DashboardScreen({ navigation }) {
           await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(newCacheObject));
 
         } catch {
-          setAiInsight("Mantenha o foco na alta performance! Seu treinador virtual está analisando sua evolução.");
+          setAiInsight(t('insight.fallback'));
         } finally {
           setLoadingInsight(false);
         }
       }
     };
     fetchInsight();
-  }, [summary, goals, displayDate, formattedCurrentDate]);
+  }, [summary, goals, displayDateCode, formattedCurrentDate, language, t]);
 
   const changeDay = (amount) => {
     const newDate = new Date(currentDate);
@@ -369,19 +398,19 @@ export default function DashboardScreen({ navigation }) {
 
   const handleDeleteMeal = async (mealId) => {
     showAlert(
-      "Excluir Refeição",
-      "Tem certeza que deseja apagar este registro?",
+      t('alerts.deleteMeal.title'),
+      t('alerts.deleteMeal.message'),
       [
-        { text: "Não", style: "cancel" },
+        { text: t('alerts.no'), style: "cancel" },
         {
-          text: "Sim",
+          text: t('alerts.yes'),
           style: "destructive",
           onPress: async () => {
             try {
               await deleteMeal(mealId);
               fetchData();
             } catch (error) {
-              showAlert("Erro ao Excluir", error.message || "Não foi possível apagar a refeição.");
+              showAlert(t('alerts.deleteMealError.title'), error.message || t('errors.deleteMealFailed'));
             }
           }
         }
@@ -397,18 +426,18 @@ export default function DashboardScreen({ navigation }) {
       setWaterIntake(response.total);
     } catch {
       setWaterIntake(previousIntake);
-      showAlert("Erro", "Não foi possível registrar a água. Tente novamente.");
+      showAlert(t('alerts.errorTitle'), t('errors.waterFailed'));
     }
   };
 
   const handleFavorite = async (meal) => {
     showAlert(
-      "Salvar como Favorito",
-      `Deseja salvar "${meal.description}" nos seus pratos favoritos?`,
+      t('alerts.favorite.title'),
+      t('alerts.favorite.message', { description: meal.description }),
       [
-        { text: "Não", style: "cancel" },
+        { text: t('alerts.no'), style: "cancel" },
         {
-          text: "Sim",
+          text: t('alerts.yes'),
           onPress: async () => {
             try {
               const favoriteData = {
@@ -420,9 +449,9 @@ export default function DashboardScreen({ navigation }) {
                 items: meal.items && meal.items.length > 0 ? meal.items : undefined,
               };
               await addFavorite(favoriteData);
-              showAlert("Sucesso", "Refeição salva nos seus favoritos!");
+              showAlert(t('alerts.favorite.successTitle'), t('alerts.favorite.successMessage'));
             } catch (error) {
-              showAlert("Erro", error.message || "Não foi possível salvar como favorito.");
+              showAlert(t('alerts.errorTitle'), error.message || t('errors.favoriteFailed'));
             }
           },
         },
@@ -432,12 +461,12 @@ export default function DashboardScreen({ navigation }) {
 
   const handleRepeatMeal = (meal) => {
     showAlert(
-      "Repetir Refeição",
-      `Adicionar "${meal.description}" de ontem ao dia de hoje?`,
+      t('alerts.repeatMeal.title'),
+      t('alerts.repeatMeal.message', { description: meal.description }),
       [
-        { text: "Não", style: "cancel" },
+        { text: t('alerts.no'), style: "cancel" },
         {
-          text: "Sim",
+          text: t('alerts.yes'),
           onPress: async () => {
             try {
               // Payload no shape completo de Meal (não o de FavoriteMeal, mais
@@ -457,7 +486,7 @@ export default function DashboardScreen({ navigation }) {
               await saveMeal(payload);
               fetchData();
             } catch (error) {
-              showAlert("Erro", error.message || "Não foi possível repetir a refeição.");
+              showAlert(t('alerts.errorTitle'), error.message || t('errors.repeatMealFailed'));
             }
           },
         },
@@ -473,7 +502,7 @@ export default function DashboardScreen({ navigation }) {
             <Text style={styles.mealDesc}>{item.description}</Text>
             {item.confidence > 0 && (
               <View style={styles.confidenceBadge}>
-                <Text style={styles.confidenceText}>{(item.confidence * 100).toFixed(0)}% IA</Text>
+                <Text style={styles.confidenceText}>{t('mealItem.confidenceBadge', { percent: (item.confidence * 100).toFixed(0) })}</Text>
               </View>
             )}
           </View>
@@ -490,12 +519,12 @@ export default function DashboardScreen({ navigation }) {
         onPress={() => handleFavorite(item)}
         style={styles.actionButton}
         accessibilityRole="button"
-        accessibilityLabel="Salvar como favorito"
+        accessibilityLabel={t('mealItem.favoriteAccessibilityLabel')}
       >
         <Ionicons name="star" size={20} color={colors.primary} />
       </TouchableOpacity>
       <TouchableOpacity onPress={() => handleDeleteMeal(item.id)} style={styles.deleteButton}>
-        <Text style={styles.deleteButtonText}>Excluir</Text>
+        <Text style={styles.deleteButtonText}>{t('common:actions.delete')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -513,7 +542,7 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.center}>
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={fetchData}>
-          <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          <Text style={styles.retryButtonText}>{t('common:actions.tryAgain')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -540,13 +569,13 @@ export default function DashboardScreen({ navigation }) {
               <View style={styles.headerRow}>
                 <View style={styles.brandRow}>
                   <LogoMark size={22} />
-                  <Text style={styles.greeting}>Olá, {userName}</Text>
+                  <Text style={styles.greeting}>{t('greeting', { name: userName })}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.menuButton}
                   onPress={openDrawerMenu}
                   accessibilityRole="button"
-                  accessibilityLabel="Abrir menu"
+                  accessibilityLabel={t('openMenu')}
                 >
                   <Ionicons name="menu" size={28} color={colors.white} />
                 </TouchableOpacity>
@@ -556,7 +585,7 @@ export default function DashboardScreen({ navigation }) {
                   onPress={() => changeDay(-1)}
                   style={styles.arrowButton}
                   accessibilityRole="button"
-                  accessibilityLabel="Dia anterior"
+                  accessibilityLabel={t('previousDay')}
                 >
                   <Ionicons name="chevron-back" size={24} color={colors.white} />
                 </TouchableOpacity>
@@ -566,27 +595,27 @@ export default function DashboardScreen({ navigation }) {
                   style={[styles.arrowButton, isFutureDate && styles.disabledArrow] }
                   disabled={isFutureDate}
                   accessibilityRole="button"
-                  accessibilityLabel="Próximo dia"
+                  accessibilityLabel={t('nextDay')}
                 >
                   <Ionicons name="chevron-forward" size={24} color={colors.white} />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.subtitle}>Seu desempenho hoje</Text>
+              <Text style={styles.subtitle}>{t('subtitle')}</Text>
             </View>
 
-            <StreakBadge currentStreak={streak?.current_streak} styles={styles} colors={colors} />
+            <StreakBadge currentStreak={streak?.current_streak} styles={styles} colors={colors} t={t} />
 
             {/* Card de Insight da IA */}
             {(loadingInsight || aiInsight) && (
               <View style={styles.insightCard}>
                 <View style={styles.insightHeader}>
                   <Ionicons name="flash" size={20} color={colors.primary} style={styles.insightIcon} />
-                  <Text style={styles.insightTitle}>Insight do Treinador</Text>
+                  <Text style={styles.insightTitle}>{t('insight.title')}</Text>
                 </View>
                 {loadingInsight ? (
                   <View style={styles.insightLoadingContainer}>
                     <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.insightLoadingText}>Analisando seu desempenho...</Text>
+                    <Text style={styles.insightLoadingText}>{t('insight.loading')}</Text>
                   </View>
                 ) : (
                   <Text style={styles.insightText}>{aiInsight}</Text>
@@ -600,34 +629,37 @@ export default function DashboardScreen({ navigation }) {
             <View style={styles.progressSection}>
               {isTrainingDay !== null && (
                 <Text style={styles.adjustedGoalLabel}>
-                  {isTrainingDay ? '🏋️ Meta ajustada: dia de treino (+carbo)' : '😴 Meta ajustada: dia de descanso (-carbo)'}
+                  {isTrainingDay ? t('adjustedGoal.training') : t('adjustedGoal.rest')}
                 </Text>
               )}
-              <CalorieHeroCard consumed={summary?.total_calories} goal={adjustedGoals?.goal_calories} styles={styles} colors={colors} />
+              <CalorieHeroCard consumed={summary?.total_calories} goal={adjustedGoals?.goal_calories} styles={styles} colors={colors} t={t} />
               <View style={styles.macroCardsRow}>
                 <MacroCard
                   icon="food-drumstick"
-                  label="Proteínas"
+                  label={t('macros.protein')}
                   consumed={summary?.total_protein_g}
                   goal={adjustedGoals?.goal_protein_g}
                   accentColor={colors.primary}
                   styles={styles}
+                  t={t}
                 />
                 <MacroCard
                   icon="barley"
-                  label="Carboidratos"
+                  label={t('macros.carbs')}
                   consumed={summary?.total_carbs_g}
                   goal={adjustedGoals?.goal_carbs_g}
                   accentColor={colors.primary}
                   styles={styles}
+                  t={t}
                 />
                 <MacroCard
                   icon="water"
-                  label="Gorduras"
+                  label={t('macros.fat')}
                   consumed={summary?.total_fat_g}
                   goal={adjustedGoals?.goal_fat_g}
                   accentColor={colors.primary}
                   styles={styles}
+                  t={t}
                 />
               </View>
             </View>
@@ -638,7 +670,7 @@ export default function DashboardScreen({ navigation }) {
                 buscando a atividade daquele dia específico. */}
             {healthAvailable && (
               <View style={styles.progressSection}>
-                <Text style={styles.cardTitle}>Atividade de {displayDate}</Text>
+                <Text style={styles.cardTitle}>{t('activitySection.title', { date: displayDate })}</Text>
                 {!healthConnected ? (
                   <TouchableOpacity
                     style={[styles.connectHealthButton, connectingHealth && styles.disabledButton]}
@@ -648,7 +680,7 @@ export default function DashboardScreen({ navigation }) {
                     {connectingHealth ? (
                       <ActivityIndicator color={colors.onPrimary} />
                     ) : (
-                      <Text style={styles.connectHealthButtonText}>Conectar Health Connect</Text>
+                      <Text style={styles.connectHealthButtonText}>{t('activitySection.connect')}</Text>
                     )}
                   </TouchableOpacity>
                 ) : (
@@ -656,21 +688,21 @@ export default function DashboardScreen({ navigation }) {
                     <View style={styles.activityCard}>
                       <Ionicons name="footsteps" size={18} color={colors.primary} />
                       <Text style={styles.activityValue}>{activityForDay?.steps ?? '—'}</Text>
-                      <Text style={styles.activityLabel}>Passos</Text>
+                      <Text style={styles.activityLabel}>{t('activitySection.steps')}</Text>
                     </View>
                     <View style={styles.activityCard}>
                       <Ionicons name="flame" size={18} color={colors.primary} />
                       <Text style={styles.activityValue}>
                         {activityForDay?.activeCalories != null ? Math.round(activityForDay.activeCalories) : '—'}
                       </Text>
-                      <Text style={styles.activityLabel}>Cal. ativas</Text>
+                      <Text style={styles.activityLabel}>{t('activitySection.activeCalories')}</Text>
                     </View>
                     <View style={styles.activityCard}>
                       <Ionicons name="heart" size={18} color={colors.primary} />
                       <Text style={styles.activityValue}>
                         {activityForDay?.avgHeartRateBpm != null ? Math.round(activityForDay.avgHeartRateBpm) : '—'}
                       </Text>
-                      <Text style={styles.activityLabel}>FC média</Text>
+                      <Text style={styles.activityLabel}>{t('activitySection.avgHeartRate')}</Text>
                     </View>
                   </View>
                 )}
@@ -682,7 +714,7 @@ export default function DashboardScreen({ navigation }) {
               <View style={styles.waterCard}>
                 <View style={styles.waterCardHeader}>
                   <Ionicons name="water" size={18} color={colors.primary} />
-                  <Text style={styles.waterCardLabel}>HIDRATAÇÃO</Text>
+                  <Text style={styles.waterCardLabel}>{t('hydration.label')}</Text>
                 </View>
                 <Text style={styles.waterCardValue}>
                   {waterIntake}<Text style={styles.waterCardUnit}> / 2500 ml</Text>
@@ -703,9 +735,9 @@ export default function DashboardScreen({ navigation }) {
 
             {/* Repetir refeição de ontem — só faz sentido olhando pro "Hoje" de
                 verdade, não pra qualquer dia passado que o usuário esteja navegando. */}
-            {displayDate === 'Hoje' && yesterdayMeals.length > 0 && (
+            {displayDateCode === 'today' && yesterdayMeals.length > 0 && (
               <View style={styles.repeatSection}>
-                <Text style={styles.repeatSectionTitle}>Repetir de ontem</Text>
+                <Text style={styles.repeatSectionTitle}>{t('repeatSection.title')}</Text>
                 <View style={styles.repeatChipsRow}>
                   {yesterdayMeals.map((meal) => (
                     <TouchableOpacity
@@ -713,7 +745,7 @@ export default function DashboardScreen({ navigation }) {
                       style={styles.repeatChip}
                       onPress={() => handleRepeatMeal(meal)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Repetir "${meal.description}" de ontem`}
+                      accessibilityLabel={t('repeatSection.repeatAccessibilityLabel', { description: meal.description })}
                     >
                       <Ionicons name="refresh" size={14} color={colors.primary} style={{ marginRight: 6 }} />
                       <Text style={styles.repeatChipText} numberOfLines={1}>{meal.description}</Text>
@@ -724,10 +756,10 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
 
-            <Text style={styles.listTitle}>Refeições de {displayDate}</Text>
+            <Text style={styles.listTitle}>{t('mealsListTitle', { date: displayDate })}</Text>
           </>
         }
-        ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma refeição registrada. Puxe para atualizar.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>{t('emptyMeals')}</Text>}
         contentContainerStyle={{ paddingBottom: 210 }}
       />
 
@@ -737,7 +769,7 @@ export default function DashboardScreen({ navigation }) {
           style={styles.fabSecondary}
           onPress={() => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate: formattedCurrentDate })}
           accessibilityRole="button"
-          accessibilityLabel="Adicionar refeição manualmente"
+          accessibilityLabel={t('fab.manualEntry')}
         >
           <Ionicons name="create" size={22} color={colors.primary} />
         </TouchableOpacity>
@@ -745,7 +777,7 @@ export default function DashboardScreen({ navigation }) {
           style={styles.fab}
           onPress={() => navigation.navigate(ROUTES.CAMERA, { targetDate: formattedCurrentDate })}
           accessibilityRole="button"
-          accessibilityLabel="Adicionar refeição com foto"
+          accessibilityLabel={t('fab.camera')}
         >
           <Ionicons name="camera" size={28} color={colors.onPrimary} />
         </TouchableOpacity>

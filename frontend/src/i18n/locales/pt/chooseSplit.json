@@ -1,0 +1,12 @@
+{
+  "title": "Iniciar Treino",
+  "freestyleTitle": "Freestyle",
+  "freestyleSubtitle": "Sem roteiro — escolha os exercícios na hora",
+  "sectionLabel": "Ou escolha uma divisão",
+  "alerts": {
+    "loadErrorTitle": "Erro",
+    "loadErrorMessage": "Não foi possível carregar as divisões de treino.",
+    "startErrorTitle": "Erro",
+    "startErrorMessage": "Não foi possível iniciar o treino."
+  }
+}

@@ -14,12 +14,20 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { updateUserGoals, calculateSmartGoals } from '../services/api';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/goals.json';
+import en from '../i18n/locales/en/goals.json';
+import es from '../i18n/locales/es/goals.json';
+
+registerNamespace('goals', { pt, en, es });
 
 // Componente para botões de seleção customizados
 const OptionSelector = ({ options, selectedValue, onSelect, style, styles }) => (
@@ -50,6 +58,7 @@ export default function GoalsScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['goals', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { refreshGoals, setGoalsLocally } = useUserGoals();
   // Vindo do primeiro login pós-cadastro (ver LoginScreen.js) — nesse caso a
@@ -125,14 +134,14 @@ export default function GoalsScreen({ navigation, route }) {
       await updateUserGoals(goalsData);
       // Propaga na hora pro Dashboard/Insights, sem esperar uma nova busca de rede.
       setGoalsLocally(goalsData);
-      showAlert('Sucesso!', 'Suas metas foram atualizadas.');
+      showAlert(t('alerts.saveSuccessTitle'), t('alerts.saveSuccessMessage'));
       if (isOnboarding) {
         navigation.replace(ROUTES.DASHBOARD);
       } else {
         navigation.goBack();
       }
     } catch (error) {
-      showAlert('Erro ao Salvar', error.message || 'Não foi possível atualizar as metas.');
+      showAlert(t('alerts.saveErrorTitle'), error.message || t('alerts.saveErrorMessage'));
     } finally {
       setSaving(false);
     }
@@ -140,7 +149,7 @@ export default function GoalsScreen({ navigation, route }) {
 
   const handleCalculateGoals = async () => {
     if (!weight || !height || !age) {
-      showAlert('Atenção', 'Por favor, preencha peso, altura e idade.');
+      showAlert(t('alerts.calcMissingFieldsTitle'), t('alerts.calcMissingFieldsMessage'));
       return;
     }
     setCalculating(true);
@@ -166,13 +175,13 @@ export default function GoalsScreen({ navigation, route }) {
       setGoalsLocally(newGoals);
 
       setModalVisible(false); // Fecha o modal
-      showAlert('Sucesso!', 'Suas metas foram calculadas e aplicadas.');
+      showAlert(t('alerts.calcSuccessTitle'), t('alerts.calcSuccessMessage'));
       if (isOnboarding) {
         navigation.replace(ROUTES.DASHBOARD);
       }
 
     } catch (error) {
-      showAlert('Erro no Cálculo', error.message || 'Não foi possível calcular as metas.');
+      showAlert(t('alerts.calcErrorTitle'), error.message || t('alerts.calcErrorMessage'));
     } finally {
       setCalculating(false);
     }
@@ -189,10 +198,10 @@ export default function GoalsScreen({ navigation, route }) {
           <BackButton />
         </View>
         <Ionicons name="cloud-offline-outline" size={40} color={colors.textSecondary} style={{ marginBottom: 12 }} />
-        <Text style={styles.errorTitle}>Não foi possível carregar suas metas</Text>
-        <Text style={styles.errorSubtitle}>Verifique sua conexão e tente novamente.</Text>
+        <Text style={styles.errorTitle}>{t('errorLoad.title')}</Text>
+        <Text style={styles.errorSubtitle}>{t('errorLoad.subtitle')}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadGoals}>
-          <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+          <Text style={styles.retryButtonText}>{t('common:actions.tryAgain')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -206,39 +215,39 @@ export default function GoalsScreen({ navigation, route }) {
       <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         {!isOnboarding && <BackButton />}
-        <Text style={styles.headerTitle}>{isOnboarding ? 'Vamos definir sua meta' : 'Definir Metas'}</Text>
+        <Text style={styles.headerTitle}>{isOnboarding ? t('headerTitleOnboarding') : t('headerTitle')}</Text>
       </View>
 
       {isOnboarding && (
         <Text style={styles.onboardingSubtitle}>
-          Preencha seus dados na calculadora pra começar com uma meta calculada pra você, ou defina manualmente abaixo.
+          {t('onboardingSubtitle')}
         </Text>
       )}
 
       <TouchableOpacity style={styles.smartButton} onPress={() => setModalVisible(true)}>
-        <Text style={styles.smartButtonText}>Usar Calculadora Automática</Text>
+        <Text style={styles.smartButtonText}>{t('smartButton')}</Text>
       </TouchableOpacity>
 
-      <Text style={styles.sectionTitle}>Metas Manuais</Text>
+      <Text style={styles.sectionTitle}>{t('manualSectionTitle')}</Text>
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Calorias (kcal)</Text>
+        <Text style={styles.label}>{t('fields.calories')}</Text>
         <TextInput style={styles.input} value={calories} onChangeText={setCalories} keyboardType="numeric" placeholder="2000" placeholderTextColor={colors.textMuted} />
       </View>
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Proteínas (g)</Text>
+        <Text style={styles.label}>{t('fields.protein')}</Text>
         <TextInput style={styles.input} value={protein} onChangeText={setProtein} keyboardType="numeric" placeholder="150" placeholderTextColor={colors.textMuted} />
       </View>
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Carboidratos (g)</Text>
+        <Text style={styles.label}>{t('fields.carbs')}</Text>
         <TextInput style={styles.input} value={carbs} onChangeText={setCarbs} keyboardType="numeric" placeholder="250" placeholderTextColor={colors.textMuted} />
       </View>
       <View style={styles.inputGroup}>
-        <Text style={styles.label}>Gorduras (g)</Text>
+        <Text style={styles.label}>{t('fields.fat')}</Text>
         <TextInput style={styles.input} value={fat} onChangeText={setFat} keyboardType="numeric" placeholder="70" placeholderTextColor={colors.textMuted} />
       </View>
 
       <TouchableOpacity style={[styles.saveButton, saving && styles.disabledButton]} onPress={handleSaveGoals} disabled={saving}>
-        {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveButtonText}>Salvar Metas</Text>}
+        {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveButtonText}>{t('saveButton')}</Text>}
       </TouchableOpacity>
 
       {/* Modal da Calculadora Inteligente */}
@@ -250,25 +259,28 @@ export default function GoalsScreen({ navigation, route }) {
       >
         <View style={styles.modalContainer}>
           <ScrollView style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Calculadora Inteligente</Text>
+            <Text style={styles.modalTitle}>{t('calculator.modalTitle')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Peso (kg)</Text>
+              <Text style={styles.label}>{t('calculator.weight')}</Text>
               <TextInput style={styles.input} value={weight} onChangeText={setWeight} keyboardType="numeric" placeholder="75" placeholderTextColor={colors.textMuted} />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Altura (cm)</Text>
+              <Text style={styles.label}>{t('calculator.height')}</Text>
               <TextInput style={styles.input} value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="180" placeholderTextColor={colors.textMuted} />
             </View>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Idade</Text>
+              <Text style={styles.label}>{t('calculator.age')}</Text>
               <TextInput style={styles.input} value={age} onChangeText={setAge} keyboardType="numeric" placeholder="30" placeholderTextColor={colors.textMuted} />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Gênero</Text>
+              <Text style={styles.label}>{t('calculator.gender')}</Text>
               <OptionSelector
-                options={[{ label: 'Masculino', value: 'M' }, { label: 'Feminino', value: 'F' }]}
+                options={[
+                  { label: t('calculator.genderOptions.male'), value: 'M' },
+                  { label: t('calculator.genderOptions.female'), value: 'F' },
+                ]}
                 selectedValue={gender}
                 onSelect={setGender}
                 styles={styles}
@@ -276,14 +288,14 @@ export default function GoalsScreen({ navigation, route }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Nível de Atividade</Text>
+              <Text style={styles.label}>{t('calculator.activityLevel')}</Text>
               <OptionSelector
                 options={[
-                  { label: 'Sedentário', value: '1.2' },
-                  { label: 'Leve', value: '1.375' },
-                  { label: 'Moderado', value: '1.55' },
-                  { label: 'Ativo', value: '1.725' },
-                  { label: 'Extremo', value: '1.9' },
+                  { label: t('calculator.activityOptions.sedentary'), value: '1.2' },
+                  { label: t('calculator.activityOptions.light'), value: '1.375' },
+                  { label: t('calculator.activityOptions.moderate'), value: '1.55' },
+                  { label: t('calculator.activityOptions.active'), value: '1.725' },
+                  { label: t('calculator.activityOptions.extreme'), value: '1.9' },
                 ]}
                 selectedValue={activityLevel}
                 onSelect={setActivityLevel}
@@ -293,12 +305,12 @@ export default function GoalsScreen({ navigation, route }) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Objetivo</Text>
+              <Text style={styles.label}>{t('calculator.goal')}</Text>
               <OptionSelector
                 options={[
-                  { label: 'Perder Peso', value: 'lose' },
-                  { label: 'Manter', value: 'maintain' },
-                  { label: 'Ganhar Massa', value: 'gain' },
+                  { label: t('calculator.goalOptions.lose'), value: 'lose' },
+                  { label: t('calculator.goalOptions.maintain'), value: 'maintain' },
+                  { label: t('calculator.goalOptions.gain'), value: 'gain' },
                 ]}
                 selectedValue={goal}
                 onSelect={setGoal}
@@ -307,11 +319,11 @@ export default function GoalsScreen({ navigation, route }) {
             </View>
 
             <TouchableOpacity style={[styles.saveButton, calculating && styles.disabledButton]} onPress={handleCalculateGoals} disabled={calculating}>
-              {calculating ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveButtonText}>Calcular e Aplicar</Text>}
+              {calculating ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveButtonText}>{t('calculator.calculateButton')}</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
-              <Text style={styles.cancelText}>Cancelar</Text>
+              <Text style={styles.cancelText}>{t('common:actions.cancel')}</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>

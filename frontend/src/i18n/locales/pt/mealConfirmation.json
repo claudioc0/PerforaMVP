@@ -1,0 +1,24 @@
+{
+  "headerTitle": "Confirmar Refeição",
+  "errorMissingData": "Erro: Dados da refeição não encontrados.",
+  "descriptionSectionLabel": "Itens identificados",
+  "estimateHint": "Quantidades estimadas pela IA — ajuste cada item se necessário",
+  "unitGrams": "gramas",
+  "totalCardTitle": "Total da Refeição",
+  "macros": {
+    "calories": "Kcal",
+    "protein": "Proteína",
+    "carbs": "Carbo",
+    "fat": "Gordura"
+  },
+  "favoriteToggle": "Salvar este alimento como favorito, pra adicionar mais rápido depois",
+  "confirmButton": "Confirmar Refeição",
+  "alerts": {
+    "invalidQuantityTitle": "Atenção",
+    "invalidQuantityMessage": "Informe uma quantidade válida (em gramas) para \"{{description}}\" antes de confirmar.",
+    "successTitle": "Sucesso",
+    "successMessage": "Refeição registrada!",
+    "saveErrorTitle": "Erro ao Salvar",
+    "saveErrorFallback": "Não foi possível registrar a refeição."
+  }
+}

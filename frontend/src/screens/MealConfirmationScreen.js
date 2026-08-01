@@ -2,18 +2,27 @@ import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { saveMeal, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/mealConfirmation.json';
+import en from '../i18n/locales/en/mealConfirmation.json';
+import es from '../i18n/locales/es/mealConfirmation.json';
+
+registerNamespace('mealConfirmation', { pt, en, es });
 
 export default function MealConfirmationScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['mealConfirmation', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   // Recebe o rascunho da análise (lista de itens, cada um por 100g) e a data da
   // tela anterior. `|| {}` evita quebrar o destructuring se a tela for aberta
@@ -52,7 +61,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
     // refeição era confirmada com 0 kcal / 0g de tudo, sem nenhum aviso.
     const invalidItem = scaledItems.find((item) => !item.numQuantity || item.numQuantity <= 0);
     if (invalidItem) {
-      showAlert('Atenção', `Informe uma quantidade válida (em gramas) para "${invalidItem.description}" antes de confirmar.`);
+      showAlert(t('alerts.invalidQuantityTitle'), t('alerts.invalidQuantityMessage', { description: invalidItem.description }));
       return;
     }
 
@@ -90,11 +99,11 @@ export default function MealConfirmationScreen({ navigation, route }) {
         }
       }
 
-      showAlert('Sucesso', 'Refeição registrada!');
+      showAlert(t('alerts.successTitle'), t('alerts.successMessage'));
       navigation.navigate(ROUTES.DASHBOARD);
 
     } catch (error) {
-      showAlert('Erro ao Salvar', error.message || 'Não foi possível registrar a refeição.');
+      showAlert(t('alerts.saveErrorTitle'), error.message || t('alerts.saveErrorFallback'));
     } finally {
       setLoading(false);
     }
@@ -109,7 +118,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
         <View style={styles.headerRow}>
           <BackButton />
         </View>
-        <Text style={styles.errorText}>Erro: Dados da refeição não encontrados.</Text>
+        <Text style={styles.errorText}>{t('errorMissingData')}</Text>
       </View>
     );
   }
@@ -119,12 +128,12 @@ export default function MealConfirmationScreen({ navigation, route }) {
     <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Confirmar Refeição</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
       <Text style={styles.descriptionText}>{combinedDescription}</Text>
 
-      <Text style={styles.sectionLabel}>Itens identificados</Text>
-      <Text style={styles.estimateHint}>Quantidades estimadas pela IA — ajuste cada item se necessário</Text>
+      <Text style={styles.sectionLabel}>{t('descriptionSectionLabel')}</Text>
+      <Text style={styles.estimateHint}>{t('estimateHint')}</Text>
 
       {scaledItems.map((item, index) => (
         <View key={index} style={styles.itemCard}>
@@ -138,7 +147,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
               placeholder="100"
               placeholderTextColor={colors.textMuted}
             />
-            <Text style={styles.unitText}>gramas</Text>
+            <Text style={styles.unitText}>{t('unitGrams')}</Text>
           </View>
           <MacroSummaryLine
             calories={item.scaledCalories}
@@ -151,23 +160,23 @@ export default function MealConfirmationScreen({ navigation, route }) {
       ))}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Total da Refeição</Text>
+        <Text style={styles.cardTitle}>{t('totalCardTitle')}</Text>
         <View style={styles.macrosGrid}>
           <View style={styles.macroBox}>
             <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.calories.toFixed(0)}</Text>
-            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Kcal</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.calories')}</Text>
           </View>
           <View style={styles.macroBox}>
             <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.protein_g.toFixed(1)} g</Text>
-            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Proteína</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.protein')}</Text>
           </View>
           <View style={styles.macroBox}>
             <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.carbs_g.toFixed(1)} g</Text>
-            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Carbo</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.carbs')}</Text>
           </View>
           <View style={styles.macroBox}>
             <Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.fat_g.toFixed(1)} g</Text>
-            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Gordura</Text>
+            <Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.fat')}</Text>
           </View>
         </View>
       </View>
@@ -179,7 +188,7 @@ export default function MealConfirmationScreen({ navigation, route }) {
         accessibilityState={{ checked: saveAsFavorite }}
       >
         <Ionicons name={saveAsFavorite ? 'checkbox' : 'square-outline'} size={22} color={saveAsFavorite ? colors.primary : colors.textSecondary} />
-        <Text style={styles.favoriteToggleText}>Salvar este alimento como favorito, pra adicionar mais rápido depois</Text>
+        <Text style={styles.favoriteToggleText}>{t('favoriteToggle')}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -190,12 +199,12 @@ export default function MealConfirmationScreen({ navigation, route }) {
         {loading ? (
           <ActivityIndicator color={colors.onPrimary} />
         ) : (
-          <Text style={styles.submitText}>Confirmar Refeição</Text>
+          <Text style={styles.submitText}>{t('confirmButton')}</Text>
         )}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancelar</Text>
+        <Text style={styles.cancelText}>{t('common:actions.cancel')}</Text>
       </TouchableOpacity>
     </ScrollView>
     </KeyboardAvoidingView>

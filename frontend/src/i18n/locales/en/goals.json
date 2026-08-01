@@ -1,0 +1,56 @@
+{
+  "headerTitleOnboarding": "Let's set your goal",
+  "headerTitle": "Set Goals",
+  "onboardingSubtitle": "Fill in your info in the calculator to start with a goal calculated for you, or set one manually below.",
+  "smartButton": "Use Smart Calculator",
+  "manualSectionTitle": "Manual Goals",
+  "fields": {
+    "calories": "Calories (kcal)",
+    "protein": "Protein (g)",
+    "carbs": "Carbs (g)",
+    "fat": "Fat (g)"
+  },
+  "saveButton": "Save Goals",
+  "errorLoad": {
+    "title": "Couldn't load your goals",
+    "subtitle": "Check your connection and try again."
+  },
+  "alerts": {
+    "saveSuccessTitle": "Success!",
+    "saveSuccessMessage": "Your goals have been updated.",
+    "saveErrorTitle": "Save Failed",
+    "saveErrorMessage": "Couldn't update your goals.",
+    "calcMissingFieldsTitle": "Heads up",
+    "calcMissingFieldsMessage": "Please fill in your weight, height and age.",
+    "calcSuccessTitle": "Success!",
+    "calcSuccessMessage": "Your goals have been calculated and applied.",
+    "calcErrorTitle": "Calculation Failed",
+    "calcErrorMessage": "Couldn't calculate your goals."
+  },
+  "calculator": {
+    "modalTitle": "Smart Calculator",
+    "weight": "Weight (kg)",
+    "height": "Height (cm)",
+    "age": "Age",
+    "gender": "Gender",
+    "genderOptions": {
+      "male": "Male",
+      "female": "Female"
+    },
+    "activityLevel": "Activity Level",
+    "activityOptions": {
+      "sedentary": "Sedentary",
+      "light": "Light",
+      "moderate": "Moderate",
+      "active": "Active",
+      "extreme": "Extreme"
+    },
+    "goal": "Goal",
+    "goalOptions": {
+      "lose": "Lose Weight",
+      "maintain": "Maintain",
+      "gain": "Gain Muscle"
+    },
+    "calculateButton": "Calculate & Apply"
+  }
+}

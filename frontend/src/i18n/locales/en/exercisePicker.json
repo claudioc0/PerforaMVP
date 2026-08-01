@@ -1,0 +1,13 @@
+{
+  "headerTitle": "Choose Exercise",
+  "searchPlaceholder": "Search exercise...",
+  "searchAccessibilityLabel": "Search exercise",
+  "emptyText": "No exercises found.",
+  "createButton": "Create \"{{query}}\"",
+  "alerts": {
+    "fetchErrorTitle": "Error",
+    "fetchErrorMessage": "Couldn't fetch the exercise catalog.",
+    "createErrorTitle": "Error",
+    "createErrorMessage": "Couldn't create the exercise."
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "subtitle": "Create your account to get started",
+  "namePlaceholder": "Full Name",
+  "emailPlaceholder": "Email",
+  "passwordPlaceholder": "Password",
+  "requirements": {
+    "minLength": "At least 8 characters",
+    "upperCase": "One uppercase letter",
+    "lowerCase": "One lowercase letter",
+    "number": "At least one number"
+  },
+  "registerButton": "Sign Up",
+  "alerts": {
+    "weakPasswordTitle": "Weak Password",
+    "weakPasswordMessage": "Please make sure your password meets all the requirements.",
+    "successTitle": "Success!",
+    "successMessage": "Your account has been created. Log in to continue.",
+    "registerErrorTitle": "Sign-up Error"
+  }
+}

@@ -2,12 +2,20 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import ExpandableSplitCard from '../components/ExpandableSplitCard';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listSplits, createWorkout } from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/chooseSplit.json';
+import en from '../i18n/locales/en/chooseSplit.json';
+import es from '../i18n/locales/es/chooseSplit.json';
+
+registerNamespace('chooseSplit', { pt, en, es });
 
 export default function ChooseSplitScreen({ navigation }) {
   const showAlert = useAppAlert();
@@ -15,6 +23,7 @@ export default function ChooseSplitScreen({ navigation }) {
   // aparelhos sem notch (mantém o valor de hoje) e cresce sozinho nos que têm.
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['chooseSplit', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [splits, setSplits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,13 +36,13 @@ export default function ChooseSplitScreen({ navigation }) {
         const data = await listSplits();
         setSplits(data);
       } catch {
-        showAlert('Erro', 'Não foi possível carregar as divisões de treino.');
+        showAlert(t('alerts.loadErrorTitle'), t('alerts.loadErrorMessage'));
       } finally {
         setLoading(false);
       }
     };
     fetchSplits();
-  }, [showAlert]);
+  }, [showAlert, t]);
 
   const toggleSplit = (splitId) => {
     setExpandedSplitId((current) => (current === splitId ? null : splitId));
@@ -45,11 +54,11 @@ export default function ChooseSplitScreen({ navigation }) {
       const workout = await createWorkout(workoutData);
       navigation.replace(ROUTES.WORKOUT_SESSION, { workoutId: workout.id });
     } catch {
-      showAlert('Erro', 'Não foi possível iniciar o treino.');
+      showAlert(t('alerts.startErrorTitle'), t('alerts.startErrorMessage'));
     } finally {
       setCreating(false);
     }
-  }, [navigation, showAlert]);
+  }, [navigation, showAlert, t]);
 
   if (loading) {
     return (
@@ -63,7 +72,7 @@ export default function ChooseSplitScreen({ navigation }) {
     <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Iniciar Treino</Text>
+        <Text style={styles.headerTitle}>{t('title')}</Text>
       </View>
 
       <TouchableOpacity
@@ -73,12 +82,12 @@ export default function ChooseSplitScreen({ navigation }) {
       >
         <Ionicons name="shuffle" size={24} color={colors.onPrimary} style={{ marginRight: 12 }} />
         <View style={{ flex: 1 }}>
-          <Text style={styles.freestyleTitle}>Freestyle</Text>
-          <Text style={styles.freestyleSubtitle}>Sem roteiro — escolha os exercícios na hora</Text>
+          <Text style={styles.freestyleTitle}>{t('freestyleTitle')}</Text>
+          <Text style={styles.freestyleSubtitle}>{t('freestyleSubtitle')}</Text>
         </View>
       </TouchableOpacity>
 
-      <Text style={styles.sectionLabel}>Ou escolha uma divisão</Text>
+      <Text style={styles.sectionLabel}>{t('sectionLabel')}</Text>
 
       <FlatList
         data={splits}

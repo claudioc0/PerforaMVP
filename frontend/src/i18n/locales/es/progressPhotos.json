@@ -1,0 +1,21 @@
+{
+  "headerTitle": "Fotos de Progreso",
+  "captureButton": "Tomar Foto de Hoy",
+  "emptyText": "Aún no hay fotos de progreso. Toma la primera arriba.",
+  "compareHint": "Toca hasta 2 fotos para comparar",
+  "selectedCount": "{{count}}/2 seleccionadas",
+  "photoAccessibilityLabel": "Foto de progreso del {{date}}",
+  "comparisonTitle": "Comparación",
+  "alerts": {
+    "loadErrorTitle": "Error",
+    "loadErrorMessage": "No se pudieron cargar tus fotos de progreso.",
+    "permissionRequiredTitle": "Permiso Necesario",
+    "permissionRequiredMessage": "¡Necesitamos permiso de la cámara para registrar tu foto de progreso!",
+    "successTitle": "Éxito",
+    "successMessage": "¡Foto de progreso registrada!",
+    "alreadyTakenTitle": "Atención",
+    "alreadyTakenMessage": "Ya registraste una foto de progreso hoy.",
+    "saveErrorTitle": "Error",
+    "saveErrorFallback": "No se pudo guardar la foto."
+  }
+}

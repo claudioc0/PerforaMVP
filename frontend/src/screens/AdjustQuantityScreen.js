@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { updateMeal } from '../services/api';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
@@ -8,12 +9,20 @@ import { useAppAlert } from '../components/AppAlertProvider';
 import { useScaledMealItems } from '../hooks/useScaledMealItems';
 import { deriveBaseFromSavedItem } from '../utils/mealMacros';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/adjustQuantity.json';
+import en from '../i18n/locales/en/adjustQuantity.json';
+import es from '../i18n/locales/es/adjustQuantity.json';
+
+registerNamespace('adjustQuantity', { pt, en, es });
 
 export default function AdjustQuantityScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['adjustQuantity', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
   // `|| {}` evita quebrar o destructuring se a tela for aberta sem params
   // (deep link, rota antiga) — o `!initialMeal` logo abaixo mostra uma tela
@@ -78,11 +87,11 @@ export default function AdjustQuantityScreen({ navigation, route }) {
 
       await updateMeal(initialMeal.id, payload);
 
-      showAlert('Sucesso', 'Refeição atualizada!');
+      showAlert(t('alerts.successTitle'), t('alerts.successMessage'));
       navigation.navigate(ROUTES.DASHBOARD);
 
     } catch (error) {
-      showAlert('Erro ao Salvar', error.message || 'Não foi possível atualizar a refeição.');
+      showAlert(t('alerts.saveErrorTitle'), error.message || t('alerts.saveErrorFallback'));
     } finally {
       setSaving(false);
     }
@@ -93,9 +102,9 @@ export default function AdjustQuantityScreen({ navigation, route }) {
       <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
         <View style={styles.headerRow}>
           <BackButton />
-          <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
+          <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
         </View>
-        <Text style={styles.errorText}>Erro: dados da refeição não encontrados.</Text>
+        <Text style={styles.errorText}>{t('errorMissingData')}</Text>
       </View>
     );
   }
@@ -105,7 +114,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
     <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Ajustar Quantidade</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
       <Text style={styles.descriptionText}>{initialMeal.description}</Text>
 
@@ -122,7 +131,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
                 placeholder="100"
                 placeholderTextColor={colors.textMuted}
               />
-              <Text style={styles.unitText}>gramas</Text>
+              <Text style={styles.unitText}>{t('unitGrams')}</Text>
             </View>
             <MacroSummaryLine
               calories={item.scaledCalories}
@@ -135,7 +144,7 @@ export default function AdjustQuantityScreen({ navigation, route }) {
         ))
       ) : (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Nova Quantidade</Text>
+          <Text style={styles.cardTitle}>{t('newQuantityCardTitle')}</Text>
           <View style={styles.quantityContainer}>
             <TextInput
               style={styles.quantityInput}
@@ -145,27 +154,27 @@ export default function AdjustQuantityScreen({ navigation, route }) {
               placeholder="100"
               placeholderTextColor={colors.textMuted}
             />
-            <Text style={styles.unitText}>gramas</Text>
+            <Text style={styles.unitText}>{t('unitGrams')}</Text>
           </View>
         </View>
       )}
 
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>{hasItems ? 'Total da Refeição' : 'Nova Estimativa Nutricional'}</Text>
+        <Text style={styles.cardTitle}>{hasItems ? t('totalCardTitle') : t('newEstimateCardTitle')}</Text>
         <View style={styles.macrosGrid}>
-          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.calories.toFixed(0)}</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Kcal</Text></View>
-          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.protein_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Proteína</Text></View>
-          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.carbs_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Carbo</Text></View>
-          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.fat_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Gordura</Text></View>
+          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.calories.toFixed(0)}</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.calories')}</Text></View>
+          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.protein_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.protein')}</Text></View>
+          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.carbs_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.carbs')}</Text></View>
+          <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.fat_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('macros.fat')}</Text></View>
         </View>
       </View>
 
       <TouchableOpacity style={[styles.submitButton, saving && styles.disabledButton]} onPress={handleSaveChanges} disabled={saving}>
-        {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>Salvar Alterações</Text>}
+        {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>{t('saveChangesButton')}</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.cancelText}>Cancelar</Text>
+        <Text style={styles.cancelText}>{t('common:actions.cancel')}</Text>
       </TouchableOpacity>
     </ScrollView>
     </KeyboardAvoidingView>

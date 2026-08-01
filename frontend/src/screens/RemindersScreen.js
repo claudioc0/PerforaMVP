@@ -1,21 +1,31 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Switch, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Switch, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { requestNotificationPermission, scheduleDailyReminder, cancelReminder } from '../services/notifications';
 import { REMINDERS_SETTINGS_KEY } from '../services/session';
 
-// Horários fixos (sem seletor customizável — fora do escopo de "baixo
-// esforço" desta versão), mas guardados como hour/minute pra permitir um
-// picker no futuro sem precisar mudar o formato dos dados salvos.
+import pt from '../i18n/locales/pt/reminders.json';
+import en from '../i18n/locales/en/reminders.json';
+import es from '../i18n/locales/es/reminders.json';
+
+registerNamespace('reminders', { pt, en, es });
+
+// Horários de fábrica — usados só na primeira vez (nada salvo em
+// AsyncStorage ainda) e como conteúdo fixo da notificação (título/corpo).
+// hour/minute daqui em diante moram em `settings[type]`, a fonte de
+// verdade real, editável pelo usuário via o seletor de horário.
 const REMINDER_DEFS = [
-  { type: 'meal', icon: 'restaurant', label: 'Registrar refeição', hour: 12, minute: 0, title: 'Hora de registrar sua refeição', body: 'Não esqueça de registrar o que você comeu hoje no Perfora.' },
-  { type: 'water', icon: 'water', label: 'Beber água', hour: 15, minute: 0, title: 'Hora de se hidratar', body: 'Que tal um copo d\'água agora?' },
-  { type: 'workout', icon: 'barbell', label: 'Treinar', hour: 18, minute: 0, title: 'Hora do treino', body: 'Seu treino de hoje está te esperando.' },
+  { type: 'meal', icon: 'restaurant', hour: 12, minute: 0 },
+  { type: 'water', icon: 'water', hour: 15, minute: 0 },
+  { type: 'workout', icon: 'barbell', hour: 18, minute: 0 },
 ];
 
 const DEFAULT_SETTINGS = REMINDER_DEFS.reduce((acc, { type, hour, minute }) => {
@@ -27,9 +37,12 @@ export default function RemindersScreen() {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation('reminders');
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
+  // type do lembrete com o seletor de horário nativo aberto no momento, ou null.
+  const [pickerFor, setPickerFor] = useState(null);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -52,44 +65,68 @@ export default function RemindersScreen() {
     try {
       await AsyncStorage.setItem(REMINDERS_SETTINGS_KEY, JSON.stringify(nextSettings));
     } catch {
-      // A troca do toggle na tela já refletiu — persistência é best-effort.
+      // A troca já refletiu na tela — persistência é best-effort.
     }
   };
 
   const handleToggle = async (def, nextEnabled) => {
+    // Lê o horário JÁ CUSTOMIZADO (settings), não o de fábrica (def) — sem
+    // isso, ligar o lembrete sempre reagendava pro horário padrão, ignorando
+    // qualquer ajuste feito no seletor.
+    const current = settings[def.type];
     if (nextEnabled) {
       const granted = await requestNotificationPermission();
       if (!granted) {
-        showAlert(
-          'Permissão negada',
-          'Ative as notificações do Perfora nas configurações do aparelho para receber lembretes.'
-        );
+        showAlert(t('permissionDeniedTitle'), t('permissionDeniedMessage'));
         return;
       }
-      await scheduleDailyReminder(def.type, def.hour, def.minute, { title: def.title, body: def.body });
+      await scheduleDailyReminder(def.type, current.hour, current.minute, {
+        title: t(`types.${def.type}.title`),
+        body: t(`types.${def.type}.body`),
+      });
     } else {
       await cancelReminder(def.type);
     }
     await persist({
       ...settings,
-      [def.type]: { ...settings[def.type], enabled: nextEnabled },
+      [def.type]: { ...current, enabled: nextEnabled },
     });
+  };
+
+  const handleTimeChange = async (def, event, selectedDate) => {
+    setPickerFor(null);
+    if (event.type === 'dismissed' || !selectedDate) return;
+
+    const hour = selectedDate.getHours();
+    const minute = selectedDate.getMinutes();
+    const current = settings[def.type];
+    const nextSettings = { ...settings, [def.type]: { ...current, hour, minute } };
+
+    // Já está ligado: reagenda na hora com o novo horário. Se estiver
+    // desligado, só guarda o valor — passa a valer quando o usuário ligar.
+    if (current.enabled) {
+      await scheduleDailyReminder(def.type, hour, minute, {
+        title: t(`types.${def.type}.title`),
+        body: t(`types.${def.type}.body`),
+      });
+    }
+    await persist(nextSettings);
   };
 
   if (loading) {
     return <View style={styles.center} />;
   }
 
+  const pickerDef = REMINDER_DEFS.find((def) => def.type === pickerFor);
+
   return (
     <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Lembretes</Text>
+        <Text style={styles.headerTitle}>{t('title')}</Text>
       </View>
 
-      <Text style={styles.subtitle}>
-        Notificações locais no seu horário de costume — não precisa de internet pra disparar.
-      </Text>
+      <Text style={styles.subtitle}>{t('subtitle')}</Text>
 
       {REMINDER_DEFS.map((def) => (
         <View key={def.type} style={styles.row}>
@@ -97,8 +134,19 @@ export default function RemindersScreen() {
             <Ionicons name={def.icon} size={22} color={colors.primary} />
           </View>
           <View style={styles.rowTextContainer}>
-            <Text style={styles.rowLabel}>{def.label}</Text>
-            <Text style={styles.rowTime}>{String(def.hour).padStart(2, '0')}:{String(def.minute).padStart(2, '0')}</Text>
+            <Text style={styles.rowLabel}>{t(`types.${def.type}.label`)}</Text>
+            <TouchableOpacity
+              onPress={() => setPickerFor(def.type)}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t('editTimeHint')}
+            >
+              <Text style={styles.rowTime}>
+                {String(settings[def.type].hour).padStart(2, '0')}:{String(settings[def.type].minute).padStart(2, '0')}
+                {'  '}
+                <Ionicons name="pencil" size={12} color={colors.textSecondary} />
+              </Text>
+            </TouchableOpacity>
           </View>
           <Switch
             value={settings[def.type]?.enabled || false}
@@ -108,6 +156,20 @@ export default function RemindersScreen() {
           />
         </View>
       ))}
+
+      {pickerDef && (
+        <DateTimePicker
+          value={new Date(2000, 0, 1, settings[pickerDef.type].hour, settings[pickerDef.type].minute)}
+          mode="time"
+          is24Hour
+          // Android sempre abre como diálogo nativo próprio, mesmo com
+          // display="default" — só precisa desmontar depois do evento
+          // (feito em handleTimeChange). iOS ficaria inline sem isso, mas
+          // o app ainda não builda pra iOS nesta rodada.
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={(event, selectedDate) => handleTimeChange(pickerDef, event, selectedDate)}
+        />
+      )}
     </ScrollView>
   );
 }

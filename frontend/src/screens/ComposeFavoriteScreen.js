@@ -2,11 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { searchFoods, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
+
+import pt from '../i18n/locales/pt/composeFavorite.json';
+import en from '../i18n/locales/en/composeFavorite.json';
+import es from '../i18n/locales/es/composeFavorite.json';
+
+registerNamespace('composeFavorite', { pt, en, es });
 
 // Monta um prato composto a partir de vários itens do catálogo (cada um com
 // quantidade própria) e salva como UM favorito só, com `items` preenchido —
@@ -17,6 +25,7 @@ export default function ComposeFavoriteScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['composeFavorite', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [comboName, setComboName] = useState('');
@@ -105,16 +114,16 @@ export default function ComposeFavoriteScreen({ navigation }) {
 
   const handleSave = async () => {
     if (!comboName.trim()) {
-      showAlert('Atenção', 'Dê um nome pro combo (ex: "Marmita de terça").');
+      showAlert(t('alerts.attentionTitle'), t('alerts.missingNameMessage'));
       return;
     }
     if (scaledItems.length === 0) {
-      showAlert('Atenção', 'Adicione pelo menos um item ao combo.');
+      showAlert(t('alerts.attentionTitle'), t('alerts.noItemsMessage'));
       return;
     }
     const invalidItem = scaledItems.find((item) => !item.numQuantity || item.numQuantity <= 0);
     if (invalidItem) {
-      showAlert('Atenção', `Informe uma quantidade válida (em gramas) para "${invalidItem.description}".`);
+      showAlert(t('alerts.attentionTitle'), t('alerts.invalidQuantityMessage', { description: invalidItem.description }));
       return;
     }
 
@@ -131,10 +140,10 @@ export default function ComposeFavoriteScreen({ navigation }) {
           quantity_g: item.numQuantity,
         })),
       });
-      showAlert('Sucesso', 'Combo salvo nos seus favoritos!');
+      showAlert(t('alerts.successTitle'), t('alerts.successMessage'));
       navigation.goBack();
     } catch (error) {
-      showAlert('Erro', error.message || 'Não foi possível salvar o combo.');
+      showAlert(t('alerts.errorTitle'), error.message || t('alerts.saveErrorFallback'));
     } finally {
       setSaving(false);
     }
@@ -145,27 +154,27 @@ export default function ComposeFavoriteScreen({ navigation }) {
       <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.headerRow}>
           <BackButton />
-          <Text style={styles.headerTitle}>Novo Prato Composto</Text>
+          <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Nome do combo</Text>
+          <Text style={styles.fieldLabel}>{t('comboNameLabel')}</Text>
           <TextInput
             style={styles.nameInput}
             value={comboName}
             onChangeText={setComboName}
-            placeholder="Ex: Marmita de terça"
+            placeholder={t('comboNamePlaceholder')}
             placeholderTextColor={colors.textMuted}
           />
         </View>
 
         <View style={styles.card}>
-          <Text style={styles.fieldLabel}>Adicionar item do catálogo</Text>
+          <Text style={styles.fieldLabel}>{t('addFromCatalogLabel')}</Text>
           <TextInput
             style={styles.nameInput}
             value={query}
             onChangeText={setQuery}
-            placeholder="Buscar alimento..."
+            placeholder={t('searchFoodPlaceholder')}
             placeholderTextColor={colors.textMuted}
           />
           {query.trim().length >= 2 && (searching || searchResults.length > 0) && (
@@ -176,7 +185,7 @@ export default function ComposeFavoriteScreen({ navigation }) {
                 searchResults.map((item) => (
                   <TouchableOpacity key={item.id} style={styles.searchResultRow} onPress={() => addItemFromCatalog(item)}>
                     <Text style={styles.searchResultName}>{item.name}</Text>
-                    <Text style={styles.searchResultMacros}>{item.calories.toFixed(0)} kcal /100g</Text>
+                    <Text style={styles.searchResultMacros}>{t('caloriesPer100g', { calories: item.calories.toFixed(0) })}</Text>
                   </TouchableOpacity>
                 ))
               )}
@@ -191,7 +200,7 @@ export default function ComposeFavoriteScreen({ navigation }) {
               <TouchableOpacity
                 onPress={() => removeItem(item.localId)}
                 accessibilityRole="button"
-                accessibilityLabel={`Remover "${item.description}" do combo`}
+                accessibilityLabel={t('removeItemHint', { description: item.description })}
               >
                 <Ionicons name="trash-outline" size={20} color={colors.dangerStrong} />
               </TouchableOpacity>
@@ -205,7 +214,7 @@ export default function ComposeFavoriteScreen({ navigation }) {
                 placeholder="100"
                 placeholderTextColor={colors.textMuted}
               />
-              <Text style={styles.unitText}>gramas</Text>
+              <Text style={styles.unitText}>{t('quantityUnit')}</Text>
             </View>
             <MacroSummaryLine
               calories={item.scaledCalories}
@@ -218,27 +227,27 @@ export default function ComposeFavoriteScreen({ navigation }) {
         ))}
 
         {scaledItems.length === 0 && (
-          <Text style={styles.emptyText}>Busque itens do catálogo acima pra montar o combo.</Text>
+          <Text style={styles.emptyText}>{t('emptyComboText')}</Text>
         )}
 
         {scaledItems.length > 0 && (
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Total do Combo</Text>
+            <Text style={styles.cardTitle}>{t('comboTotalTitle')}</Text>
             <View style={styles.macrosGrid}>
-              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.calories.toFixed(0)}</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Kcal</Text></View>
-              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.protein_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Proteína</Text></View>
-              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.carbs_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Carbo</Text></View>
-              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.fat_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>Gordura</Text></View>
+              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.calories.toFixed(0)}</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('kcalLabel')}</Text></View>
+              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.protein_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('proteinLabel')}</Text></View>
+              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.carbs_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('carbsLabel')}</Text></View>
+              <View style={styles.macroBox}><Text style={styles.macroValue} maxFontSizeMultiplier={1.3}>{totals.fat_g.toFixed(1)} g</Text><Text style={styles.macroLabel} maxFontSizeMultiplier={1.3}>{t('fatLabel')}</Text></View>
             </View>
           </View>
         )}
 
         <TouchableOpacity style={[styles.submitButton, saving && styles.disabledButton]} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>Salvar Combo</Text>}
+          {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>{t('saveComboButton')}</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
-          <Text style={styles.cancelText}>Cancelar</Text>
+          <Text style={styles.cancelText}>{t('cancelButton')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

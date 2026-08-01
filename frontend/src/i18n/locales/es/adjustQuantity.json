@@ -1,0 +1,21 @@
+{
+  "headerTitle": "Ajustar Cantidad",
+  "errorMissingData": "Error: no se encontraron los datos de la comida.",
+  "unitGrams": "gramos",
+  "newQuantityCardTitle": "Nueva Cantidad",
+  "totalCardTitle": "Total de la Comida",
+  "newEstimateCardTitle": "Nueva Estimación Nutricional",
+  "macros": {
+    "calories": "Kcal",
+    "protein": "Proteína",
+    "carbs": "Carbohidratos",
+    "fat": "Grasa"
+  },
+  "saveChangesButton": "Guardar Cambios",
+  "alerts": {
+    "successTitle": "Éxito",
+    "successMessage": "¡Comida actualizada!",
+    "saveErrorTitle": "Error al Guardar",
+    "saveErrorFallback": "No se pudo actualizar la comida."
+  }
+}

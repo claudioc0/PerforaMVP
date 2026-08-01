@@ -2,16 +2,25 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listExercises, createExercise } from '../services/api';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/exercisePicker.json';
+import en from '../i18n/locales/en/exercisePicker.json';
+import es from '../i18n/locales/es/exercisePicker.json';
+
+registerNamespace('exercisePicker', { pt, en, es });
 
 export default function ExercisePickerScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['exercisePicker', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [query, setQuery] = useState('');
@@ -26,11 +35,11 @@ export default function ExercisePickerScreen({ navigation }) {
       const data = await listExercises(search);
       setExercises(data);
     } catch {
-      showAlert('Erro', 'Não foi possível buscar o catálogo de exercícios.');
+      showAlert(t('alerts.fetchErrorTitle'), t('alerts.fetchErrorMessage'));
     } finally {
       setLoading(false);
     }
-  }, [showAlert]);
+  }, [showAlert, t]);
 
   // Um só efeito cuida da busca inicial E da busca com debounce — antes, um
   // useEffect rodava fetchExercises() de imediato na montagem e ESTE efeito
@@ -74,7 +83,7 @@ export default function ExercisePickerScreen({ navigation }) {
         selectedExercise: { id: exercise.id, name: exercise.name, muscle_group: exercise.muscle_group },
       });
     } catch {
-      showAlert('Erro', 'Não foi possível criar o exercício.');
+      showAlert(t('alerts.createErrorTitle'), t('alerts.createErrorMessage'));
     } finally {
       setCreating(false);
     }
@@ -88,18 +97,18 @@ export default function ExercisePickerScreen({ navigation }) {
     <View style={[styles.container, { paddingTop: insets.top + 20 }]}>
       <View style={styles.headerRow}>
         <BackButton />
-        <Text style={styles.headerTitle}>Escolher Exercício</Text>
+        <Text style={styles.headerTitle}>{t('headerTitle')}</Text>
       </View>
 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={18} color={colors.textSecondary} style={{ marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar exercício..."
+          placeholder={t('searchPlaceholder')}
           placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
-          accessibilityLabel="Buscar exercício"
+          accessibilityLabel={t('searchAccessibilityLabel')}
         />
       </View>
 
@@ -118,7 +127,7 @@ export default function ExercisePickerScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
             </TouchableOpacity>
           )}
-          ListEmptyComponent={<Text style={styles.emptyText}>Nenhum exercício encontrado.</Text>}
+          ListEmptyComponent={<Text style={styles.emptyText}>{t('emptyText')}</Text>}
           contentContainerStyle={{ paddingBottom: 40 }}
         />
       )}
@@ -130,7 +139,7 @@ export default function ExercisePickerScreen({ navigation }) {
           ) : (
             <>
               <Ionicons name="add-circle" size={20} color={colors.onPrimary} style={{ marginRight: 8 }} />
-              <Text style={styles.createButtonText}>Criar &quot;{query.trim()}&quot;</Text>
+              <Text style={styles.createButtonText}>{t('createButton', { query: query.trim() })}</Text>
             </>
           )}
         </TouchableOpacity>

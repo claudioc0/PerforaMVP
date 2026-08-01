@@ -1,0 +1,63 @@
+{
+  "headerNamePlaceholder": "Workout name",
+  "workoutFallbackName": "Workout",
+  "finishWorkout": "Finish Workout",
+  "restTargetLabel": "Rest target",
+  "emptySets": "No sets logged yet.",
+  "suggestedLabel": "Suggested for today",
+  "a11y": {
+    "cancelEditName": "Cancel editing workout name",
+    "saveEditName": "Save workout name",
+    "editName": "Edit workout name",
+    "deleteWorkout": "Delete workout",
+    "decreaseRestTarget": "Decrease rest target",
+    "increaseRestTarget": "Increase rest target",
+    "cancelEditSet": "Cancel editing set",
+    "saveEditSet": "Save set",
+    "deleteSet": "Delete set"
+  },
+  "restBanner": {
+    "progress": "Rest: {{elapsed}} / {{target}}",
+    "achieved": "Rest: {{elapsed}} — Target reached!"
+  },
+  "setRow": {
+    "setNumber": "Set {{number}}",
+    "setValues": "{{weight}}kg × {{reps}}",
+    "editWeightPlaceholder": "kg",
+    "editWeightUnit": "kg ×",
+    "editRepsPlaceholder": "reps",
+    "editRepsUnit": "reps"
+  },
+  "pendingCard": {
+    "lastPerformance": "Last time: {{weight}}kg × {{reps}}",
+    "lastPerformanceWithSuggestion": "Last time: {{weight}}kg × {{reps}} — try {{suggested}}kg today.",
+    "weightLabel": "Weight (kg)",
+    "repsLabel": "Reps",
+    "placeholderZero": "0",
+    "save": "Save Set"
+  },
+  "addButton": {
+    "other": "Another Exercise",
+    "default": "Add Set"
+  },
+  "alerts": {
+    "errorTitle": "Error",
+    "attentionTitle": "Heads up",
+    "fillWeightReps": "Enter weight and reps.",
+    "finishConfirmMessage": "Are you sure you want to finish this workout?",
+    "finishConfirmButton": "Finish",
+    "deleteWorkoutTitle": "Delete Workout",
+    "deleteWorkoutMessage": "This action can't be undone. Delete this workout and all its sets?",
+    "deleteSetTitle": "Delete Set",
+    "deleteSetMessage": "Delete this set?"
+  },
+  "errors": {
+    "loadWorkout": "Couldn't load the workout.",
+    "saveSet": "Couldn't log the set.",
+    "finishWorkout": "Couldn't finish the workout.",
+    "renameWorkout": "Couldn't rename the workout.",
+    "deleteWorkout": "Couldn't delete the workout.",
+    "updateSet": "Couldn't update the set.",
+    "deleteSet": "Couldn't delete the set."
+  }
+}

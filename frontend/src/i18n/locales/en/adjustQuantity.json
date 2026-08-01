@@ -1,0 +1,21 @@
+{
+  "headerTitle": "Adjust Quantity",
+  "errorMissingData": "Error: meal data not found.",
+  "unitGrams": "grams",
+  "newQuantityCardTitle": "New Quantity",
+  "totalCardTitle": "Meal Total",
+  "newEstimateCardTitle": "New Nutritional Estimate",
+  "macros": {
+    "calories": "Kcal",
+    "protein": "Protein",
+    "carbs": "Carbs",
+    "fat": "Fat"
+  },
+  "saveChangesButton": "Save Changes",
+  "alerts": {
+    "successTitle": "Success",
+    "successMessage": "Meal updated!",
+    "saveErrorTitle": "Save Error",
+    "saveErrorFallback": "Unable to update the meal."
+  }
+}

@@ -4,13 +4,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
 import { getSuggestedWeight } from '../utils/loadProgression';
 import { scheduleRestTimerNotification, cancelRestTimerNotification } from '../services/notifications';
 import { useTheme } from '../theme/ThemeContext';
+import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
+
+import pt from '../i18n/locales/pt/workoutSession.json';
+import en from '../i18n/locales/en/workoutSession.json';
+import es from '../i18n/locales/es/workoutSession.json';
+
+registerNamespace('workoutSession', { pt, en, es });
 
 const REST_TARGET_KEY = '@perfora_rest_target_seconds';
 const DEFAULT_REST_TARGET = 90;
@@ -40,6 +48,7 @@ const SetRow = React.memo(function SetRow({
   onDelete,
   styles,
   colors,
+  t,
 }) {
   const [editWeight, setEditWeight] = useState(String(item.weight_kg));
   const [editReps, setEditReps] = useState(String(item.reps));
@@ -65,26 +74,26 @@ const SetRow = React.memo(function SetRow({
             value={editWeight}
             onChangeText={setEditWeight}
             keyboardType="numeric"
-            placeholder="kg"
+            placeholder={t('setRow.editWeightPlaceholder')}
             placeholderTextColor={colors.textMuted}
           />
-          <Text style={styles.editSeparator}>kg ×</Text>
+          <Text style={styles.editSeparator}>{t('setRow.editWeightUnit')}</Text>
           <TextInput
             style={styles.editInput}
             value={editReps}
             onChangeText={setEditReps}
             keyboardType="numeric"
-            placeholder="reps"
+            placeholder={t('setRow.editRepsPlaceholder')}
             placeholderTextColor={colors.textMuted}
           />
-          <Text style={styles.editSeparator}>reps</Text>
+          <Text style={styles.editSeparator}>{t('setRow.editRepsUnit')}</Text>
         </View>
         <View style={styles.editActionsRow}>
           <TouchableOpacity
             onPress={onCancelEdit}
             style={styles.editActionButton}
             accessibilityRole="button"
-            accessibilityLabel="Cancelar edição da série"
+            accessibilityLabel={t('a11y.cancelEditSet')}
           >
             <Ionicons name="close" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
@@ -93,7 +102,7 @@ const SetRow = React.memo(function SetRow({
             style={styles.editActionButton}
             disabled={saving}
             accessibilityRole="button"
-            accessibilityLabel="Salvar série"
+            accessibilityLabel={t('a11y.saveEditSet')}
           >
             {saving ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="checkmark" size={22} color={colors.primary} />}
           </TouchableOpacity>
@@ -106,15 +115,15 @@ const SetRow = React.memo(function SetRow({
     <TouchableOpacity style={styles.setCard} onPress={onStartEdit}>
       <View>
         <Text style={styles.setExercise}>{item.exercise_name}</Text>
-        <Text style={styles.setMeta}>Série {item.set_number}</Text>
+        <Text style={styles.setMeta}>{t('setRow.setNumber', { number: item.set_number })}</Text>
       </View>
       <View style={styles.setCardRight}>
-        <Text style={styles.setValues}>{item.weight_kg}kg × {item.reps}</Text>
+        <Text style={styles.setValues}>{t('setRow.setValues', { weight: item.weight_kg, reps: item.reps })}</Text>
         <TouchableOpacity
           onPress={onDelete}
           style={styles.setDeleteButton}
           accessibilityRole="button"
-          accessibilityLabel="Excluir série"
+          accessibilityLabel={t('a11y.deleteSet')}
         >
           <Ionicons name="trash-outline" size={17} color={colors.dangerStrong} />
         </TouchableOpacity>
@@ -128,6 +137,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
+  const { t } = useTranslation(['workoutSession', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [workout, setWorkout] = useState(null);
@@ -182,12 +192,12 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         }
       }
     } catch (error) {
-      showAlert('Erro', error.message || 'Não foi possível carregar o treino.');
+      showAlert(t('alerts.errorTitle'), error.message || t('errors.loadWorkout'));
       navigation.goBack();
     } finally {
       setLoading(false);
     }
-  }, [workoutId, navigation, showAlert]);
+  }, [workoutId, navigation, showAlert, t]);
 
   useEffect(() => {
     fetchWorkout();
@@ -308,7 +318,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
   const handleSaveSet = async () => {
     if (!weight || !reps) {
-      showAlert('Atenção', 'Preencha peso e repetições.');
+      showAlert(t('alerts.attentionTitle'), t('alerts.fillWeightReps'));
       return;
     }
 
@@ -341,17 +351,17 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       // demais...") quando a falha é de rede/timeout — sem sinal na academia,
       // por exemplo. O peso/reps digitados NÃO são limpos aqui (só no try,
       // acima), então o usuário pode tentar salvar de novo sem redigitar nada.
-      showAlert('Erro', error.message || 'Não foi possível registrar a série.');
+      showAlert(t('alerts.errorTitle'), error.message || t('errors.saveSet'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleFinishWorkout = async () => {
-    showAlert('Finalizar Treino', 'Tem certeza que deseja finalizar este treino?', [
-      { text: 'Cancelar', style: 'cancel' },
+    showAlert(t('finishWorkout'), t('alerts.finishConfirmMessage'), [
+      { text: t('common:actions.cancel'), style: 'cancel' },
       {
-        text: 'Finalizar',
+        text: t('alerts.finishConfirmButton'),
         onPress: async () => {
           setFinishing(true);
           try {
@@ -359,7 +369,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             stopRestTimer();
             navigation.goBack();
           } catch (error) {
-            showAlert('Erro', error.message || 'Não foi possível finalizar o treino.');
+            showAlert(t('alerts.errorTitle'), error.message || t('errors.finishWorkout'));
           } finally {
             setFinishing(false);
           }
@@ -381,25 +391,25 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       setWorkout((prev) => ({ ...prev, name: updated.name }));
       setEditingName(false);
     } catch (error) {
-      showAlert('Erro', error.message || 'Não foi possível renomear o treino.');
+      showAlert(t('alerts.errorTitle'), error.message || t('errors.renameWorkout'));
     }
   };
 
   const handleDeleteWorkout = () => {
     showAlert(
-      'Excluir Treino',
-      'Essa ação não pode ser desfeita. Deseja excluir este treino e todas as suas séries?',
+      t('alerts.deleteWorkoutTitle'),
+      t('alerts.deleteWorkoutMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common:actions.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common:actions.delete'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteWorkout(workoutId);
               navigation.goBack();
             } catch (error) {
-              showAlert('Erro', error.message || 'Não foi possível excluir o treino.');
+              showAlert(t('alerts.errorTitle'), error.message || t('errors.deleteWorkout'));
             }
           },
         },
@@ -415,7 +425,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
   const saveEditSet = useCallback(async (weightStr, repsStr) => {
     if (!weightStr || !repsStr) {
-      showAlert('Atenção', 'Preencha peso e repetições.');
+      showAlert(t('alerts.attentionTitle'), t('alerts.fillWeightReps'));
       return;
     }
     setSavingSetEdit(true);
@@ -430,17 +440,17 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       }));
       setEditingSetId(null);
     } catch (error) {
-      showAlert('Erro', error.message || 'Não foi possível atualizar a série.');
+      showAlert(t('alerts.errorTitle'), error.message || t('errors.updateSet'));
     } finally {
       setSavingSetEdit(false);
     }
-  }, [workoutId, editingSetId, showAlert]);
+  }, [workoutId, editingSetId, showAlert, t]);
 
   const confirmDeleteSet = useCallback((setId) => {
-    showAlert('Excluir Série', 'Deseja excluir esta série?', [
-      { text: 'Cancelar', style: 'cancel' },
+    showAlert(t('alerts.deleteSetTitle'), t('alerts.deleteSetMessage'), [
+      { text: t('common:actions.cancel'), style: 'cancel' },
       {
-        text: 'Excluir',
+        text: t('common:actions.delete'),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -448,12 +458,12 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             setWorkout((prev) => ({ ...prev, sets: prev.sets.filter((s) => s.id !== setId) }));
             setEditingSetId((current) => (current === setId ? null : current));
           } catch (error) {
-            showAlert('Erro', error.message || 'Não foi possível excluir a série.');
+            showAlert(t('alerts.errorTitle'), error.message || t('errors.deleteSet'));
           }
         },
       },
     ]);
-  }, [workoutId, showAlert]);
+  }, [workoutId, showAlert, t]);
 
   const renderSetItem = useCallback(({ item }) => (
     <SetRow
@@ -466,8 +476,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       onDelete={() => confirmDeleteSet(item.id)}
       styles={styles}
       colors={colors}
+      t={t}
     />
-  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet, styles, colors]);
+  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet, styles, colors, t]);
 
   if (loading || !workout) {
     return (
@@ -489,12 +500,12 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             style={styles.headerTitleInput}
             value={nameInput}
             onChangeText={setNameInput}
-            placeholder="Nome do treino"
+            placeholder={t('headerNamePlaceholder')}
             placeholderTextColor={colors.textMuted}
             autoFocus
           />
         ) : (
-          <Text style={styles.headerTitle}>{workout.name || 'Treino'}</Text>
+          <Text style={styles.headerTitle}>{workout.name || t('workoutFallbackName')}</Text>
         )}
         <View style={styles.headerActions}>
           {editingName ? (
@@ -503,7 +514,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 onPress={cancelEditName}
                 style={styles.headerIconButton}
                 accessibilityRole="button"
-                accessibilityLabel="Cancelar edição do nome do treino"
+                accessibilityLabel={t('a11y.cancelEditName')}
               >
                 <Ionicons name="close" size={22} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -511,7 +522,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 onPress={saveWorkoutName}
                 style={styles.headerIconButton}
                 accessibilityRole="button"
-                accessibilityLabel="Salvar nome do treino"
+                accessibilityLabel={t('a11y.saveEditName')}
               >
                 <Ionicons name="checkmark" size={22} color={colors.primary} />
               </TouchableOpacity>
@@ -522,7 +533,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 onPress={startEditName}
                 style={styles.headerIconButton}
                 accessibilityRole="button"
-                accessibilityLabel="Editar nome do treino"
+                accessibilityLabel={t('a11y.editName')}
               >
                 <Ionicons name="pencil" size={19} color={colors.textSecondary} />
               </TouchableOpacity>
@@ -530,7 +541,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                 onPress={handleDeleteWorkout}
                 style={styles.headerIconButton}
                 accessibilityRole="button"
-                accessibilityLabel="Excluir treino"
+                accessibilityLabel={t('a11y.deleteWorkout')}
               >
                 <Ionicons name="trash-outline" size={19} color={colors.dangerStrong} />
               </TouchableOpacity>
@@ -541,12 +552,12 @@ export default function WorkoutSessionScreen({ navigation, route }) {
 
       {!isFinished && (
         <View style={styles.restTargetRow}>
-          <Text style={styles.restTargetLabel}>Meta de descanso</Text>
+          <Text style={styles.restTargetLabel}>{t('restTargetLabel')}</Text>
           <View style={styles.restTargetControls}>
             <TouchableOpacity
               onPress={() => adjustRestTarget(-REST_STEP)}
               accessibilityRole="button"
-              accessibilityLabel="Diminuir meta de descanso"
+              accessibilityLabel={t('a11y.decreaseRestTarget')}
             >
               <Ionicons name="remove-circle-outline" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -554,7 +565,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             <TouchableOpacity
               onPress={() => adjustRestTarget(REST_STEP)}
               accessibilityRole="button"
-              accessibilityLabel="Aumentar meta de descanso"
+              accessibilityLabel={t('a11y.increaseRestTarget')}
             >
               <Ionicons name="add-circle-outline" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -566,8 +577,9 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         <View style={[styles.restBanner, restElapsed >= restTarget && styles.restBannerAchieved]}>
           <Ionicons name={restElapsed >= restTarget ? 'checkmark-circle' : 'time'} size={18} color={colors.primary} />
           <Text style={styles.restText}>
-            Descanso: {formatSeconds(restElapsed)}
-            {restElapsed >= restTarget ? ' — Meta atingida!' : ` / ${formatSeconds(restTarget)}`}
+            {restElapsed >= restTarget
+              ? t('restBanner.achieved', { elapsed: formatSeconds(restElapsed) })
+              : t('restBanner.progress', { elapsed: formatSeconds(restElapsed), target: formatSeconds(restTarget) })}
           </Text>
         </View>
       )}
@@ -576,7 +588,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         data={workout.sets}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderSetItem}
-        ListEmptyComponent={<Text style={styles.emptyText}>Nenhuma série registrada ainda.</Text>}
+        ListEmptyComponent={<Text style={styles.emptyText}>{t('emptySets')}</Text>}
         contentContainerStyle={{ paddingBottom: 20 }}
       />
 
@@ -584,7 +596,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
         <>
           {!pendingExercise && suggestedExercises.length > 0 && (
             <View style={styles.suggestedContainer}>
-              <Text style={styles.suggestedLabel}>Sugeridos pra hoje</Text>
+              <Text style={styles.suggestedLabel}>{t('suggestedLabel')}</Text>
               <View style={styles.suggestedChipsRow}>
                 {suggestedExercises.map((suggestion) => (
                   <TouchableOpacity
@@ -604,42 +616,41 @@ export default function WorkoutSessionScreen({ navigation, route }) {
               <Text style={styles.pendingTitle}>{pendingExercise.name}</Text>
               {lastPerformance && (
                 <Text style={styles.lastPerformanceText}>
-                  Última vez: {lastPerformance.weight_kg}kg × {lastPerformance.reps}
                   {suggestedWeight !== null && suggestedWeight !== lastPerformance.weight_kg
-                    ? ` — hoje, tente ${suggestedWeight}kg.`
-                    : ''}
+                    ? t('pendingCard.lastPerformanceWithSuggestion', { weight: lastPerformance.weight_kg, reps: lastPerformance.reps, suggested: suggestedWeight })
+                    : t('pendingCard.lastPerformance', { weight: lastPerformance.weight_kg, reps: lastPerformance.reps })}
                 </Text>
               )}
               <View style={styles.pendingInputsRow}>
                 <View style={styles.pendingInputGroup}>
-                  <Text style={styles.pendingLabel}>Peso (kg)</Text>
+                  <Text style={styles.pendingLabel}>{t('pendingCard.weightLabel')}</Text>
                   <TextInput
                     style={styles.pendingInput}
                     value={weight}
                     onChangeText={setWeight}
                     keyboardType="numeric"
-                    placeholder="0"
+                    placeholder={t('pendingCard.placeholderZero')}
                     placeholderTextColor={colors.textMuted}
                   />
                 </View>
                 <View style={styles.pendingInputGroup}>
-                  <Text style={styles.pendingLabel}>Reps</Text>
+                  <Text style={styles.pendingLabel}>{t('pendingCard.repsLabel')}</Text>
                   <TextInput
                     style={styles.pendingInput}
                     value={reps}
                     onChangeText={setReps}
                     keyboardType="numeric"
-                    placeholder="0"
+                    placeholder={t('pendingCard.placeholderZero')}
                     placeholderTextColor={colors.textMuted}
                   />
                 </View>
               </View>
               <View style={styles.pendingActionsRow}>
                 <TouchableOpacity style={styles.cancelSetButton} onPress={() => { setPendingExercise(null); setLastPerformance(null); setSuggestedWeight(null); }}>
-                  <Text style={styles.cancelSetText}>Cancelar</Text>
+                  <Text style={styles.cancelSetText}>{t('common:actions.cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.saveSetButton} onPress={handleSaveSet} disabled={saving}>
-                  {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
+                  {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveSetText}>{t('pendingCard.save')}</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -647,13 +658,13 @@ export default function WorkoutSessionScreen({ navigation, route }) {
             <TouchableOpacity style={styles.addSetButton} onPress={handleOpenPicker}>
               <Ionicons name="add-circle" size={20} color={colors.primary} style={{ marginRight: 8 }} />
               <Text style={styles.addSetText}>
-                {suggestedExercises.length > 0 ? 'Outro Exercício' : 'Adicionar Série'}
+                {suggestedExercises.length > 0 ? t('addButton.other') : t('addButton.default')}
               </Text>
             </TouchableOpacity>
           )}
 
           <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout} disabled={finishing}>
-            {finishing ? <ActivityIndicator color={colors.white} /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
+            {finishing ? <ActivityIndicator color={colors.white} /> : <Text style={styles.finishText}>{t('finishWorkout')}</Text>}
           </TouchableOpacity>
         </>
       )}
