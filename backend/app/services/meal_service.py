@@ -65,8 +65,19 @@ class MealService:
             })
         return items
 
+    # Teto de resolução só pra foto de refeição: a IA estima macros por 100g,
+    # não lê texto nenhum na imagem — 1024px no maior lado já preserva
+    # detalhe mais que suficiente pra reconhecer os alimentos, e reduz bastante
+    # o tempo de processamento do modelo de visão (e o upload do celular)
+    # numa foto de câmera moderna (que sai em resolução bem maior que isso).
+    # thumbnail() só encolhe, nunca amplia — imagens já pequenas não são afetadas.
+    _MAX_MEAL_PHOTO_DIMENSION = 1024
+
     def analyze_image(self, image_bytes: bytes) -> dict:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        image.thumbnail(
+            (self._MAX_MEAL_PHOTO_DIMENSION, self._MAX_MEAL_PHOTO_DIMENSION), Image.LANCZOS
+        )
         result = self._gemini_service.analyze_image(image)
 
         # Retorna o rascunho com os itens identificados pela IA (por 100g cada)
@@ -119,11 +130,11 @@ class MealService:
             "source_type": "text"
         }
 
-    def generate_daily_insight(self, goals: dict, consumed: dict) -> str:
+    def generate_daily_insight(self, goals: dict, consumed: dict, language: str = "pt") -> str:
         """Ponto de entrada público pro insight diário — a rota não deve
         acessar self._gemini_service diretamente (fura a camada de serviço
         que o resto do código respeita)."""
-        return self._gemini_service.generate_daily_insight(goals, consumed)
+        return self._gemini_service.generate_daily_insight(goals, consumed, language)
 
     @staticmethod
     def _aggregate_from_items(items: list) -> dict:

@@ -287,8 +287,27 @@ class GeminiService:
         )
         return self._parse_label_response(response.text)
 
-    def generate_daily_insight(self, goals: dict, consumed: dict) -> str:
+    # O prompt em si (as instruções pro Gemini) fica sempre em português —
+    # só a INSTRUÇÃO DE IDIOMA DE SAÍDA muda. O modelo entende a tarefa
+    # igual em qualquer caso, só responde no idioma pedido nesta linha.
+    _INSIGHT_LANGUAGE_INSTRUCTIONS = {
+        "pt": "Responda em português do Brasil.",
+        "en": "Respond in English.",
+        "es": "Responde en español.",
+    }
+
+    # Mesmo texto do fallback abaixo, por idioma — usado quando a IA falha
+    # (rate limit ou qualquer outro erro) e não há resposta nenhuma pra
+    # devolver ao Dashboard.
+    _INSIGHT_FALLBACK_TEXT = {
+        "pt": "Continue focado nas suas metas. Cada refeição conta para sua alta performance!",
+        "en": "Stay focused on your goals. Every meal counts toward your peak performance!",
+        "es": "Sigue enfocado en tus metas. ¡Cada comida cuenta para tu máximo rendimiento!",
+    }
+
+    def generate_daily_insight(self, goals: dict, consumed: dict, language: str = "pt") -> str:
         """Gera uma frase de feedback baseada no consumo atual vs metas."""
+        language = language if language in self._INSIGHT_LANGUAGE_INSTRUCTIONS else "pt"
 
         prompt = f"""
         Você é o nutricionista esportivo de alta performance do app Perfora.
@@ -311,6 +330,8 @@ class GeminiService:
         - Se estiver longe das metas, incentive a próxima refeição.
 
         NÃO use formatação markdown, hashtags ou saudações. Apenas a frase de impacto.
+
+        IDIOMA DA RESPOSTA: {self._INSIGHT_LANGUAGE_INSTRUCTIONS[language]}
         """
 
         # O card de insight sempre devolve uma frase (mesmo se a IA falhar —
@@ -326,10 +347,10 @@ class GeminiService:
             response = self._generate_content(contents=prompt, log_context=" (insight diário)")
             return response.text.strip()
         except GeminiRateLimitError:
-            return "Continue focado nas suas metas. Cada refeição conta para sua alta performance!"
+            return self._INSIGHT_FALLBACK_TEXT[language]
         except GeminiAnalysisError:
             logger.error("Insight diário não gerado — ver a causa raiz no log acima.")
-            return "Continue focado nas suas metas. Cada refeição conta para sua alta performance!"
+            return self._INSIGHT_FALLBACK_TEXT[language]
 
     @staticmethod
     def _parse_item(raw_item: dict) -> MealItemResult:

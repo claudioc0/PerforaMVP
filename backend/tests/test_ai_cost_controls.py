@@ -47,7 +47,7 @@ def _mock_gemini_calls(monkeypatch):
     """
     monkeypatch.setattr(GeminiService, "analyze_text", lambda self, description: _fake_analysis_result())
     monkeypatch.setattr(GeminiService, "analyze_image", lambda self, image: _fake_analysis_result())
-    monkeypatch.setattr(GeminiService, "generate_daily_insight", lambda self, goals, consumed: "Continue assim!")
+    monkeypatch.setattr(GeminiService, "generate_daily_insight", lambda self, goals, consumed, language="pt": "Continue assim!")
 
 
 def _register_and_login(client, email):
