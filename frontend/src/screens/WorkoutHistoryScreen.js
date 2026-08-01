@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,7 +14,7 @@ import {
   deleteWeeklyPlan,
 } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 // JS: 0=Domingo...6=Sábado. Plano: 0=Segunda...6=Domingo.
@@ -25,6 +25,8 @@ function todayPlanIndex() {
 export default function WorkoutHistoryScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [workouts, setWorkouts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -263,7 +265,7 @@ export default function WorkoutHistoryScreen({ navigation }) {
                   ))
                 )}
                 <TouchableOpacity style={styles.startDayButton} onPress={() => handleStartDay(expanded)} disabled={startingDay}>
-                  {startingDay ? <ActivityIndicator color={colors.background} /> : <Text style={styles.startDayText}>Iniciar Treino</Text>}
+                  {startingDay ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.startDayText}>Iniciar Treino</Text>}
                 </TouchableOpacity>
               </>
             ) : (
@@ -328,13 +330,13 @@ export default function WorkoutHistoryScreen({ navigation }) {
         accessibilityRole="button"
         accessibilityLabel="Novo treino"
       >
-        <Ionicons name="add" size={32} color={colors.background} />
+        <Ionicons name="add" size={32} color={colors.onPrimary} />
       </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
@@ -351,7 +353,7 @@ const styles = StyleSheet.create({
   errorTitle: { color: colors.white, fontSize: 16, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
   errorSubtitle: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', marginBottom: 18 },
   retryButton: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
-  retryButtonText: { color: colors.background, fontSize: 15, fontWeight: 'bold' },
+  retryButtonText: { color: colors.onPrimary, fontSize: 15, fontWeight: 'bold' },
   fab: { position: 'absolute', bottom: 30, right: 20, backgroundColor: colors.primary, width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 8 },
 
   weeklySection: { marginBottom: 18 },
@@ -375,5 +377,5 @@ const styles = StyleSheet.create({
   dayDetailExercise: { color: colors.textFaintAlt, fontSize: 13, marginBottom: 4 },
   restSuggestionText: { color: colors.textFaint, fontSize: 13, lineHeight: 19 },
   startDayButton: { backgroundColor: colors.primary, padding: 12, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  startDayText: { color: colors.background, fontSize: 14, fontWeight: 'bold' },
+  startDayText: { color: colors.onPrimary, fontSize: 14, fontWeight: 'bold' },
 });

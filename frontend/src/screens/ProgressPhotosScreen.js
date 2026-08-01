@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { getProgressPhotos, addProgressPhoto, getAuthenticatedImageSource } from '../services/api';
 import { formatShortDate } from '../utils/formatDate';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 // Timeline de fotos de progresso (mesmo ângulo, ao longo do tempo — uma por
 // dia, mesma cadência de peso) com um modo de comparação lado a lado: toca em
@@ -16,6 +16,8 @@ import { colors } from '../theme/colors';
 export default function ProgressPhotosScreen() {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -92,10 +94,10 @@ export default function ProgressPhotosScreen() {
 
       <TouchableOpacity style={[styles.captureButton, uploading && styles.disabledButton]} onPress={handleCapture} disabled={uploading}>
         {uploading ? (
-          <ActivityIndicator color={colors.background} />
+          <ActivityIndicator color={colors.onPrimary} />
         ) : (
           <>
-            <Ionicons name="camera" size={20} color={colors.background} style={{ marginRight: 8 }} />
+            <Ionicons name="camera" size={20} color={colors.onPrimary} style={{ marginRight: 8 }} />
             <Text style={styles.captureButtonText}>Tirar Foto de Hoje</Text>
           </>
         )}
@@ -147,12 +149,12 @@ export default function ProgressPhotosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
   captureButton: { flexDirection: 'row', backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 25 },
-  captureButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  captureButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' },
   disabledButton: { opacity: 0.7 },
   emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 30, fontSize: 14 },
   sectionLabel: { color: colors.textSecondary, fontSize: 13, marginBottom: 12 },

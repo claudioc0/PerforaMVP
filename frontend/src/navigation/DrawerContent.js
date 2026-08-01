@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
@@ -7,7 +7,7 @@ import { useDrawerMenu } from './DrawerMenuContext';
 import { logoutUser } from '../services/api';
 import { getToken } from '../services/secureTokenStorage';
 import { clearLocalSession } from '../services/session';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from './routes';
 
 const DRAWER_WIDTH = Math.min(300, Dimensions.get('window').width * 0.8);
@@ -22,6 +22,8 @@ const MENU_ITEMS = [
 
 export default function DrawerContent() {
   const { isOpen, close } = useDrawerMenu();
+  const { mode, colors, setThemeMode } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const scrimOpacity = useRef(new Animated.Value(0)).current;
   // Continua renderizado durante a animação de saída — só sai da árvore
@@ -103,6 +105,32 @@ export default function DrawerContent() {
 
         <View style={styles.divider} />
 
+        <View style={styles.themeSection}>
+          <Text style={styles.themeSectionLabel}>Tema</Text>
+          <View style={styles.themeToggleRow}>
+            <TouchableOpacity
+              style={[styles.themeOption, mode === 'dark' && styles.themeOptionSelected]}
+              onPress={() => setThemeMode('dark')}
+              accessibilityRole="button"
+              accessibilityLabel="Tema escuro"
+            >
+              <Ionicons name="moon" size={16} color={mode === 'dark' ? colors.onPrimary : colors.textSecondary} />
+              <Text style={[styles.themeOptionText, mode === 'dark' && styles.themeOptionTextSelected]}>Escuro</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.themeOption, mode === 'light' && styles.themeOptionSelected]}
+              onPress={() => setThemeMode('light')}
+              accessibilityRole="button"
+              accessibilityLabel="Tema claro"
+            >
+              <Ionicons name="sunny" size={16} color={mode === 'light' ? colors.onPrimary : colors.textSecondary} />
+              <Text style={[styles.themeOptionText, mode === 'light' && styles.themeOptionTextSelected]}>Claro</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
         <TouchableOpacity style={styles.item} onPress={handleLogout}>
           <Ionicons name="log-out" size={22} color={colors.textSecondary} style={styles.itemIcon} />
           <Text style={styles.logoutText}>Sair</Text>
@@ -112,7 +140,7 @@ export default function DrawerContent() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   panel: {
     position: 'absolute',
@@ -132,4 +160,20 @@ const styles = StyleSheet.create({
   itemText: { color: colors.white, fontSize: 16, fontWeight: '500' },
   logoutText: { color: colors.textSecondary, fontSize: 16 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 15, marginHorizontal: 20 },
+  themeSection: { paddingHorizontal: 20 },
+  themeSectionLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginBottom: 10 },
+  themeToggleRow: { flexDirection: 'row' },
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+    marginRight: 8,
+  },
+  themeOptionSelected: { backgroundColor: colors.primary },
+  themeOptionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '600', marginLeft: 6 },
+  themeOptionTextSelected: { color: colors.onPrimary },
 });

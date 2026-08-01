@@ -2,7 +2,7 @@ import React from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 /**
  * Seta de "voltar" reutilizável. Por padrão usa navigation.goBack(),
@@ -10,6 +10,7 @@ import { colors } from '../theme/colors';
  */
 export default function BackButton({ onPress, style }) {
   const navigation = useNavigation();
+  const { colors } = useTheme();
 
   return (
     <TouchableOpacity

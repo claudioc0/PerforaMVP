@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Switch, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { requestNotificationPermission, scheduleDailyReminder, cancelReminder } from '../services/notifications';
 import { REMINDERS_SETTINGS_KEY } from '../services/session';
 
@@ -26,6 +26,8 @@ const DEFAULT_SETTINGS = REMINDER_DEFS.reduce((acc, { type, hour, minute }) => {
 export default function RemindersScreen() {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
 
@@ -110,7 +112,7 @@ export default function RemindersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   center: { flex: 1, backgroundColor: colors.background },
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },

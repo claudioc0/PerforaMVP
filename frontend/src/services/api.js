@@ -29,9 +29,14 @@ if (!API_BASE_URL) {
 }
 
 class ApiError extends Error {
-  constructor(message, status) {
+  // `data` é o corpo JSON já parseado da resposta (quando houver) — permite
+  // um caller distinguir motivos diferentes de um mesmo status HTTP (ex: 429
+  // por rate limit transitório vs. 429 por cota diária de IA esgotada, via
+  // `data.reason`) sem precisar adivinhar pelo texto da mensagem.
+  constructor(message, status, data) {
     super(message);
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -76,7 +81,7 @@ async function handleResponse(response) {
 
   if (!response.ok) {
     const message = isJson && body?.error ? body.error : "Erro ao comunicar com o servidor.";
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, isJson ? body : undefined);
   }
 
   return body;
@@ -496,6 +501,20 @@ export async function getAuthenticatedImageSource(imageUrl) {
     uri: `${API_BASE_URL}${imageUrl}`,
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   };
+}
+
+/**
+ * Monta a URL de download do relatório (PDF/CSV) com o JWT na própria query
+ * string (?jwt=...) — diferente de toda outra chamada desta API, que manda
+ * o token via header. Necessário porque essa URL é aberta com `Linking.openURL`
+ * (navegador do sistema faz o download), que não tem como mandar um header
+ * Authorization customizado. A rota GET /user/report é a única que aceita
+ * essa forma de autenticação (ver backend/app/routes/user_routes.py).
+ * @param {'pdf'|'csv'} format
+ */
+export async function getReportDownloadUrl(format) {
+  const token = await getToken('jwt_token');
+  return `${API_BASE_URL}/user/report?format=${format}&jwt=${token}`;
 }
 
 /**

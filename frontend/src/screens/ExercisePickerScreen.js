@@ -1,16 +1,18 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { listExercises, createExercise } from '../services/api';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 export default function ExercisePickerScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [query, setQuery] = useState('');
   const [exercises, setExercises] = useState([]);
@@ -124,10 +126,10 @@ export default function ExercisePickerScreen({ navigation }) {
       {showCreateOption && (
         <TouchableOpacity style={styles.createButton} onPress={handleCreateCustom} disabled={creating}>
           {creating ? (
-            <ActivityIndicator color={colors.background} />
+            <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <>
-              <Ionicons name="add-circle" size={20} color={colors.background} style={{ marginRight: 8 }} />
+              <Ionicons name="add-circle" size={20} color={colors.onPrimary} style={{ marginRight: 8 }} />
               <Text style={styles.createButtonText}>Criar &quot;{query.trim()}&quot;</Text>
             </>
           )}
@@ -137,7 +139,7 @@ export default function ExercisePickerScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 22, fontWeight: 'bold', textAlign: 'center' },
@@ -148,5 +150,5 @@ const styles = StyleSheet.create({
   rowMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2, textTransform: 'capitalize' },
   emptyText: { color: colors.textSecondary, textAlign: 'center', marginTop: 30, fontSize: 14 },
   createButton: { flexDirection: 'row', backgroundColor: colors.primary, padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 10 },
-  createButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  createButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' },
 });

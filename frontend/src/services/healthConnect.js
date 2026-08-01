@@ -67,17 +67,21 @@ export async function requestHealthPermissions() {
   }
 }
 
-function startOfTodayIso() {
-  const start = new Date();
+function dayBoundsIso(date) {
+  const start = new Date(date);
   start.setHours(0, 0, 0, 0);
-  return start.toISOString();
+  const end = new Date(start);
+  end.setDate(end.getDate() + 1);
+  return { startTime: start.toISOString(), endTime: end.toISOString() };
 }
 
-/** Passos/calorias ativas/FC média de hoje. Cada campo é buscado e degradado
- * de forma independente pra `null` — negar uma permissão específica (ex: FC)
- * não deve zerar os outros campos que o usuário concedeu. */
-export async function getTodayActivity() {
-  const timeRangeFilter = { operator: 'between', startTime: startOfTodayIso(), endTime: new Date().toISOString() };
+/** Passos/calorias ativas/FC média do dia informado (hoje ou qualquer dia
+ * passado — o Health Connect já guarda o histórico, então não há por que
+ * limitar essa consulta a "hoje"). Cada campo é buscado e degradado de forma
+ * independente pra `null` — negar uma permissão específica (ex: FC) não deve
+ * zerar os outros campos que o usuário concedeu. */
+export async function getActivityForDate(date) {
+  const timeRangeFilter = { operator: 'between', ...dayBoundsIso(date) };
   const activity = { steps: null, activeCalories: null, avgHeartRateBpm: null };
 
   try {

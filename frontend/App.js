@@ -10,6 +10,7 @@ import * as Notifications from "expo-notifications";
 import { navigationRef } from "./src/navigation/RootNavigation";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 import { colors } from "./src/theme/colors";
+import { ThemeProvider, useTheme } from "./src/theme/ThemeContext";
 
 // Importa o navegador centralizado
 import AppNavigator from "./src/navigation/AppNavigator";
@@ -27,6 +28,31 @@ Notifications.setNotificationHandler({
   }),
 });
 
+// Precisa ficar por dentro do ThemeProvider pra poder chamar useTheme() e
+// escolher o barStyle da status bar de acordo com o tema ativo.
+function AppContent() {
+  const { mode } = useTheme();
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        {/* O NavigationContainer agora envolve o AppNavigator
+            e recebe a ref para navegação global. */}
+        <NavigationContainer ref={navigationRef}>
+          <StatusBar barStyle={mode === 'light' ? 'dark-content' : 'light-content'} />
+          {/* ErrorBoundary por dentro do NavigationContainer: se uma tela
+              crashar no render (ex: route.params ausente), o fallback troca
+              só o conteúdo da tela atual — o NavigationContainer em si
+              continua de pé, então resetToDashboard() ainda funciona. */}
+          <ErrorBoundary>
+            <AppNavigator />
+          </ErrorBoundary>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({ Orbitron_700Bold, Orbitron_900Black });
 
@@ -39,22 +65,9 @@ export default function App() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        {/* O NavigationContainer agora envolve o AppNavigator
-            e recebe a ref para navegação global. */}
-        <NavigationContainer ref={navigationRef}>
-          <StatusBar barStyle="light-content" />
-          {/* ErrorBoundary por dentro do NavigationContainer: se uma tela
-              crashar no render (ex: route.params ausente), o fallback troca
-              só o conteúdo da tela atual — o NavigationContainer em si
-              continua de pé, então resetToDashboard() ainda funciona. */}
-          <ErrorBoundary>
-            <AppNavigator />
-          </ErrorBoundary>
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 

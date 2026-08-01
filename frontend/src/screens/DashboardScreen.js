@@ -8,13 +8,14 @@ import { useUserGoals } from '../contexts/UserContext';
 import { getTodaySummary, deleteMeal, addWater, getDailyInsight, addFavorite, saveMeal, getStreak, getWeeklyPlan } from '../services/api';
 import { getStreakTier } from '../utils/streak';
 import { getAdjustedGoals } from '../utils/adjustedGoals';
-import { isHealthConnectAvailable, hasHealthPermissions, requestHealthPermissions, getTodayActivity } from '../services/healthConnect';
+import { isHealthConnectAvailable, hasHealthPermissions, requestHealthPermissions, getActivityForDate } from '../services/healthConnect';
 import { DAILY_INSIGHT_CACHE_KEY } from '../services/session';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import LogoMark from '../components/LogoMark';
 import MacroSummaryLine from '../components/MacroSummaryLine';
-import { colors } from '../theme/colors';
+import CircularProgress from '../components/CircularProgress';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 // --- Funções utilitárias para manipulação de datas ---
@@ -51,38 +52,70 @@ const getDisplayDate = (date) => {
 // (mesma conversão já usada em WorkoutHistoryScreen.js, pra não inventar uma segunda regra).
 const getPlanDayIndex = (date) => (date.getDay() + 6) % 7;
 
-// --- Componente de Barra de Progresso Customizada ---
-const ProgressBar = ({ label, consumed = 0, goal = 0, unit = 'g', color = colors.primary }) => {
-  const safeGoal = goal > 0 ? goal : 1; 
+// --- Card grande de calorias (hero), com anel de progresso circular ---
+// `styles`/`colors` vêm do componente pai (useTheme() já resolvido lá) —
+// evita cada helper component recalcular seu próprio createStyles(colors).
+const CalorieHeroCard = ({ consumed = 0, goal = 0, styles, colors }) => {
+  const safeGoal = goal > 0 ? goal : 1;
   const percentage = (consumed / safeGoal) * 100;
-  const visualPercentage = Math.min(percentage, 100); 
-
   const remaining = goal - consumed;
   const hasExceeded = remaining < 0;
 
   return (
-    <View style={styles.progressContainer}>
-      <View style={styles.progressLabelRow}>
-        <Text style={styles.progressLabel}>{label}</Text>
-        <Text style={styles.progressPercentage}>{percentage.toFixed(0)}%</Text>
+    <View style={styles.calorieHeroCard}>
+      <View style={styles.calorieHeroInfo}>
+        <Text style={styles.calorieHeroLabel}>CALORIAS</Text>
+        <Text style={styles.calorieHeroValue}>
+          {consumed.toFixed(0)}<Text style={styles.calorieHeroUnit}> / {goal.toFixed(0)} kcal</Text>
+        </Text>
+        <Text style={styles.calorieHeroMeta}>
+          {hasExceeded ? `Ultrapassou ${Math.abs(remaining).toFixed(0)}kcal` : `Faltam ${remaining.toFixed(0)}kcal hoje`}
+        </Text>
       </View>
-      <View style={styles.progressBarTrack}>
-        <View style={[styles.progressBarFill, { width: `${visualPercentage}%`, backgroundColor: color }]} />
+      <CircularProgress
+        percentage={percentage}
+        size={80}
+        strokeWidth={8}
+        color={colors.primary}
+        trackColor={colors.border}
+      >
+        <Text style={styles.calorieHeroRingText}>{percentage.toFixed(0)}%</Text>
+      </CircularProgress>
+    </View>
+  );
+};
+
+// --- Card de macro individual (proteína/carbo/gordura) — fundo neutro
+// (mesmo cinza escuro dos outros cards), ícone/percentual/barra no verde de
+// marca, pra manter os 3 cards como uma família coesa em vez de uma cor
+// diferente por card. ---
+const MacroCard = ({ icon, label, consumed = 0, goal = 0, unit = 'g', accentColor, styles }) => {
+  const safeGoal = goal > 0 ? goal : 1;
+  const percentage = (consumed / safeGoal) * 100;
+  const visualPercentage = Math.min(percentage, 100);
+  const remaining = goal - consumed;
+  const hasExceeded = remaining < 0;
+
+  return (
+    <View style={styles.macroCard}>
+      <View style={styles.macroCardHeader}>
+        <MaterialCommunityIcons name={icon} size={16} color={accentColor} />
+        <Text style={[styles.macroCardPercentage, { color: accentColor }]}>{percentage.toFixed(0)}%</Text>
       </View>
-      <View style={styles.progressMetaRow}>
-        <Text style={styles.progressMetaText}>Consumido: {consumed.toFixed(1)}{unit}</Text>
-        {hasExceeded ? (
-          <Text style={styles.progressMetaText}>Ultrapassou: {Math.abs(remaining).toFixed(1)}{unit}</Text>
-        ) : (
-          <Text style={styles.progressMetaText}>Faltam: {remaining.toFixed(1)}{unit}</Text>
-        )}
+      <Text style={styles.macroCardValue}>{consumed.toFixed(0)}{unit}</Text>
+      <Text style={styles.macroCardLabel}>{label}</Text>
+      <View style={styles.macroCardTrack}>
+        <View style={[styles.macroCardFill, { width: `${visualPercentage}%`, backgroundColor: accentColor }]} />
       </View>
+      <Text style={styles.macroCardMeta} numberOfLines={1}>
+        {hasExceeded ? `+${Math.abs(remaining).toFixed(0)}${unit}` : `Faltam ${remaining.toFixed(0)}${unit}`}
+      </Text>
     </View>
   );
 };
 
 // --- Badge de Sequência (Streak) ---
-const StreakBadge = ({ currentStreak }) => {
+const StreakBadge = ({ currentStreak, styles, colors }) => {
   if (!currentStreak) return null;
   const tier = getStreakTier(currentStreak);
   return (
@@ -99,6 +132,8 @@ export default function DashboardScreen({ navigation }) {
   const { open: openDrawerMenu } = useDrawerMenu();
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { goals, refreshGoals } = useUserGoals();
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -119,7 +154,7 @@ export default function DashboardScreen({ navigation }) {
   const [healthAvailable, setHealthAvailable] = useState(false);
   const [healthConnected, setHealthConnected] = useState(false);
   const [connectingHealth, setConnectingHealth] = useState(false);
-  const [todayActivity, setTodayActivity] = useState(null);
+  const [activityForDay, setActivityForDay] = useState(null);
 
   const formattedCurrentDate = useMemo(() => getFormattedDate(currentDate), [currentDate]);
   // Compara só o dia: currentDate carrega o horário em que foi criada, então comparar
@@ -211,7 +246,9 @@ export default function DashboardScreen({ navigation }) {
   // Health Connect só existe no Android nesta rodada (Apple Health fica pra
   // quando houver acesso a Mac/Xcode). Reflete o estado real de permissão do
   // SO a cada vez que a tela ganha foco, em vez de uma flag local que pode
-  // dessincronizar se o usuário revogar o acesso nas configurações.
+  // dessincronizar se o usuário revogar o acesso nas configurações. Depende
+  // de `currentDate` — o Health Connect guarda histórico, então navegar pras
+  // setas de data busca a atividade daquele dia específico, não sempre "hoje".
   const fetchHealthActivity = useCallback(async () => {
     if (Platform.OS !== 'android') return;
     const available = await isHealthConnectAvailable();
@@ -221,10 +258,10 @@ export default function DashboardScreen({ navigation }) {
     const granted = await hasHealthPermissions();
     setHealthConnected(granted);
     if (granted) {
-      const activity = await getTodayActivity();
-      setTodayActivity(activity);
+      const activity = await getActivityForDate(currentDate);
+      setActivityForDay(activity);
     }
-  }, []);
+  }, [currentDate]);
 
   const handleConnectHealth = async () => {
     setConnectingHealth(true);
@@ -232,8 +269,8 @@ export default function DashboardScreen({ navigation }) {
       const granted = await requestHealthPermissions();
       setHealthConnected(granted);
       if (granted) {
-        const activity = await getTodayActivity();
-        setTodayActivity(activity);
+        const activity = await getActivityForDate(currentDate);
+        setActivityForDay(activity);
       }
     } finally {
       setConnectingHealth(false);
@@ -537,7 +574,7 @@ export default function DashboardScreen({ navigation }) {
               <Text style={styles.subtitle}>Seu desempenho hoje</Text>
             </View>
 
-            <StreakBadge currentStreak={streak?.current_streak} />
+            <StreakBadge currentStreak={streak?.current_streak} styles={styles} colors={colors} />
 
             {/* Card de Insight da IA */}
             {(loadingInsight || aiInsight) && (
@@ -557,26 +594,51 @@ export default function DashboardScreen({ navigation }) {
               </View>
             )}
 
-            {/* Seção de Progresso */}
+            {/* Seção de Progresso — um card grande de calorias (hero) seguido
+                de uma grade de cards coloridos por macro, cada um com sua
+                própria cor de destaque em vez do cinza uniforme antigo. */}
             <View style={styles.progressSection}>
               {isTrainingDay !== null && (
                 <Text style={styles.adjustedGoalLabel}>
                   {isTrainingDay ? '🏋️ Meta ajustada: dia de treino (+carbo)' : '😴 Meta ajustada: dia de descanso (-carbo)'}
                 </Text>
               )}
-              <ProgressBar label="Calorias" consumed={summary?.total_calories} goal={adjustedGoals?.goal_calories} unit="kcal" />
-              <ProgressBar label="Proteínas" consumed={summary?.total_protein_g} goal={adjustedGoals?.goal_protein_g} />
-              <ProgressBar label="Carboidratos" consumed={summary?.total_carbs_g} goal={adjustedGoals?.goal_carbs_g} />
-              <ProgressBar label="Gorduras" consumed={summary?.total_fat_g} goal={adjustedGoals?.goal_fat_g} />
+              <CalorieHeroCard consumed={summary?.total_calories} goal={adjustedGoals?.goal_calories} styles={styles} colors={colors} />
+              <View style={styles.macroCardsRow}>
+                <MacroCard
+                  icon="food-drumstick"
+                  label="Proteínas"
+                  consumed={summary?.total_protein_g}
+                  goal={adjustedGoals?.goal_protein_g}
+                  accentColor={colors.primary}
+                  styles={styles}
+                />
+                <MacroCard
+                  icon="barley"
+                  label="Carboidratos"
+                  consumed={summary?.total_carbs_g}
+                  goal={adjustedGoals?.goal_carbs_g}
+                  accentColor={colors.primary}
+                  styles={styles}
+                />
+                <MacroCard
+                  icon="water"
+                  label="Gorduras"
+                  consumed={summary?.total_fat_g}
+                  goal={adjustedGoals?.goal_fat_g}
+                  accentColor={colors.primary}
+                  styles={styles}
+                />
+              </View>
             </View>
 
-            {/* Atividade Hoje (Health Connect) — só informativo, não altera
-                nenhuma meta acima. Só faz sentido pra "Hoje": o dado é sempre
-                do dia real do aparelho, mostrar isso navegando por dias
-                passados seria confuso. */}
-            {healthAvailable && displayDate === 'Hoje' && (
+            {/* Atividade (Health Connect) — só informativo, não altera
+                nenhuma meta acima. O Health Connect guarda histórico, então
+                isso acompanha a navegação por dias passados normalmente,
+                buscando a atividade daquele dia específico. */}
+            {healthAvailable && (
               <View style={styles.progressSection}>
-                <Text style={styles.cardTitle}>Atividade Hoje</Text>
+                <Text style={styles.cardTitle}>Atividade de {displayDate}</Text>
                 {!healthConnected ? (
                   <TouchableOpacity
                     style={[styles.connectHealthButton, connectingHealth && styles.disabledButton]}
@@ -584,29 +646,29 @@ export default function DashboardScreen({ navigation }) {
                     disabled={connectingHealth}
                   >
                     {connectingHealth ? (
-                      <ActivityIndicator color={colors.background} />
+                      <ActivityIndicator color={colors.onPrimary} />
                     ) : (
                       <Text style={styles.connectHealthButtonText}>Conectar Health Connect</Text>
                     )}
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.activityRow}>
-                    <View style={styles.activityItem}>
-                      <Ionicons name="footsteps" size={20} color={colors.primary} />
-                      <Text style={styles.activityValue}>{todayActivity?.steps ?? '—'}</Text>
+                    <View style={styles.activityCard}>
+                      <Ionicons name="footsteps" size={18} color={colors.primary} />
+                      <Text style={styles.activityValue}>{activityForDay?.steps ?? '—'}</Text>
                       <Text style={styles.activityLabel}>Passos</Text>
                     </View>
-                    <View style={styles.activityItem}>
-                      <Ionicons name="flame" size={20} color={colors.primary} />
+                    <View style={styles.activityCard}>
+                      <Ionicons name="flame" size={18} color={colors.primary} />
                       <Text style={styles.activityValue}>
-                        {todayActivity?.activeCalories != null ? Math.round(todayActivity.activeCalories) : '—'}
+                        {activityForDay?.activeCalories != null ? Math.round(activityForDay.activeCalories) : '—'}
                       </Text>
                       <Text style={styles.activityLabel}>Cal. ativas</Text>
                     </View>
-                    <View style={styles.activityItem}>
-                      <Ionicons name="heart" size={20} color={colors.primary} />
+                    <View style={styles.activityCard}>
+                      <Ionicons name="heart" size={18} color={colors.primary} />
                       <Text style={styles.activityValue}>
-                        {todayActivity?.avgHeartRateBpm != null ? Math.round(todayActivity.avgHeartRateBpm) : '—'}
+                        {activityForDay?.avgHeartRateBpm != null ? Math.round(activityForDay.avgHeartRateBpm) : '—'}
                       </Text>
                       <Text style={styles.activityLabel}>FC média</Text>
                     </View>
@@ -617,7 +679,18 @@ export default function DashboardScreen({ navigation }) {
 
             {/* Seção de Hidratação */}
             <View style={styles.progressSection}>
-              <ProgressBar label="Hidratação" consumed={waterIntake} goal={2500} unit="ml" color={colors.info} />
+              <View style={styles.waterCard}>
+                <View style={styles.waterCardHeader}>
+                  <Ionicons name="water" size={18} color={colors.primary} />
+                  <Text style={styles.waterCardLabel}>HIDRATAÇÃO</Text>
+                </View>
+                <Text style={styles.waterCardValue}>
+                  {waterIntake}<Text style={styles.waterCardUnit}> / 2500 ml</Text>
+                </Text>
+                <View style={styles.waterCardTrack}>
+                  <View style={[styles.waterCardFill, { width: `${Math.min((waterIntake / 2500) * 100, 100)}%` }]} />
+                </View>
+              </View>
               <View style={styles.waterButtonsContainer}>
                 <TouchableOpacity style={styles.waterButton} onPress={() => handleAddWater(250)}>
                   <Text style={styles.waterButtonText}>+250 ml</Text>
@@ -674,14 +747,14 @@ export default function DashboardScreen({ navigation }) {
           accessibilityRole="button"
           accessibilityLabel="Adicionar refeição com foto"
         >
-          <Ionicons name="camera" size={28} color={colors.background} />
+          <Ionicons name="camera" size={28} color={colors.onPrimary} />
         </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   rootContainer: { flex: 1, backgroundColor: colors.background },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
@@ -707,9 +780,9 @@ const styles = StyleSheet.create({
   cardTitle: { color: colors.white, fontSize: 16, fontWeight: '600', marginBottom: 15 },
   disabledButton: { opacity: 0.7 },
   connectHealthButton: { backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
-  connectHealthButtonText: { color: colors.background, fontWeight: 'bold', fontSize: 14 },
-  activityRow: { flexDirection: 'row', justifyContent: 'space-around' },
-  activityItem: { alignItems: 'center' },
+  connectHealthButtonText: { color: colors.onPrimary, fontWeight: 'bold', fontSize: 14 },
+  activityRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  activityCard: { flex: 1, alignItems: 'center', backgroundColor: colors.surfaceAlt, borderRadius: 14, paddingVertical: 14, marginHorizontal: 4 },
   activityValue: { color: colors.white, fontSize: 18, fontWeight: 'bold', marginTop: 6 },
   activityLabel: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   insightCard: { backgroundColor: colors.surface, borderRadius: 16, padding: 20, marginBottom: 25, borderWidth: 1, borderColor: 'rgba(0, 255, 102, 0.2)' },
@@ -719,17 +792,38 @@ const styles = StyleSheet.create({
   insightText: { color: colors.textFaintAlt2, fontSize: 15, fontStyle: 'italic', lineHeight: 22 },
   insightLoadingContainer: { flexDirection: 'row', alignItems: 'center' },
   insightLoadingText: { color: colors.textSecondary, marginLeft: 10, fontSize: 14 },
-  progressContainer: { marginBottom: 15 },
-  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  progressLabel: { color: colors.white, fontSize: 16, fontWeight: '500' },
-  progressPercentage: { color: colors.white, fontSize: 15, fontFamily: 'Orbitron_700Bold' },
-  progressBarTrack: { height: 10, backgroundColor: colors.border, borderRadius: 5, overflow: 'hidden' },
-  progressBarFill: { height: '100%', borderRadius: 5 },
-  progressMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 },
-  progressMetaText: { color: colors.textSecondary, fontSize: 12 },
+  // --- Card grande de calorias (hero) — mesmo cinza escuro dos outros
+  // cards, com o anel de progresso e o texto no verde de marca. ---
+  calorieHeroCard: { backgroundColor: colors.surfaceAlt, borderRadius: 16, padding: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  calorieHeroInfo: { flex: 1, marginRight: 12 },
+  calorieHeroLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  calorieHeroValue: { color: colors.white, fontSize: 30, fontWeight: 'bold', marginTop: 4 },
+  calorieHeroUnit: { fontSize: 15, fontWeight: '600' },
+  calorieHeroMeta: { color: colors.textSecondary, fontSize: 13, marginTop: 6 },
+  calorieHeroRingText: { color: colors.white, fontSize: 15, fontWeight: 'bold' },
+  // --- Grade de cards de macro — fundo neutro uniforme (mesmo cinza dos
+  // outros cards), ícone/percentual/barra no verde de marca. ---
+  macroCardsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  macroCard: { flex: 1, backgroundColor: colors.surface, borderRadius: 14, padding: 12, marginHorizontal: 4 },
+  macroCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  macroCardPercentage: { fontSize: 12, fontWeight: '700' },
+  macroCardValue: { color: colors.white, fontSize: 18, fontWeight: 'bold', marginTop: 8 },
+  macroCardLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '600', marginTop: 2 },
+  macroCardTrack: { height: 5, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden', marginTop: 10 },
+  macroCardFill: { height: '100%', borderRadius: 3 },
+  macroCardMeta: { color: colors.textSecondary, fontSize: 10, marginTop: 6 },
+  // --- Card de hidratação — mesmo cinza escuro dos outros cards, destaque
+  // no verde de marca. ---
+  waterCard: { backgroundColor: colors.surface, borderRadius: 14, padding: 16 },
+  waterCardHeader: { flexDirection: 'row', alignItems: 'center' },
+  waterCardLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', letterSpacing: 1, marginLeft: 8 },
+  waterCardValue: { color: colors.white, fontSize: 22, fontWeight: 'bold', marginTop: 8 },
+  waterCardUnit: { fontSize: 14, fontWeight: '600' },
+  waterCardTrack: { height: 6, backgroundColor: colors.border, borderRadius: 3, overflow: 'hidden', marginTop: 10 },
+  waterCardFill: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
   waterButtonsContainer: { flexDirection: 'row', justifyContent: 'space-around', marginTop: 15 },
-  waterButton: { borderColor: colors.info, borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 25 },
-  waterButtonText: { color: colors.info, fontSize: 14, fontWeight: '600' },
+  waterButton: { borderColor: colors.primary, borderWidth: 1, borderRadius: 20, paddingVertical: 8, paddingHorizontal: 25 },
+  waterButtonText: { color: colors.primary, fontSize: 14, fontWeight: '600' },
   listTitle: { color: colors.white, fontSize: 18, marginBottom: 15, fontWeight: '600' },
   repeatSection: { marginBottom: 20 },
   repeatSectionTitle: { color: colors.textSecondary, fontSize: 14, marginBottom: 10, fontWeight: '500' },
@@ -753,5 +847,5 @@ const styles = StyleSheet.create({
   fabSecondary: { backgroundColor: colors.border, width: 48, height: 48, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginBottom: 15, elevation: 6 },
   errorText: { color: colors.danger, fontSize: 16, textAlign: 'center', marginBottom: 20 },
   retryButton: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10, },
-  retryButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' }
+  retryButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' }
 });

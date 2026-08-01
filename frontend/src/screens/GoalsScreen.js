@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,10 +18,11 @@ import { updateUserGoals, calculateSmartGoals } from '../services/api';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
+import { ROUTES } from '../navigation/routes';
 
 // Componente para botões de seleção customizados
-const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
+const OptionSelector = ({ options, selectedValue, onSelect, style, styles }) => (
   <View style={[styles.optionContainer, style]}>
     {options.map((option) => (
       <TouchableOpacity
@@ -45,10 +46,16 @@ const OptionSelector = ({ options, selectedValue, onSelect, style }) => (
   </View>
 );
 
-export default function GoalsScreen({ navigation }) {
+export default function GoalsScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { refreshGoals, setGoalsLocally } = useUserGoals();
+  // Vindo do primeiro login pós-cadastro (ver LoginScreen.js) — nesse caso a
+  // calculadora abre sozinha e, ao concluir, segue pro Dashboard em vez de
+  // voltar pra esta tela (não faz sentido "voltar" pro Login/Cadastro).
+  const isOnboarding = route.params?.openCalculator === true;
   // Estado para metas manuais
   const [calories, setCalories] = useState('');
   const [protein, setProtein] = useState('');
@@ -99,6 +106,13 @@ export default function GoalsScreen({ navigation }) {
     }, [loadGoals])
   );
 
+  // Abre a calculadora automaticamente só uma vez, no fluxo de onboarding.
+  useEffect(() => {
+    if (isOnboarding) {
+      setModalVisible(true);
+    }
+  }, [isOnboarding]);
+
   const handleSaveGoals = async () => {
     setSaving(true);
     try {
@@ -112,7 +126,11 @@ export default function GoalsScreen({ navigation }) {
       // Propaga na hora pro Dashboard/Insights, sem esperar uma nova busca de rede.
       setGoalsLocally(goalsData);
       showAlert('Sucesso!', 'Suas metas foram atualizadas.');
-      navigation.goBack();
+      if (isOnboarding) {
+        navigation.replace(ROUTES.DASHBOARD);
+      } else {
+        navigation.goBack();
+      }
     } catch (error) {
       showAlert('Erro ao Salvar', error.message || 'Não foi possível atualizar as metas.');
     } finally {
@@ -149,6 +167,9 @@ export default function GoalsScreen({ navigation }) {
 
       setModalVisible(false); // Fecha o modal
       showAlert('Sucesso!', 'Suas metas foram calculadas e aplicadas.');
+      if (isOnboarding) {
+        navigation.replace(ROUTES.DASHBOARD);
+      }
 
     } catch (error) {
       showAlert('Erro no Cálculo', error.message || 'Não foi possível calcular as metas.');
@@ -184,9 +205,15 @@ export default function GoalsScreen({ navigation }) {
     >
       <ScrollView style={[styles.container, { paddingTop: insets.top + 20 }]} keyboardShouldPersistTaps="handled">
       <View style={styles.headerRow}>
-        <BackButton />
-        <Text style={styles.headerTitle}>Definir Metas</Text>
+        {!isOnboarding && <BackButton />}
+        <Text style={styles.headerTitle}>{isOnboarding ? 'Vamos definir sua meta' : 'Definir Metas'}</Text>
       </View>
+
+      {isOnboarding && (
+        <Text style={styles.onboardingSubtitle}>
+          Preencha seus dados na calculadora pra começar com uma meta calculada pra você, ou defina manualmente abaixo.
+        </Text>
+      )}
 
       <TouchableOpacity style={styles.smartButton} onPress={() => setModalVisible(true)}>
         <Text style={styles.smartButtonText}>Usar Calculadora Automática</Text>
@@ -211,7 +238,7 @@ export default function GoalsScreen({ navigation }) {
       </View>
 
       <TouchableOpacity style={[styles.saveButton, saving && styles.disabledButton]} onPress={handleSaveGoals} disabled={saving}>
-        {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.saveButtonText}>Salvar Metas</Text>}
+        {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveButtonText}>Salvar Metas</Text>}
       </TouchableOpacity>
 
       {/* Modal da Calculadora Inteligente */}
@@ -244,6 +271,7 @@ export default function GoalsScreen({ navigation }) {
                 options={[{ label: 'Masculino', value: 'M' }, { label: 'Feminino', value: 'F' }]}
                 selectedValue={gender}
                 onSelect={setGender}
+                styles={styles}
               />
             </View>
 
@@ -260,6 +288,7 @@ export default function GoalsScreen({ navigation }) {
                 selectedValue={activityLevel}
                 onSelect={setActivityLevel}
                 style={{ flexWrap: 'wrap' }}
+                styles={styles}
               />
             </View>
 
@@ -273,11 +302,12 @@ export default function GoalsScreen({ navigation }) {
                 ]}
                 selectedValue={goal}
                 onSelect={setGoal}
+                styles={styles}
               />
             </View>
 
             <TouchableOpacity style={[styles.saveButton, calculating && styles.disabledButton]} onPress={handleCalculateGoals} disabled={calculating}>
-              {calculating ? <ActivityIndicator color={colors.background} /> : <Text style={styles.saveButtonText}>Calcular e Aplicar</Text>}
+              {calculating ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveButtonText}>Calcular e Aplicar</Text>}
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
@@ -291,16 +321,17 @@ export default function GoalsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   errorHeaderRow: { position: 'absolute', top: 60, left: 20 },
   errorTitle: { color: colors.white, fontSize: 17, fontWeight: '600', textAlign: 'center', marginBottom: 6 },
   errorSubtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20 },
   retryButton: { backgroundColor: colors.primary, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
-  retryButtonText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  retryButtonText: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
+  onboardingSubtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginBottom: 20, lineHeight: 20 },
   smartButton: {
     borderColor: colors.primary,
     borderWidth: 1,
@@ -316,7 +347,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.surface, color: colors.white, padding: 15, borderRadius: 12, fontSize: 16 },
   saveButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  saveButtonText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
+  saveButtonText: { color: colors.onPrimary, fontSize: 18, fontWeight: 'bold' },
   // Modal Styles
   modalContainer: {
     flex: 1,
@@ -369,6 +400,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   optionButtonTextSelected: {
-    color: colors.background,
+    color: colors.onPrimary,
   },
 });

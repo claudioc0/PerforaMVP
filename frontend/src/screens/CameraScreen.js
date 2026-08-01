@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,17 +7,26 @@ import { analyzeMeal, analyzeLabel } from '../services/api';
 import { fetchProductByBarcode, ProductNotFoundError } from '../services/openFoodFacts';
 import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 export default function CameraScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [imageUri, setImageUri] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzingLabel, setAnalyzingLabel] = useState(false);
-  const { targetDate } = route.params || {}; 
+  const { targetDate } = route.params || {};
   const [scanned, setScanned] = useState(false);
+
+  // Placeholder: ainda não há checkout real (Play Billing/Stripe) integrado
+  // nesta rodada — ver achado de freemium. Existe só pra o botão não ficar
+  // mudo enquanto a assinatura de verdade não é construída.
+  const handleUpsellPress = () => {
+    showAlert("Em breve! 🚀", "A assinatura Premium está a caminho.");
+  };
   const [permission, requestPermission] = useCameraPermissions();
 
   const takePhoto = async () => {
@@ -59,15 +68,29 @@ export default function CameraScreen({ navigation, route }) {
       // mensagem incluir literalmente "429"/"quota"/"RESOURCE_EXHAUSTED",
       // e não cobria nenhum outro tipo de erro upstream, como timeout).
       const errorMsg = error.message || "";
-      if (error.status === 429) {
+      if (error.status === 429 && error.data?.reason === 'daily_quota_exceeded') {
+        // Diferente do 429 transitório abaixo (rate limit por minuto/hora):
+        // esperar não resolve, a cota só reseta amanhã (ou nunca, se assinar).
+        showAlert(
+          "Limite Diário Atingido 🔒",
+          "Você atingiu o limite de análises gratuitas hoje. Assine o Premium para análises ilimitadas, ou adicione os dados manualmente.",
+          [
+            { text: "Assinar Premium", onPress: handleUpsellPress },
+            {
+              text: "Entrada Manual",
+              onPress: () => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate })
+            }
+          ]
+        );
+      } else if (error.status === 429) {
         showAlert(
           "Servidores Ocupados ⚡",
           "Nossa IA está processando muitos pratos agora. Aguarde um minuto ou adicione os dados manualmente.",
           [
             { text: "Aguardar", style: "cancel" },
-            { 
-              text: "Entrada Manual", 
-              onPress: () => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate }) 
+            {
+              text: "Entrada Manual",
+              onPress: () => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate })
             }
           ]
         );
@@ -104,7 +127,16 @@ export default function CameraScreen({ navigation, route }) {
       const product = await analyzeLabel(result.assets[0].uri);
       navigation.navigate(ROUTES.MANUAL_ENTRY, { scannedProduct: product, targetDate });
     } catch (error) {
-      if (error.status === 429) {
+      if (error.status === 429 && error.data?.reason === 'daily_quota_exceeded') {
+        showAlert(
+          "Limite Diário Atingido 🔒",
+          "Você atingiu o limite de análises gratuitas hoje. Assine o Premium para análises ilimitadas, ou adicione os dados manualmente.",
+          [
+            { text: "Assinar Premium", onPress: handleUpsellPress },
+            { text: "Entrada Manual", onPress: () => navigation.navigate(ROUTES.MANUAL_ENTRY, { targetDate }) }
+          ]
+        );
+      } else if (error.status === 429) {
         showAlert(
           "Servidores Ocupados ⚡",
           "Nossa IA está processando muitos rótulos agora. Aguarde um minuto ou adicione os dados manualmente.",
@@ -209,7 +241,7 @@ export default function CameraScreen({ navigation, route }) {
       >
         {analyzing ? (
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <ActivityIndicator color={colors.background} style={{ marginRight: 10 }} />
+            <ActivityIndicator color={colors.onPrimary} style={{ marginRight: 10 }} />
             <Text style={styles.submitText}>Mapeando nutrientes...</Text>
           </View>
         ) : (
@@ -218,7 +250,7 @@ export default function CameraScreen({ navigation, route }) {
       </TouchableOpacity>
 
       {imageUri && !analyzing && (
-         <TouchableOpacity style={[styles.submitButton, {marginTop: 10, backgroundColor: colors.white}]} onPress={handleAnalyze}>
+         <TouchableOpacity style={[styles.submitButton, {marginTop: 10, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border}]} onPress={handleAnalyze}>
             <Text style={[styles.submitText, {color: colors.background}]}>Analisar Foto Atual</Text>
          </TouchableOpacity>
       )}
@@ -245,7 +277,7 @@ export default function CameraScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background, padding: 20 },
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
@@ -261,7 +293,7 @@ const styles = StyleSheet.create({
   orText: { color: colors.textMuted, textAlign: 'center', marginVertical: 20, fontWeight: 'bold' },
   submitButton: { backgroundColor: colors.primary, padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: colors.background, fontSize: 16, fontWeight: 'bold' },
+  submitText: { color: colors.onPrimary, fontSize: 16, fontWeight: 'bold' },
   labelButton: { borderColor: colors.primary, borderWidth: 1, padding: 15, borderRadius: 12, alignItems: 'center', marginBottom: 15 },
   labelButtonText: { color: colors.primary, fontSize: 16, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center' },

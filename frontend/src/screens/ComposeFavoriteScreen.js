@@ -6,7 +6,7 @@ import { searchFoods, addFavorite } from '../services/api';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 
 // Monta um prato composto a partir de vários itens do catálogo (cada um com
 // quantidade própria) e salva como UM favorito só, com `items` preenchido —
@@ -16,6 +16,8 @@ import { colors } from '../theme/colors';
 export default function ComposeFavoriteScreen({ navigation }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [comboName, setComboName] = useState('');
   const [items, setItems] = useState([]);
@@ -232,7 +234,7 @@ export default function ComposeFavoriteScreen({ navigation }) {
         )}
 
         <TouchableOpacity style={[styles.submitButton, saving && styles.disabledButton]} onPress={handleSave} disabled={saving}>
-          {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.submitText}>Salvar Combo</Text>}
+          {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>Salvar Combo</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.cancelButton} onPress={() => navigation.goBack()}>
@@ -243,7 +245,7 @@ export default function ComposeFavoriteScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 24, fontWeight: 'bold', textAlign: 'center' },
@@ -269,7 +271,7 @@ const styles = StyleSheet.create({
   macroLabel: { color: colors.textSecondary, fontSize: 14, marginTop: 4 },
   submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.onPrimary, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
   cancelText: { color: colors.textSecondary, fontSize: 16, paddingBottom: 40 },
 });

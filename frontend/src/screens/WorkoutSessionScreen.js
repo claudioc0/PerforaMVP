@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -9,7 +9,7 @@ import { useAppAlert } from '../components/AppAlertProvider';
 import { getWorkout, addSetLog, updateSetLog, deleteSetLog, updateWorkout, deleteWorkout, getExerciseHistory, getSplitDayExercises } from '../services/api';
 import { getSuggestedWeight } from '../utils/loadProgression';
 import { scheduleRestTimerNotification, cancelRestTimerNotification } from '../services/notifications';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
 const REST_TARGET_KEY = '@perfora_rest_target_seconds';
@@ -38,6 +38,8 @@ const SetRow = React.memo(function SetRow({
   onCancelEdit,
   onSaveEdit,
   onDelete,
+  styles,
+  colors,
 }) {
   const [editWeight, setEditWeight] = useState(String(item.weight_kg));
   const [editReps, setEditReps] = useState(String(item.reps));
@@ -125,6 +127,8 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   const { workoutId } = route.params;
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [workout, setWorkout] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -460,8 +464,10 @@ export default function WorkoutSessionScreen({ navigation, route }) {
       onCancelEdit={cancelEditSet}
       onSaveEdit={saveEditSet}
       onDelete={() => confirmDeleteSet(item.id)}
+      styles={styles}
+      colors={colors}
     />
-  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet]);
+  ), [editingSetId, savingSetEdit, startEditSet, cancelEditSet, saveEditSet, confirmDeleteSet, styles, colors]);
 
   if (loading || !workout) {
     return (
@@ -633,7 +639,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
                   <Text style={styles.cancelSetText}>Cancelar</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.saveSetButton} onPress={handleSaveSet} disabled={saving}>
-                  {saving ? <ActivityIndicator color={colors.background} /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
+                  {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveSetText}>Salvar Série</Text>}
                 </TouchableOpacity>
               </View>
             </View>
@@ -647,7 +653,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
           )}
 
           <TouchableOpacity style={styles.finishButton} onPress={handleFinishWorkout} disabled={finishing}>
-            {finishing ? <ActivityIndicator color={colors.background} /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
+            {finishing ? <ActivityIndicator color={colors.white} /> : <Text style={styles.finishText}>Finalizar Treino</Text>}
           </TouchableOpacity>
         </>
       )}
@@ -656,7 +662,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
@@ -702,7 +708,7 @@ const styles = StyleSheet.create({
   cancelSetButton: { flex: 1, padding: 14, alignItems: 'center', marginRight: 10 },
   cancelSetText: { color: colors.textSecondary, fontSize: 15 },
   saveSetButton: { flex: 1, backgroundColor: colors.primary, padding: 14, borderRadius: 10, alignItems: 'center' },
-  saveSetText: { color: colors.background, fontSize: 15, fontWeight: 'bold' },
+  saveSetText: { color: colors.onPrimary, fontSize: 15, fontWeight: 'bold' },
   finishButton: { backgroundColor: colors.border, padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 15 },
   finishText: { color: colors.white, fontSize: 16, fontWeight: 'bold' },
 });

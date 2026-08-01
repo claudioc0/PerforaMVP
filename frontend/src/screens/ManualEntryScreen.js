@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, FlatList, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { saveMeal, getFavorites, removeFavorite, addFavorite, analyzeMeal, searchFoods } from '../services/api';
@@ -6,10 +6,10 @@ import { Ionicons } from '@expo/vector-icons';
 import BackButton from '../components/BackButton';
 import MacroSummaryLine from '../components/MacroSummaryLine';
 import { useAppAlert } from '../components/AppAlertProvider';
-import { colors } from '../theme/colors';
+import { useTheme } from '../theme/ThemeContext';
 import { ROUTES } from '../navigation/routes';
 
-const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder }) => (
+const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'default', placeholder, styles, colors }) => (
   <View style={styles.fieldContainer}>
     <Text style={styles.fieldLabel}>{label}</Text>
     <View style={styles.inputContainer}>
@@ -29,6 +29,8 @@ const EditableField = ({ label, value, onChangeText, unit, keyboardType = 'defau
 export default function ManualEntryScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   // route.params pode vir ausente (navegação sem os parâmetros esperados,
   // ex: um deep link ou uma rota antiga) — sem o `|| {}`, o destructuring
   // quebra na hora, derrubando a tela inteira (só o ErrorBoundary global
@@ -298,6 +300,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 onChangeText={(text) => handleFieldChange('description', text)}
                 keyboardType="default"
                 placeholder="Ex: Arroz, feijão e bife"
+                styles={styles}
+                colors={colors}
               />
 
               {meal.description.trim().length >= 2 && (searching || searchResults.length > 0) && (
@@ -334,6 +338,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="kcal"
                 keyboardType="numeric"
                 placeholder="550"
+                styles={styles}
+                colors={colors}
               />
               <EditableField
                 label="Proteínas"
@@ -342,6 +348,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="g"
                 keyboardType="numeric"
                 placeholder="45"
+                styles={styles}
+                colors={colors}
               />
               <EditableField
                 label="Carboidratos"
@@ -350,6 +358,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="g"
                 keyboardType="numeric"
                 placeholder="50"
+                styles={styles}
+                colors={colors}
               />
               <EditableField
                 label="Gorduras"
@@ -358,6 +368,8 @@ export default function ManualEntryScreen({ navigation, route }) {
                 unit="g"
                 keyboardType="numeric"
                 placeholder="18"
+                styles={styles}
+                colors={colors}
               />
             </View>
 
@@ -372,7 +384,7 @@ export default function ManualEntryScreen({ navigation, route }) {
             </TouchableOpacity>
 
             <TouchableOpacity style={[styles.submitButton, loading && styles.disabledButton]} onPress={handleSaveMeal} disabled={loading}>
-              {loading ? <ActivityIndicator color={colors.background} /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
+              {loading ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.submitText}>Salvar Refeição</Text>}
             </TouchableOpacity>
           </View>
 
@@ -402,7 +414,7 @@ export default function ManualEntryScreen({ navigation, route }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background, padding: 20, paddingTop: 60 },
   headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
   headerTitle: { flex: 1, color: colors.white, fontSize: 28, fontWeight: 'bold', textAlign: 'center' },
@@ -428,7 +440,7 @@ const styles = StyleSheet.create({
   favoriteToggleText: { color: colors.textFaint, fontSize: 13, marginLeft: 10, flex: 1 },
   submitButton: { backgroundColor: colors.primary, padding: 18, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   disabledButton: { opacity: 0.7 },
-  submitText: { color: colors.background, fontSize: 18, fontWeight: 'bold' },
+  submitText: { color: colors.onPrimary, fontSize: 18, fontWeight: 'bold' },
   cancelButton: { padding: 15, alignItems: 'center', marginTop: 5 },
   cancelText: { color: colors.textSecondary, fontSize: 16, paddingBottom: 40 },
   // Estilos dos Favoritos
