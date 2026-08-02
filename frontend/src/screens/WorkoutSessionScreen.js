@@ -300,7 +300,7 @@ export default function WorkoutSessionScreen({ navigation, route }) {
   };
 
   const handleOpenPicker = () => {
-    navigation.navigate(ROUTES.EXERCISE_PICKER);
+    navigation.navigate(ROUTES.EXERCISE_PICKER, { workoutId });
   };
 
   // ExercisePickerScreen devolve o exercício escolhido como parâmetro

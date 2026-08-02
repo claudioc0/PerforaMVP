@@ -16,12 +16,14 @@ import es from '../i18n/locales/es/exercisePicker.json';
 
 registerNamespace('exercisePicker', { pt, en, es });
 
-export default function ExercisePickerScreen({ navigation }) {
+export default function ExercisePickerScreen({ navigation, route }) {
   const showAlert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { t } = useTranslation(['exercisePicker', 'common']);
   const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const { workoutId } = route.params;
 
   const [query, setQuery] = useState('');
   const [exercises, setExercises] = useState([]);
@@ -66,11 +68,16 @@ export default function ExercisePickerScreen({ navigation }) {
   // sobrevivem à serialização de estado de navegação (persistência entre
   // sessões, deep linking): se o picker fosse restaurado depois de o app
   // ficar em background, o callback original simplesmente não existiria mais.
-  // `navigate` para uma rota já existente na pilha (WorkoutSession, abaixo
-  // deste picker) volta pra ela mesclando os novos params, sem precisar de
-  // goBack() separado.
+  // workoutId volta explícito aqui (em vez de confiar no merge automático do
+  // `navigate` para a rota já existente na pilha) — essa tela é aberta via
+  // `navigation.replace()` a partir de ChooseSplitScreen, e nesse caso o
+  // merge não estava preservando o workoutId original: a volta chegava com
+  // `route.params` só contendo `selectedExercise`, workoutId undefined,
+  // gerando `GET /api/workouts/undefined` (404) e um goBack() forçado que
+  // derrubava o usuário de volta pra lista de treinos.
   const handleSelect = (exercise) => {
     navigation.navigate(ROUTES.WORKOUT_SESSION, {
+      workoutId,
       selectedExercise: { id: exercise.id, name: exercise.name, muscle_group: exercise.muscle_group },
     });
   };
@@ -80,6 +87,7 @@ export default function ExercisePickerScreen({ navigation }) {
     try {
       const exercise = await createExercise({ name: query.trim() });
       navigation.navigate(ROUTES.WORKOUT_SESSION, {
+        workoutId,
         selectedExercise: { id: exercise.id, name: exercise.name, muscle_group: exercise.muscle_group },
       });
     } catch {
