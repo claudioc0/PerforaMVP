@@ -29,6 +29,17 @@ function getLocalDateString(date) {
   return `${year}-${month}-${day}`;
 }
 
+// Inverso de getLocalDateString: um "YYYY-MM-DD" puro (sem horário/offset,
+// como o log.date do WeightLog) passado direto pro construtor `new Date()`
+// é interpretado como meia-noite UTC — perto da meia-noite no horário de
+// Brasília (UTC-3) isso já exibia o dia anterior ("1 de ago." num registro
+// feito às 22h do dia 2). Construir a partir de ano/mês/dia mantém a data
+// no fuso local do aparelho, sem conversão nenhuma.
+function parseLocalDateString(dateStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 // --- Componente de Gráfico de Barras Customizado ---
 // `styles`/`colors` vêm do componente pai (useTheme() já resolvido lá).
 const WeeklyBarChart = ({ data, goal, label, styles, colors, t }) => {
@@ -253,7 +264,7 @@ export default function InsightsScreen({ navigation }) {
                   return (
                     <View key={log.id} style={[styles.weightTag, { borderColor: indicatorColor }]}>
                       <Text style={styles.weightTagText}>
-                        {new Date(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg
+                        {parseLocalDateString(log.date).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}: {log.weight.toFixed(1)}kg
                       </Text>
                       {trendIcon && (
                         <Ionicons name={trendIcon} size={14} color={indicatorColor} style={styles.weightTagIcon} accessibilityLabel={trendLabel} />

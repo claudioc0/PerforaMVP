@@ -7,10 +7,12 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0D0D0D",
+    "icon": "./assets/icon.png",
     "android": {
       "package": "com.perfora.app",
       "adaptiveIcon": {
-        "backgroundColor": "#0D0D0D"
+        "backgroundColor": "#0D0D0D",
+        "foregroundImage": "./assets/adaptive-icon-foreground.png"
       },
       "permissions": [
         "android.permission.health.READ_STEPS",
@@ -21,6 +23,9 @@
     "ios": {
       "bundleIdentifier": "com.perfora.app",
       "supportsTablet": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font",
@@ -36,7 +41,16 @@
         }
       ],
       "expo-localization",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#0D0D0D"
+        }
+      ]
     ],
     "extra": {
       "eas": {
