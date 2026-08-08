@@ -89,4 +89,4 @@ comunicadas dentro do app.
 
 ## 8. Contato
 
-Dúvidas sobre esta política ou sobre seus dados: **[e-mail de contato do desenvolvedor]**
+Dúvidas sobre esta política ou sobre seus dados: **claudiocolomboferreira@gmail.com**
