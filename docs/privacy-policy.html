@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidade — Perfora</title>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #171717;
+    --border: #2a2a2a;
+    --text: #f2f2f2;
+    --text-secondary: #b3b3b3;
+    --primary: #00ff66;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 4px;
+  }
+  .updated {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 32px;
+  }
+  h2 {
+    font-size: 1.2rem;
+    margin-top: 40px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    font-size: 0.95rem;
+  }
+  th {
+    background: var(--surface);
+  }
+  ul {
+    padding-left: 1.2em;
+  }
+  li {
+    margin-bottom: 6px;
+  }
+  a {
+    color: var(--primary);
+  }
+  strong {
+    color: var(--text);
+  }
+  .contact {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Política de Privacidade do Perfora</h1>
+  <p class="updated">Última atualização: 3 de agosto de 2026</p>
+
+  <p>O Perfora ("nós", "nosso app") é um aplicativo de acompanhamento de nutrição e treino. Esta política explica quais dados coletamos, por que coletamos, e como você pode controlá-los.</p>
+
+  <h2>1. Dados que coletamos</h2>
+
+  <p><strong>Dados de conta.</strong> Nome, e-mail e senha (armazenada apenas de forma criptografada — nunca em texto puro) para criar e autenticar sua conta.</p>
+
+  <p><strong>Dados de nutrição e corpo.</strong></p>
+  <ul>
+    <li>Metas de calorias, proteínas, carboidratos e gorduras que você define</li>
+    <li>Refeições que você registra: descrição e valores nutricionais</li>
+    <li>Fotos de pratos ou de rótulos de produtos que você tira para análise por IA — essas fotos <strong>não ficam armazenadas</strong> nos nossos servidores após a análise (ver seção 3)</li>
+    <li>Registros de peso corporal que você insere</li>
+    <li>Fotos de progresso corporal que você opta por tirar e salvar no app — essas <strong>ficam armazenadas</strong>, vinculadas à sua conta, pra você acompanhar sua evolução ao longo do tempo</li>
+  </ul>
+
+  <p><strong>Dados de treino.</strong> Treinos, exercícios, séries, repetições e cargas que você registra.</p>
+
+  <p><strong>Dados de sensores/saúde do aparelho.</strong> Se você conceder a permissão do Android Health Connect, o app <strong>lê</strong> (sem nunca enviar ao nosso servidor) passos, calorias ativas e frequência cardíaca do dia, só pra exibir na tela inicial. Esses dados permanecem no seu aparelho e no Health Connect do próprio sistema.</p>
+
+  <p><strong>Dados de uso do app.</strong> Quantas análises de IA você já usou no dia (pra controlar o limite gratuito diário) e se sua conta é premium.</p>
+
+  <h2>2. Permissões usadas pelo app</h2>
+  <table>
+    <tr><th>Permissão</th><th>Pra que serve</th></tr>
+    <tr><td>Câmera</td><td>Fotografar refeições, rótulos de produtos e fotos de progresso corporal</td></tr>
+    <tr><td>Notificações</td><td>Lembretes locais (registrar refeição, beber água, treinar) que você ativa</td></tr>
+    <tr><td>Health Connect (passos, calorias ativas, frequência cardíaca)</td><td>Exibir sua atividade do dia direto na tela inicial</td></tr>
+  </table>
+  <p>Nenhuma dessas permissões é usada pra rastreamento, publicidade ou qualquer finalidade além da descrita.</p>
+
+  <h2>3. Compartilhamento com terceiros</h2>
+  <ul>
+    <li><strong>Google Gemini API</strong>: quando você fotografa uma refeição ou rótulo pra estimativa automática de valores nutricionais, ou quando o app gera seu insight diário, a imagem e/ou o texto da refeição são enviados à API do Google Gemini pra análise. O Google processa essa informação segundo a própria política de privacidade da API Gemini. Não guardamos essas fotos depois da análise — elas passam pelo nosso servidor só de forma transitória, sem ficar salvas em disco.</li>
+    <li><strong>Hospedagem</strong>: os dados da sua conta (nome, e-mail, metas, refeições, treinos, fotos de progresso) ficam armazenados em um banco de dados hospedado no Render.com, que atua como nosso processador de dados.</li>
+  </ul>
+  <p>Não vendemos, alugamos ou compartilhamos seus dados com anunciantes. O Perfora não tem SDKs de publicidade ou de rastreamento de terceiros.</p>
+
+  <h2>4. Retenção e exclusão de dados</h2>
+  <p>Seus dados ficam armazenados enquanto sua conta existir. Para solicitar a exclusão da sua conta e de todos os dados associados (refeições, treinos, fotos, metas), entre em contato pelo e-mail abaixo — a exclusão remove em cascata todos os registros vinculados à sua conta.</p>
+
+  <h2>5. Segurança</h2>
+  <p>Senhas são armazenadas com hash (nunca em texto puro). A comunicação entre o app e o servidor usa HTTPS. O acesso aos seus dados é protegido por autenticação (token JWT), e cada usuário só acessa seus próprios registros.</p>
+
+  <h2>6. Crianças</h2>
+  <p>O Perfora não é direcionado a menores de 13 anos e não coletamos intencionalmente dados de crianças.</p>
+
+  <h2>7. Alterações nesta política</h2>
+  <p>Podemos atualizar esta política ocasionalmente. Mudanças relevantes serão comunicadas dentro do app.</p>
+
+  <div class="contact">
+    <strong>8. Contato</strong>
+    <p>Dúvidas sobre esta política ou sobre seus dados:<br>
+    <a href="mailto:claudiocolomboferreira@gmail.com">claudiocolomboferreira@gmail.com</a></p>
+  </div>
+</main>
+</body>
+</html>

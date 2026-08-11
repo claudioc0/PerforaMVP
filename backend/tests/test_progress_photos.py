@@ -12,8 +12,19 @@ import os
 from io import BytesIO
 
 import pytest
+from PIL import Image
 
 from app.models import ProgressPhoto
+
+
+def _real_image_bytes(extension: str) -> bytes:
+    """Um PNG/JPEG/WEBP mínimo (1x1) de verdade — a rota agora abre o
+    upload com Pillow antes de salvar (ver user_routes.py:add_progress_photo),
+    então bytes fake não bastam mais pra passar pela validação."""
+    pil_format = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP"}[extension]
+    buffer = BytesIO()
+    Image.new("RGB", (1, 1), color=(255, 0, 0)).save(buffer, format=pil_format)
+    return buffer.getvalue()
 
 
 @pytest.fixture(autouse=True)
@@ -44,9 +55,15 @@ def _register_and_login(client, email):
 
 
 def _post_photo(client, headers, filename="progresso.jpg"):
+    extension = filename.rsplit(".", 1)[-1].lower()
+    # Extensão fora da allowlist (ex: "foto.exe") nunca chega na validação
+    # de conteúdo — a rota rejeita pelo nome do arquivo antes disso, então
+    # bytes fake ainda servem pra esse caso.
+    is_image_extension = extension in ("jpg", "jpeg", "png", "webp")
+    content = _real_image_bytes(extension) if is_image_extension else b"fake-image-bytes"
     return client.post(
         "/api/user/progress-photos",
-        data={"image": (BytesIO(b"fake-image-bytes"), filename)},
+        data={"image": (BytesIO(content), filename)},
         content_type="multipart/form-data",
         headers=headers,
     )
@@ -59,6 +76,17 @@ class TestUploadDeFotoDeProgresso:
 
     def test_extensao_nao_suportada_devolve_400(self, client, auth_headers):
         response = _post_photo(client, auth_headers, filename="foto.exe")
+        assert response.status_code == 400
+
+    def test_conteudo_que_nao_e_imagem_devolve_400_mesmo_com_extensao_valida(self, client, auth_headers):
+        # Extensão ".png" correta, mas os bytes não são uma imagem de verdade
+        # — a extensão sozinha não deve bastar pra passar na validação.
+        response = client.post(
+            "/api/user/progress-photos",
+            data={"image": (BytesIO(b"isto-nao-e-um-png"), "foto.png")},
+            content_type="multipart/form-data",
+            headers=auth_headers,
+        )
         assert response.status_code == 400
 
     def test_sucesso_cria_registro_e_arquivo_em_disco(self, client, auth_headers, app):

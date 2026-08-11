@@ -14,6 +14,7 @@ from app.services.gemini_service import GeminiService, MealAnalysisResult
 from app.services.food_cache_service import get_cached_or_fetch_macros
 from app.services.text_analysis_cache_service import get_cached_analysis, save_analysis
 from app.utils.dates import day_bounds, parse_date_str, timestamp_within_date
+from app.utils.nutrition import MAX_CALORIES, MAX_MACRO_GRAMS, validate_macro_value
 
 logger = logging.getLogger(__name__)
 
@@ -290,11 +291,21 @@ class MealService:
             else:
                 # Atualiza apenas os campos fornecidos (refeição sem detalhamento por item)
                 meal_to_update.description = update_data.get("description", meal_to_update.description)
-                meal_to_update.calories = float(update_data.get("calories", meal_to_update.calories))
-                meal_to_update.protein_g = float(update_data.get("protein_g", meal_to_update.protein_g))
-                meal_to_update.carbs_g = float(update_data.get("carbs_g", meal_to_update.carbs_g))
-                meal_to_update.fat_g = float(update_data.get("fat_g", meal_to_update.fat_g))
-                meal_to_update.quantity_g = float(update_data.get("quantity_g", meal_to_update.quantity_g))
+                meal_to_update.calories = validate_macro_value(
+                    float(update_data.get("calories", meal_to_update.calories)), "Calorias", MAX_CALORIES
+                )
+                meal_to_update.protein_g = validate_macro_value(
+                    float(update_data.get("protein_g", meal_to_update.protein_g)), "Proteínas", MAX_MACRO_GRAMS
+                )
+                meal_to_update.carbs_g = validate_macro_value(
+                    float(update_data.get("carbs_g", meal_to_update.carbs_g)), "Carboidratos", MAX_MACRO_GRAMS
+                )
+                meal_to_update.fat_g = validate_macro_value(
+                    float(update_data.get("fat_g", meal_to_update.fat_g)), "Gorduras", MAX_MACRO_GRAMS
+                )
+                meal_to_update.quantity_g = validate_macro_value(
+                    float(update_data.get("quantity_g", meal_to_update.quantity_g)), "Quantidade", MAX_MACRO_GRAMS
+                )
 
             db.session.commit()
             return meal_to_update
