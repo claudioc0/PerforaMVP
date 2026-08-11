@@ -1,9 +1,11 @@
 import logging
 import os
 from datetime import date
+from io import BytesIO
 
 from flask import Blueprint, request, jsonify, current_app, send_from_directory, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from PIL import Image, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 
 from app.extensions import db
@@ -220,10 +222,31 @@ def add_progress_photo():
     if not is_allowed_image_file(file.filename):
         return jsonify({"error": "Formato de arquivo não suportado."}), 400
 
+    # A extensão do nome do arquivo só diz o que o cliente ALEGA que enviou —
+    # sem abrir de verdade com Pillow, um arquivo qualquer renomeado pra
+    # ".png" seria salvo em disco como se fosse uma imagem válida. Diferente
+    # de foto de refeição/rótulo (meal_service.py), que já passa por
+    # Image.open(...) antes de seguir pro Gemini, esta rota só validava a
+    # extensão — abrir aqui também garante que o arquivo salvo em disco é
+    # sempre uma imagem de verdade (reencodada pelo Pillow, não os bytes
+    # originais — neutraliza qualquer payload extra colado depois de um
+    # cabeçalho de imagem válido).
+    image_bytes = file.read()
+    try:
+        image = Image.open(BytesIO(image_bytes))
+        image.load()
+    except (UnidentifiedImageError, OSError):
+        return jsonify({"error": "Arquivo de imagem inválido ou corrompido."}), 400
+
     today = date.today()
     extension = file.filename.rsplit(".", 1)[1].lower()
     filename = f"{current_user_id}_{today.isoformat()}.{extension}"
     folder = current_app.config["PROGRESS_PHOTOS_FOLDER"]
+    pil_format = {"jpg": "JPEG", "jpeg": "JPEG", "png": "PNG", "webp": "WEBP"}[extension]
+    if pil_format == "JPEG" and image.mode in ("RGBA", "P"):
+        # JPEG não suporta canal alfa — converter antes de salvar, senão
+        # image.save() levanta OSError na hora de gravar.
+        image = image.convert("RGB")
 
     photo = ProgressPhoto(user_id=current_user_id, filename=filename, taken_at=today)
 
@@ -242,7 +265,7 @@ def add_progress_photo():
 
     # Só grava o arquivo em disco DEPOIS do commit ter sucesso — se o registro
     # falhar (ex: já tem foto hoje), não sobra um arquivo órfão sem linha no banco.
-    file.save(os.path.join(folder, filename))
+    image.save(os.path.join(folder, filename), format=pil_format)
 
     return jsonify(photo.to_dict()), 201
 

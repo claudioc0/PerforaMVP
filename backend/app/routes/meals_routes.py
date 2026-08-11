@@ -19,6 +19,7 @@ from app.services.food_cache_service import search_foods
 from app.services.ai_quota_service import AiQuotaService
 from app.utils.pagination import get_pagination_params, paginate_query, pagination_meta
 from app.utils.file_uploads import is_allowed_image_file as _allowed_file
+from app.utils.nutrition import MAX_CALORIES, MAX_MACRO_GRAMS, validate_macro_value
 
 logger = logging.getLogger(__name__)
 
@@ -241,10 +242,10 @@ def add_favorite():
         new_favorite = FavoriteMeal(
             user_id=current_user_id,
             description=data.get("description"),
-            calories=float(data.get("calories", 0)),
-            protein_g=float(data.get("protein_g", 0)),
-            carbs_g=float(data.get("carbs_g", 0)),
-            fat_g=float(data.get("fat_g", 0)),
+            calories=validate_macro_value(float(data.get("calories", 0)), "Calorias", MAX_CALORIES),
+            protein_g=validate_macro_value(float(data.get("protein_g", 0)), "Proteínas", MAX_MACRO_GRAMS),
+            carbs_g=validate_macro_value(float(data.get("carbs_g", 0)), "Carboidratos", MAX_MACRO_GRAMS),
+            fat_g=validate_macro_value(float(data.get("fat_g", 0)), "Gorduras", MAX_MACRO_GRAMS),
             items=items if items else None,
         )
     except (TypeError, ValueError):
