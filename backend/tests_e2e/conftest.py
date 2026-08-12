@@ -24,7 +24,12 @@ import pytest
 import requests
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYTHON_EXE = os.path.join(BACKEND_DIR, "venv", "Scripts", "python.exe")
+# sys.executable, não um path fixo tipo venv/Scripts/python.exe: aponta pro
+# mesmo interpretador que já está rodando a suíte (mesmas dependências
+# instaladas), funciona igual local (Windows) e no CI (Linux, sem venv/ —
+# actions/setup-python instala direto). Path de venv hardcoded quebrou a
+# primeira run no GitHub Actions com FileNotFoundError.
+PYTHON_EXE = sys.executable
 
 
 def _free_port() -> int:
