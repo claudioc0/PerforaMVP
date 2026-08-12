@@ -7,6 +7,13 @@ on:
   workflow_dispatch: {}
   schedule:
     - cron: "0 6 * * 1" # toda segunda, 06:00 UTC (03:00 em Brasília)
+  # TEMPORÁRIO: valida o workflow rodando do começo ao fim antes de mesclar
+  # pra main (só lá o workflow_dispatch/schedule ficam disparáveis de
+  # verdade). Removido no próximo commit assim que a run passar.
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/backend-mutation.yml"
 
 jobs:
   mutate:
