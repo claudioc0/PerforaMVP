@@ -131,6 +131,27 @@ class TestCalculateSmartGoals:
         # em relação ao total calórico — não deve nunca divergir mais que ~1%.
         assert abs(recomputed_calories - goals["goal_calories"]) <= goals["goal_calories"] * 0.01
 
+    def test_gordura_e_exatamente_25_por_cento_do_total_calorico(self, auth_client):
+        # O teste acima ("macros batem com o total calórico") não pega bug
+        # nenhum na fórmula da gordura: carboidrato é definido como "o que
+        # sobrar" (calorie_goal - proteína - gordura), então a soma dos três
+        # sempre fecha em calorie_goal por construção algébrica, não importa
+        # o que a fórmula da gordura calcule — um mutation test provou isso
+        # na prática (fat_calories = calorie_goal * 0.25 virou / 0.25 e
+        # * 1.25 sem que aquele teste notasse). Este aqui trava o valor
+        # absoluto da gordura, não uma relação que sempre se anula sozinha.
+        response = auth_client.post(
+            "/api/user/calculate-goals", json=self.VALID_PHYSICAL_DATA
+        )
+        goals = response.get_json()["goals"]
+
+        tmb = 10 * 80 + 6.25 * 180 - 5 * 30 + 5
+        tdee = tmb * 1.55
+        calorie_goal = tdee - 500  # goal="lose" nos dados de VALID_PHYSICAL_DATA
+        expected_fat_g = round((calorie_goal * 0.25) / 9)
+
+        assert goals["goal_fat_g"] == expected_fat_g
+
     def test_calculo_persiste_as_metas_via_get(self, auth_client):
         auth_client.post("/api/user/calculate-goals", json=self.VALID_PHYSICAL_DATA)
         response = auth_client.get("/api/user/goals")

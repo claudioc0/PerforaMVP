@@ -57,14 +57,36 @@ class TestCreateWeeklyPlanEscalaPadrao:
         body = response.get_json()
         assert body["has_plan"] is True
         assert body["split_id"] == split_id
+        assert body["split_name"] == "Push/Pull/Legs"
         assert len(body["days"]) == 7
 
         # Segunda, Terça, Quarta recebem os 3 dias da divisão na ordem cadastrada;
         # Quinta a Domingo (sem dia correspondente) viram descanso.
         assigned = [d["split_day_id"] for d in body["days"]]
         assert assigned == [day_ids[0], day_ids[1], day_ids[2], None, None, None, None]
-        assert body["days"][0]["day_label"] == "Segunda"
-        assert body["days"][6]["day_label"] == "Domingo"
+
+        # Rótulo de TODOS os 7 dias, não só o primeiro e o último — checar só
+        # as pontas deixava as sextas-feiras do meio sem nenhuma garantia.
+        labels = [d["day_label"] for d in body["days"]]
+        assert labels == ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+        # day_of_week e split_day_name fazem parte do contrato de resposta que
+        # o frontend consome — nunca eram acessados por chave em nenhum teste.
+        assert [d["day_of_week"] for d in body["days"]] == list(range(7))
+        assert body["days"][0]["split_day_name"] == "Push"
+
+    def test_escala_padrao_cria_exatamente_sete_linhas_no_banco_nao_oito(self, app, auth_client):
+        # A serialização sempre devolve 7 dias (ela mesma itera range(7)), o
+        # que mascararia um bug que criasse uma 8ª linha órfã no banco (nunca
+        # aparece na resposta, mas fica lá). Checa a origem, não só a saída.
+        from app.models import WeeklyPlanDay, WeeklyPlan
+
+        split_id, _ = _seed_split(app)
+        auth_client.post("/api/workouts/weekly-plan", json={"split_id": split_id})
+
+        with app.app_context():
+            plan = WeeklyPlan.query.first()
+            row_count = WeeklyPlanDay.query.filter_by(plan_id=plan.id).count()
+        assert row_count == 7
 
     def test_divisao_inexistente_devolve_404(self, auth_client):
         response = auth_client.post("/api/workouts/weekly-plan", json={"split_id": 99999})
@@ -187,10 +209,20 @@ class TestDeleteWeeklyPlan:
 
 
 class TestSugestaoDeDescansoPorObjetivo:
+    """Compara com o texto EXATO de `REST_SUGGESTIONS` (importado do próprio
+    serviço), não um `in` de uma palavra-chave qualquer — um `in` deixa
+    passar batido qualquer mutação que só corte um pedaço do texto sem tocar
+    a palavra-chave verificada (foi exatamente o que sobreviveu ao mutation
+    testing com a versão anterior deste teste, baseada em `in`)."""
+
+    def _goal_types_esperados(self):
+        from app.services.weekly_plan_service import REST_SUGGESTIONS
+        return REST_SUGGESTIONS
+
     def test_sugestao_padrao_e_maintain_sem_metas_cadastradas(self, app, auth_client):
         split_id, _ = _seed_split(app)
         response = auth_client.post("/api/workouts/weekly-plan", json={"split_id": split_id})
-        assert "sono e alimentação" not in response.get_json()["active_rest_suggestion"]
+        assert response.get_json()["active_rest_suggestion"] == self._goal_types_esperados()["maintain"]
 
     def test_sugestao_muda_conforme_goal_type_do_usuario(self, app, auth_client, registered_user):
         split_id, _ = _seed_split(app)
@@ -202,7 +234,7 @@ class TestSugestaoDeDescansoPorObjetivo:
             db.session.commit()
 
         response = auth_client.post("/api/workouts/weekly-plan", json={"split_id": split_id})
-        assert "recuperação muscular" in response.get_json()["active_rest_suggestion"]
+        assert response.get_json()["active_rest_suggestion"] == self._goal_types_esperados()["gain"]
 
     def test_sugestao_para_goal_type_lose(self, app, auth_client, registered_user):
         split_id, _ = _seed_split(app)
@@ -214,7 +246,7 @@ class TestSugestaoDeDescansoPorObjetivo:
             db.session.commit()
 
         response = auth_client.post("/api/workouts/weekly-plan", json={"split_id": split_id})
-        assert "déficit calórico" in response.get_json()["active_rest_suggestion"]
+        assert response.get_json()["active_rest_suggestion"] == self._goal_types_esperados()["lose"]
 
     def test_sugestao_para_goal_type_maintain_explicito(self, app, auth_client, registered_user):
         split_id, _ = _seed_split(app)
@@ -226,4 +258,4 @@ class TestSugestaoDeDescansoPorObjetivo:
             db.session.commit()
 
         response = auth_client.post("/api/workouts/weekly-plan", json={"split_id": split_id})
-        assert "sem sobrecarregar" in response.get_json()["active_rest_suggestion"]
+        assert response.get_json()["active_rest_suggestion"] == self._goal_types_esperados()["maintain"]

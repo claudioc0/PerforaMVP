@@ -38,6 +38,22 @@ class TestCreateAndListWorkouts:
         response = auth_client.post("/api/workouts", json={})
         assert response.status_code == 201
 
+    def test_cria_treino_associado_a_um_dia_da_divisao_persiste_split_day_id(self, app, auth_client):
+        with app.app_context():
+            from app.extensions import db
+            from app.models import WorkoutSplit, SplitDay
+            split = WorkoutSplit(name="Divisão Teste")
+            db.session.add(split)
+            db.session.flush()
+            day = SplitDay(split_id=split.id, name="Push", order=0)
+            db.session.add(day)
+            db.session.commit()
+            split_day_id = day.id
+
+        response = auth_client.post("/api/workouts", json={"name": "Treino", "split_day_id": split_day_id})
+        assert response.status_code == 201
+        assert response.get_json()["split_day_id"] == split_day_id
+
     def test_lista_treinos_do_usuario_mais_recente_primeiro(self, auth_client):
         auth_client.post("/api/workouts", json={"name": "Treino 1"})
         auth_client.post("/api/workouts", json={"name": "Treino 2"})
@@ -93,12 +109,23 @@ class TestUpdateWorkout:
         body = response.get_json()
         assert body["name"] == "Renomeado"
         assert body["notes"] == "Boa sessão"
+        # Renomear/anotar um treino em andamento não pode finalizá-lo de
+        # tabela — um mutation test achou que trocar o "and" por "or" na
+        # condição de finalizar passava batido por todos os testes daqui,
+        # porque nenhum checava que um update comum deixa finished_at intacto.
+        assert body["finished_at"] is None
 
     def test_finished_marca_finished_at(self, auth_client):
         workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
         response = auth_client.put(f"/api/workouts/{workout_id}", json={"finished": True})
         assert response.status_code == 200
         assert response.get_json()["finished_at"] is not None
+
+    def test_finished_false_nao_finaliza_um_treino_em_andamento(self, auth_client):
+        workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
+        response = auth_client.put(f"/api/workouts/{workout_id}", json={"name": "x", "finished": False})
+        assert response.status_code == 200
+        assert response.get_json()["finished_at"] is None
 
     def test_sem_dados_devolve_400(self, auth_client):
         workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
@@ -140,6 +167,17 @@ class TestSets:
         assert first.get_json()["set_number"] == 1
         assert second.get_json()["set_number"] == 2
 
+    def test_add_set_sem_weight_kg_nem_reps_usa_zero_como_padrao(self, app, auth_client):
+        exercise_id = _seed_exercise(app)
+        workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
+
+        response = auth_client.post(
+            f"/api/workouts/{workout_id}/sets", json={"exercise_id": exercise_id}
+        )
+        assert response.status_code == 201
+        assert response.get_json()["weight_kg"] == 0
+        assert response.get_json()["reps"] == 0
+
     def test_add_set_sem_exercise_id_devolve_400(self, auth_client):
         workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
         response = auth_client.post(f"/api/workouts/{workout_id}/sets", json={"weight_kg": 40})
@@ -166,6 +204,37 @@ class TestSets:
         assert response.status_code == 200
         assert response.get_json()["weight_kg"] == 45
         assert response.get_json()["reps"] == 8
+
+    def test_update_set_com_rest_seconds_grava_o_valor(self, app, auth_client):
+        exercise_id = _seed_exercise(app)
+        workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
+        set_id = auth_client.post(
+            f"/api/workouts/{workout_id}/sets", json={"exercise_id": exercise_id, "weight_kg": 40, "reps": 12}
+        ).get_json()["id"]
+
+        response = auth_client.put(
+            f"/api/workouts/{workout_id}/sets/{set_id}", json={"rest_seconds": 90}
+        )
+        assert response.status_code == 200
+        assert response.get_json()["rest_seconds"] == 90
+
+    def test_update_set_sem_rest_seconds_no_payload_preserva_o_valor_anterior(self, app, auth_client):
+        # "rest_seconds" ausente do payload é diferente de "rest_seconds": null
+        # — só o segundo deve apagar o valor. Um `in data` trocado por `not in`
+        # (ou pela chave errada) faria os dois casos se comportarem igual sem
+        # que nenhum teste percebesse.
+        exercise_id = _seed_exercise(app)
+        workout_id = auth_client.post("/api/workouts", json={"name": "Treino"}).get_json()["id"]
+        set_id = auth_client.post(
+            f"/api/workouts/{workout_id}/sets",
+            json={"exercise_id": exercise_id, "weight_kg": 40, "reps": 12, "rest_seconds": 60},
+        ).get_json()["id"]
+
+        response = auth_client.put(
+            f"/api/workouts/{workout_id}/sets/{set_id}", json={"weight_kg": 41}
+        )
+        assert response.status_code == 200
+        assert response.get_json()["rest_seconds"] == 60
 
     def test_update_set_de_outro_usuario_devolve_404(self, app, auth_client, second_auth_client):
         exercise_id = _seed_exercise(app)
@@ -203,10 +272,16 @@ class TestSets:
 
 class TestExerciseHistoryAndProgress:
     def test_historico_agrupa_series_por_treino_mais_recente_primeiro(self, app, auth_client):
-        exercise_id = _seed_exercise(app)
+        exercise_id = _seed_exercise(app, name="Supino Reto")
+        # Um segundo exercício "decoy" no MESMO treino que o alvo — se o join
+        # ou o filtro por exercise_id tivesse o operador errado (ex: != em vez
+        # de ==), essa série vazaria pro histórico do Supino sem que um
+        # cenário de exercício único percebesse.
+        other_exercise_id = _seed_exercise(app, name="Agachamento", muscle_group="pernas")
 
         workout1 = auth_client.post("/api/workouts", json={"name": "Treino 1"}).get_json()["id"]
         auth_client.post(f"/api/workouts/{workout1}/sets", json={"exercise_id": exercise_id, "weight_kg": 40, "reps": 10})
+        auth_client.post(f"/api/workouts/{workout1}/sets", json={"exercise_id": other_exercise_id, "weight_kg": 999, "reps": 999})
 
         workout2 = auth_client.post("/api/workouts", json={"name": "Treino 2"}).get_json()["id"]
         auth_client.post(f"/api/workouts/{workout2}/sets", json={"exercise_id": exercise_id, "weight_kg": 45, "reps": 8})
@@ -215,7 +290,16 @@ class TestExerciseHistoryAndProgress:
         assert response.status_code == 200
         history = response.get_json()
         assert len(history) == 2
+
+        # Conteúdo exato das séries de CADA treino, não só a contagem/ordem —
+        # um join com a condição trocada (workout_id == vs != Workout.id, ou
+        # exercise_id == vs != exercise_id) ainda podia devolver 2 entradas
+        # com o workout_id certo, só que com as séries do treino/exercício
+        # errado dentro. É esse detalhe que os testes anteriores não pegavam.
         assert history[0]["workout_id"] == workout2
+        assert history[0]["sets"] == [{"set_number": 1, "weight_kg": 45, "reps": 8}]
+        assert history[1]["workout_id"] == workout1
+        assert history[1]["sets"] == [{"set_number": 1, "weight_kg": 40, "reps": 10}]
 
     def test_historico_respeita_limit(self, app, auth_client):
         exercise_id = _seed_exercise(app)
