@@ -13,3 +13,9 @@ instance/
 
 # Fotos de progresso enviadas pelos usuários (conteúdo, não código)
 uploads/
+
+# Artefatos de coverage/mutation testing (gerados localmente, ver README)
+.coverage
+htmlcov/
+.mutmut-cache
+mutmut_run*.log

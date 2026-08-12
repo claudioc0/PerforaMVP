@@ -4,6 +4,9 @@ dist/
 npm-debug.log*
 .env
 
+# Relatório de coverage do jest (gerado por `jest --coverage`)
+coverage/
+
 # Gerado por `expo prebuild` / `expo run:android` — regenerável, não versionar
 /android
 /ios

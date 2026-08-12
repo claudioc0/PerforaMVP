@@ -78,3 +78,24 @@ def auth_client(client, auth_headers):
     controlar os headers manualmente (ex: testar sem token, ou com um token
     inválido de propósito)."""
     return _AuthenticatedClient(client, auth_headers)
+
+
+@pytest.fixture
+def second_auth_client(client):
+    """Um segundo usuário autenticado, isolado do usuário de `auth_client` —
+    para testes de isolamento por dono (IDOR: 404, não 403, ao tentar acessar
+    dado de outro usuário). Cada chamada usa um e-mail aleatório, então não
+    colide entre testes nem com `registered_user`."""
+    import uuid
+
+    creds = {
+        "name": "Segundo Usuário",
+        "email": f"segundo-{uuid.uuid4().hex[:10]}@example.com",
+        "password": "OutraSenhaForte1",
+    }
+    response = client.post("/api/auth/register", json=creds)
+    assert response.status_code == 201
+    login = client.post("/api/auth/login", json={"email": creds["email"], "password": creds["password"]})
+    assert login.status_code == 200
+    headers = {"Authorization": f"Bearer {login.get_json()['token']}"}
+    return _AuthenticatedClient(client, headers)
