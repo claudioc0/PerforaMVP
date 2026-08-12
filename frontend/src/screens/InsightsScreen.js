@@ -9,6 +9,7 @@ import BackButton from '../components/BackButton';
 import { useAppAlert } from '../components/AppAlertProvider';
 import { useUserGoals } from '../contexts/UserContext';
 import { formatShortDate } from '../utils/formatDate';
+import { getLocalDateString, parseLocalDateString } from '../utils/dates';
 import { useTheme } from '../theme/ThemeContext';
 import { registerNamespace } from '../i18n';
 import { ROUTES } from '../navigation/routes';
@@ -18,27 +19,6 @@ import en from '../i18n/locales/en/insights.json';
 import es from '../i18n/locales/es/insights.json';
 
 registerNamespace('insights', { pt, en, es });
-
-// A janela de 7 dias do resumo semanal é ancorada em "hoje" no fuso LOCAL do
-// aparelho, não em toISOString() (que converte pra UTC): perto da meia-noite
-// no horário de Brasília (UTC-3), toISOString() já estaria no dia seguinte.
-function getLocalDateString(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-// Inverso de getLocalDateString: um "YYYY-MM-DD" puro (sem horário/offset,
-// como o log.date do WeightLog) passado direto pro construtor `new Date()`
-// é interpretado como meia-noite UTC — perto da meia-noite no horário de
-// Brasília (UTC-3) isso já exibia o dia anterior ("1 de ago." num registro
-// feito às 22h do dia 2). Construir a partir de ano/mês/dia mantém a data
-// no fuso local do aparelho, sem conversão nenhuma.
-function parseLocalDateString(dateStr) {
-  const [year, month, day] = dateStr.split('-').map(Number);
-  return new Date(year, month - 1, day);
-}
 
 // --- Componente de Gráfico de Barras Customizado ---
 // `styles`/`colors` vêm do componente pai (useTheme() já resolvido lá).
